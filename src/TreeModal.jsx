@@ -233,9 +233,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           images: d.images || [],
           thumbnails: d.thumbnails || [],
           partial_treatment: d.partial_treatment || false,
-          powerJ: (parseInt(d.power) || 0),
-          balanceJ: (parseInt(d.balance) || 0),
-          bugsJ: (parseInt(d.bugs) || 0),
+          powerJ: d.power != null && d.power !== '' ? parseInt(d.power) : null,
+          balanceJ: d.balance != null && d.balance !== '' ? parseInt(d.balance) : null,
+          bugsJ: d.bugs != null && d.bugs !== '' ? parseInt(d.bugs) : null,
         }));
         setHistory(formattedData);
       }
@@ -473,9 +473,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                <Line type="basis" dataKey="powerJ" stroke="green" strokeWidth={2} dot={{ r: 4, fill: 'green' }} name="세력" isAnimationActive={false} />
-                <Line type="basis" dataKey="balanceJ" stroke="blue" strokeWidth={2} dot={{ r: 4, fill: 'blue' }} name="균형" isAnimationActive={false} />
-                <Line type="basis" dataKey="bugsJ" stroke="red" strokeWidth={2} dot={{ r: 4, fill: 'red' }} name="해충" isAnimationActive={false} />
+                <Line type="basis" dataKey="powerJ" stroke="green" strokeWidth={2} dot={{ r: 4, fill: 'green' }} name="세력" isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="balanceJ" stroke="blue" strokeWidth={2} dot={{ r: 4, fill: 'blue' }} name="균형" isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="bugsJ" stroke="red" strokeWidth={2} dot={{ r: 4, fill: 'red' }} name="해충" isAnimationActive={false} connectNulls={true} />
               </LineChart>
             </ResponsiveContainer>
           </div>
