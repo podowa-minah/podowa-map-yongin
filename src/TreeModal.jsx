@@ -82,6 +82,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
     power: '',
     balance: '',
     bugs: '',
+    partial_treatment: false,
     images: [],
     comments: '',
     season_data: {},
@@ -117,6 +118,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         power: data.power || '',
         balance: data.balance || '',
         bugs: data.bugs !== null && data.bugs !== undefined ? String(data.bugs) : '',
+        partial_treatment: data.partial_treatment || false,
         images: data.images || [],
         comments: data.comments || '',
         season_data: data.season_data || {},
@@ -129,6 +131,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         power: '',
         balance: '',
         bugs: '',
+        partial_treatment: false,
         images: [],
         comments: '',
         season_data: {},
@@ -160,6 +163,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           comments: d.comments || '',
           producer: d.producer || '',
           images: d.images || [],
+          partial_treatment: d.partial_treatment || false,
           powerJ: (parseInt(d.power) || 0),
           balanceJ: (parseInt(d.balance) || 0),
           bugsJ: (parseInt(d.bugs) || 0),
@@ -261,6 +265,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
       power: treeData.power,
       balance: treeData.balance,
       bugs: treeData.bugs === '' ? null : Number(treeData.bugs),
+      partial_treatment: treeData.partial_treatment,
       images: treeData.images,
       comments: treeData.comments,
       season_data: treeData.season_data,
@@ -354,6 +359,15 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     </div>
                   )}
                 />
+                {history.filter(h => h.partial_treatment).map((h) => (
+                  <ReferenceLine
+                    key={`pt-${h.date}`}
+                    x={h.date}
+                    stroke="#e91e63"
+                    strokeDasharray="2 2"
+                    strokeWidth={2}
+                  />
+                ))}
                 <Line type="basis" dataKey="powerJ" stroke="green" strokeWidth={2} dot={{ r: 4, fill: 'green' }} name="세력" isAnimationActive={false} />
                 <Line type="basis" dataKey="balanceJ" stroke="blue" strokeWidth={2} dot={{ r: 4, fill: 'blue' }} name="균형" isAnimationActive={false} />
                 <Line type="basis" dataKey="bugsJ" stroke="red" strokeWidth={2} dot={{ r: 4, fill: 'red' }} name="해충" isAnimationActive={false} />
@@ -475,6 +489,41 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             {BUG_OPTIONS.map((num) => (
               <button key={num} onClick={() => handleChange('bugs', String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
             ))}
+          </div>
+        </div>
+
+        {/* 6.5 부분방제 */}
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label>부분방제:</label>
+          <div style={{ marginLeft: '0.5rem', display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
+            <button
+              onClick={() => handleChange('partial_treatment', true)}
+              style={{
+                padding: '0.7rem 1.5rem',
+                fontSize: '1.1rem',
+                border: treeData.partial_treatment === true ? '2px solid #e91e63' : '2px solid #ccc',
+                borderRadius: '0.5rem',
+                backgroundColor: treeData.partial_treatment === true ? '#fce4ec' : '#fff',
+                color: treeData.partial_treatment === true ? '#e91e63' : '#333',
+                fontWeight: treeData.partial_treatment === true ? 'bold' : 'normal',
+                cursor: 'pointer',
+              }}
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => handleChange('partial_treatment', false)}
+              style={{
+                padding: '0.7rem 1.5rem',
+                fontSize: '1.1rem',
+                border: treeData.partial_treatment === false ? '2px solid blue' : '2px solid #ccc',
+                borderRadius: '0.5rem',
+                backgroundColor: treeData.partial_treatment === false ? '#e0f0ff' : '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              No
+            </button>
           </div>
         </div>
 
