@@ -112,13 +112,27 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
   const { labels, upsert } = useLabels();
   const [editId, setEditId] = useState(null);
 
+  const gridW = cols * cellW + (cols - 1) * gapX;
+  const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
+
   // transform 적용 (React state 안 씀 → 렉 없음)
   const applyTransform = useCallback(() => {
-    if (!gridRef.current) return;
+    if (!gridRef.current || !containerRef.current) return;
     const s = scaleRef.current;
     const p = posRef.current;
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    const scaledW = gridW * s;
+    const scaledH = gridH * s;
+
+    // 지도가 화면 밖으로 완전히 사라지지 않게 제한
+    const margin = 50; // 최소 50px은 보이게
+    p.x = Math.max(-scaledW + margin, Math.min(cw - margin, p.x));
+    p.y = Math.max(-scaledH + margin, Math.min(ch - margin, p.y));
+    posRef.current = p;
+
     gridRef.current.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
-  }, []);
+  }, [gridW, gridH]);
 
   // 데스크탑 초기 스케일
   useEffect(() => {
@@ -302,8 +316,6 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
     const stripW = 3 * iconSize + 2 * iconGap;
     return (cellW - stripW) / 2 + i * (iconSize + iconGap);
   };
-
-  const gridW = cols * cellW + (cols - 1) * gapX;
 
   return (
     <div

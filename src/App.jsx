@@ -107,7 +107,7 @@ export default function App() {
           <div className="header-bar-inner">
             <div className="header-title">
               <h1>Podowa App</h1>
-              <span className="version">v0.1.0</span>
+              <span className="version">v1.0.0</span>
             </div>
             <button
               className="header-toggle-btn"
