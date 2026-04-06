@@ -270,7 +270,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
-          gridTemplateRows: `repeat(${rows}, ${cellH}px)`,
+          gridTemplateRows: `repeat(${rows}, ${cellH + 10}px)`,
           columnGap: gapX,
           rowGap: gapY,
           transformOrigin: "0 0",
@@ -309,11 +309,13 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
               key={id}
               style={{
                 width: cellW,
-                height: cellH,
+                height: cellH + 10,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
+                border: "1px solid #000000",
+                boxSizing: "border-box",
               }}
             >
               {/* 아이콘 영역 */}
@@ -357,7 +359,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
               <div
                 onClick={() => handleLabelClick(id)}
                 style={{
-                  width: cellW,
+                  width: "100%",
                   height: 10,
                   backgroundColor: lbl.color || "#ffffff",
                   display: "flex",
