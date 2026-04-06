@@ -6,6 +6,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Arvo:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
     <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Podowa</title>
@@ -37,6 +40,12 @@
         <p>Loading...</p>
       </div>
     </div>
+    <script>
+      // bfcache 복원 시 옛날 화면 안 보이게
+      window.addEventListener('pageshow', function(e) {
+        if (e.persisted) location.reload();
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
