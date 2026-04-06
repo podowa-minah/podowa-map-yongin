@@ -17,6 +17,7 @@ export default function App() {
   const [selectedTree, setSelectedTree] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false); 
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function App() {
       const grouped = {};
       data.forEach((row) => { (grouped[row.id] ??= []).push(row); });
       setTreeData(grouped);
+      setDataLoading(false);
     }
 
     function subscribeRows() {
@@ -83,7 +85,7 @@ export default function App() {
     setTreeData({});
   };
 
-  if (loading) {
+  if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
