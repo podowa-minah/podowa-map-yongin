@@ -61,7 +61,9 @@ export default function App() {
                   if (copy[old.id].length === 0) delete copy[old.id];
                 }
               } else {
-                (copy[row.id] ??= []).unshift(row);
+                // 같은 id+date 기존 데이터 제거 후 새 데이터 추가
+                const existing = copy[row.id] || [];
+                copy[row.id] = [row, ...existing.filter((r) => r.date !== row.date)];
               }
               return copy;
             });
