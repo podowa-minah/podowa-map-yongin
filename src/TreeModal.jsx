@@ -96,6 +96,37 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
   const [history, setHistory] = useState([]);
   const [showTable, setShowTable] = useState(false);
   const toggleShowTable = () => setShowTable(!showTable);
+  const [sortCol, setSortCol] = useState('date');
+  const [sortAsc, setSortAsc] = useState(false); // 디폴트: 최신 먼저 (내림차순)
+
+  function handleSort(col) {
+    if (sortCol === col) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortCol(col);
+      setSortAsc(false);
+    }
+  }
+
+  function getSortedHistory() {
+    return [...history].sort((a, b) => {
+      let valA = a[sortCol];
+      let valB = b[sortCol];
+      // 숫자 비교 가능한 컬럼
+      if (['power', 'balance', 'bugs', 'season'].includes(sortCol)) {
+        valA = Number(valA) || 0;
+        valB = Number(valB) || 0;
+      }
+      // boolean (partial_treatment)
+      if (sortCol === 'partial_treatment') {
+        valA = valA ? 1 : 0;
+        valB = valB ? 1 : 0;
+      }
+      if (valA < valB) return sortAsc ? -1 : 1;
+      if (valA > valB) return sortAsc ? 1 : -1;
+      return 0;
+    });
+  }
 
   // ✅ 핵심 수정: 선택된 날짜의 기존 데이터 불러오기
   async function loadDataForDate(dateMMDDYYYY) {
@@ -620,19 +651,29 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f3f3f3' }}>
-                  <th style={cellStyle}>날짜</th>
-                  <th style={cellStyle}>생육시기</th>
-                  <th style={cellStyle}>세력</th>
-                  <th style={cellStyle}>균형</th>
-                  <th style={cellStyle}>해충</th>
-                  <th style={cellStyle}>부분방제</th>
-                  <th style={cellStyle}>코멘트</th>
-                  <th style={cellStyle}>사진</th>
-                  <th style={cellStyle}>생산자</th>
+                  {[
+                    ['date', '날짜'],
+                    ['season', '생육시기'],
+                    ['power', '세력'],
+                    ['balance', '균형'],
+                    ['bugs', '해충'],
+                    ['partial_treatment', '부분방제'],
+                    ['comments', '코멘트'],
+                    ['images', '사진'],
+                    ['producer', '생산자'],
+                  ].map(([key, label]) => (
+                    <th
+                      key={key}
+                      style={{ ...cellStyle, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                      onClick={() => handleSort(key)}
+                    >
+                      {label}{sortCol === key ? (sortAsc ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {history.map((row, idx) => (
+                {getSortedHistory().map((row, idx) => (
                   <tr
                     key={idx}
                     onClick={() => loadDataForDate(formatDateForDisplay(row.date))}  // ✅ 행 클릭 시 해당 날짜 데이터 폼에 로드
