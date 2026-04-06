@@ -11,28 +11,69 @@ import clockSVG from "./assets/icons/clock.svg";
 const daysSince = (isoDate) =>
   (Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24);
 
+function getToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getYesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function computeTriggers(records) {
   if (!records || records.length === 0) {
-    return { stale: true, treeOn: false, bugOn: false, clockOn: true };
+    return { treeOn: false, bugOn: false, bugEmphasis: false, clockOn: true };
   }
 
-  const newestDate = records[0].date;
-  const stale = daysSince(newestDate) >= 3;
+  const today = getToday();
 
+  // ★ 공통 규칙: 오늘 날짜로 저장된 기록이 있으면 → 모든 아이콘 OFF
+  const todayRecord = records.find(r => r.date === today);
+  if (todayRecord) {
+    return { treeOn: false, bugOn: false, bugEmphasis: false, clockOn: false };
+  }
+
+  // --- 나무 아이콘: 어제 세력 1,5 또는 균형 1,2 ---
+  const yesterday = getYesterday();
+  const yesterdayRecord = records.find(r => r.date === yesterday);
   let treeOn = false;
-  let bugOn = false;
-
-  for (const row of records) {
-    if (!treeOn && (["1", "2", 1, 2].includes(row.balance) ||
-                    ["1", "5", 1, 5].includes(row.power))) {
+  if (yesterdayRecord) {
+    const p = String(yesterdayRecord.power);
+    const b = String(yesterdayRecord.balance);
+    if (["1", "5"].includes(p) || ["1", "2"].includes(b)) {
       treeOn = true;
     }
-    if (!bugOn && Number(row.bugs) >= 4) bugOn = true;
-
-    if (treeOn && bugOn) break;
   }
 
-  return { stale, treeOn, bugOn, clockOn: stale };
+  // --- 벌레 아이콘: 해충점수 기준 + 입력일 후 지연 활성화 ---
+  let bugOn = false;
+  let bugEmphasis = false;
+  const bugRecord = records.find(r => r.bugs !== null && r.bugs !== undefined && r.bugs !== '');
+  if (bugRecord) {
+    const bugScore = Number(bugRecord.bugs);
+    const days = daysSince(bugRecord.date);
+    if (bugScore >= 4 && days >= 1) {
+      bugOn = true;
+      bugEmphasis = true;
+    } else if (bugScore >= 2 && bugScore <= 3 && days >= 3) {
+      bugOn = true;
+    } else if (bugScore <= 1 && days >= 4) {
+      bugOn = true;
+    }
+  }
+
+  // --- 시계 아이콘: 5일간 세력/균형 입력 없으면 활성화 ---
+  const recentWithScore = records.find(r =>
+    (r.power !== null && r.power !== undefined && r.power !== '' && r.power !== '판단불가/지켜봐야함') ||
+    (r.balance !== null && r.balance !== undefined && r.balance !== '' && r.balance !== '판단불가/지켜봐야함')
+  );
+  let clockOn = true;
+  if (recentWithScore) {
+    clockOn = daysSince(recentWithScore.date) >= 5;
+  }
+
+  return { treeOn, bugOn, bugEmphasis, clockOn };
 }
 
 export default function FarmMap({ treeData = {}, onTreeClick }) {
@@ -287,7 +328,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
           const displayId = lbl.name ? `${numericId} ${lbl.name}` : numericId;
           const isDisabled = lbl.disabled === true;
           const records = treeData[numericId] || [];
-          const { treeOn, bugOn, clockOn } = computeTriggers(records);
+          const { treeOn, bugOn, bugEmphasis, clockOn } = computeTriggers(records);
 
           if (isDisabled) {
             return (
@@ -316,8 +357,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                border: "1px solid #000000",
-                boxSizing: "border-box",
+                outline: "1.5px solid #000000",
               }}
             >
               {/* 아이콘 영역 */}
@@ -343,7 +383,13 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                   src={bugSVG}
                   width={iconSize}
                   height={iconSize}
-                  style={{ opacity: signalOn && bugOn ? 1 : 0.25 }}
+                  style={{
+                    opacity: signalOn && bugOn ? 1 : 0.25,
+                    ...(signalOn && bugOn && bugEmphasis ? {
+                      filter: "drop-shadow(0 0 2px red) drop-shadow(0 0 4px red)",
+                      transform: "scale(1.3)",
+                    } : {}),
+                  }}
                   draggable={false}
                   alt=""
                 />
