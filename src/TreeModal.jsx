@@ -625,6 +625,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                   <th style={cellStyle}>세력</th>
                   <th style={cellStyle}>균형</th>
                   <th style={cellStyle}>해충</th>
+                  <th style={cellStyle}>부분방제</th>
                   <th style={cellStyle}>코멘트</th>
                   <th style={cellStyle}>사진</th>
                   <th style={cellStyle}>생산자</th>
@@ -643,6 +644,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     <td style={cellStyle}>{row.power}</td>
                     <td style={cellStyle}>{row.balance}</td>
                     <td style={cellStyle}>{row.bugs}</td>
+                    <td style={cellStyle}>{row.partial_treatment ? '✔' : ''}</td>
                     <td style={cellStyle}>{row.comments}</td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
