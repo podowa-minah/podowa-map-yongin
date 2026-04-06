@@ -6,6 +6,35 @@ import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 
 
+// ---------- THUMB IMAGE WITH BLUR LOADING ---------- //
+function ThumbImg({ src, fullSrc, onPreview }) {
+  const [loaded, setLoaded] = React.useState(false);
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); onPreview(fullSrc); }}
+      style={{
+        width: '40px', height: '40px', borderRadius: '4px', cursor: 'zoom-in',
+        overflow: 'hidden', position: 'relative',
+        backgroundColor: '#e0e0e0',
+      }}
+    >
+      <img
+        src={src}
+        alt="기록 이미지"
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        style={{
+          width: '40px', height: '40px', objectFit: 'cover',
+          filter: loaded ? 'none' : 'blur(4px)',
+          opacity: loaded ? 1 : 0.6,
+          transition: 'filter 0.3s, opacity 0.3s',
+        }}
+      />
+    </div>
+  );
+}
+
 // ---------- HELPER FUNCTIONS ---------- //
 function parseTreeId(treeId) {
   if (treeId.startsWith('Tree-')) {
@@ -88,6 +117,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
     bugs: '',
     partial_treatment: false,
     images: [],
+    thumbnails: [],
     comments: '',
     season_data: {},
   }));
@@ -156,6 +186,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         bugs: data.bugs !== null && data.bugs !== undefined ? String(data.bugs) : '',
         partial_treatment: data.partial_treatment || false,
         images: data.images || [],
+        thumbnails: data.thumbnails || [],
         comments: data.comments || '',
         season_data: data.season_data || {},
       });
@@ -169,6 +200,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         bugs: '',
         partial_treatment: false,
         images: [],
+        thumbnails: [],
         comments: '',
         season_data: {},
       });
@@ -199,6 +231,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           comments: d.comments || '',
           producer: d.producer || '',
           images: d.images || [],
+          thumbnails: d.thumbnails || [],
           partial_treatment: d.partial_treatment || false,
           powerJ: (parseInt(d.power) || 0),
           balanceJ: (parseInt(d.balance) || 0),
@@ -257,17 +290,56 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
   }
 
   // ---------- IMAGE HANDLERS ---------- //
+  function createThumbnail(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const size = 80;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.7);
+      };
+      img.onerror = () => resolve(null);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   async function handleImageUpload() {
     if (!newImage || treeData.images.length >= 5) return;
     const fileName = `${treeId}-${Date.now()}-${newImage.name}`;
+
+    // 원본 업로드
     const { error } = await supabase.storage.from('tree-images').upload(fileName, newImage);
     if (error) {
       console.error('Error uploading image:', error.message);
       return;
     }
     const { data: urlData } = supabase.storage.from('tree-images').getPublicUrl(fileName);
+
+    // 썸네일 생성 & 업로드
+    let thumbUrl = '';
+    const thumbBlob = await createThumbnail(newImage);
+    if (thumbBlob) {
+      const thumbName = `thumb/${fileName}`;
+      const { error: thumbErr } = await supabase.storage.from('tree-images').upload(thumbName, thumbBlob);
+      if (!thumbErr) {
+        const { data: thumbData } = supabase.storage.from('tree-images').getPublicUrl(thumbName);
+        thumbUrl = thumbData?.publicUrl || '';
+      }
+    }
+
     if (urlData?.publicUrl) {
-      setTreeData((prev) => ({ ...prev, images: [...prev.images, urlData.publicUrl] }));
+      setTreeData((prev) => ({
+        ...prev,
+        images: [...prev.images, urlData.publicUrl],
+        thumbnails: [...(prev.thumbnails || []), thumbUrl],
+      }));
     }
     setNewImage(null);
   }
@@ -279,15 +351,25 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
       console.error('Could not parse file path from URL:', url);
       return;
     }
+    // 원본 삭제
     const { error } = await supabase.storage.from(bucketName).remove([filePath]);
     if (error) {
       console.error('Error deleting image:', error.message);
       return;
     }
-    setTreeData((prev) => ({
-      ...prev,
-      images: prev.images.filter((img) => img !== url),
-    }));
+    // 썸네일도 삭제 시도
+    supabase.storage.from(bucketName).remove([`thumb/${filePath}`]).catch(() => {});
+
+    setTreeData((prev) => {
+      const idx = prev.images.indexOf(url);
+      const newThumbs = [...(prev.thumbnails || [])];
+      if (idx >= 0) newThumbs.splice(idx, 1);
+      return {
+        ...prev,
+        images: prev.images.filter((img) => img !== url),
+        thumbnails: newThumbs,
+      };
+    });
   }
 
   // ---------- SAVE FUNCTION ----------
@@ -303,6 +385,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
       bugs: treeData.bugs === '' ? null : Number(treeData.bugs),
       partial_treatment: treeData.partial_treatment,
       images: treeData.images,
+      thumbnails: treeData.thumbnails || [],
       comments: treeData.comments,
       season_data: treeData.season_data,
       producer: user?.user_metadata?.nickname || user?.email || '',
@@ -615,7 +698,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: '1rem' }}>
           {treeData.images.map((url, idx) => (
             <div key={idx} style={{ position: 'relative', margin: '0.5rem' }}>
-              <img src={url} alt="Tree" style={{ width: '80px', height: '80px', objectFit: 'cover' }} />
+              <img src={treeData.thumbnails?.[idx] || url} alt="Tree" style={{ width: '80px', height: '80px', objectFit: 'cover' }} />
               <button
                 onClick={() => handleImageDelete(url)}
                 style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'red', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer' }}
@@ -690,13 +773,10 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     <td style={cellStyle}>{row.comments}</td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
-                        <img
-                          src={row.images[0]}
-                          alt="기록 이미지"
-                          loading="lazy"
-                          decoding="async"
-                          onClick={(e) => { e.stopPropagation(); setPreviewImg(row.images[0]); }}
-                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'zoom-in' }}
+                        <ThumbImg
+                          src={row.thumbnails?.[0] || row.images[0]}
+                          fullSrc={row.images[0]}
+                          onPreview={(url) => { setPreviewImg(url); }}
                         />
                       ) : '-'}
                     </td>

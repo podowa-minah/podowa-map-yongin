@@ -137,6 +137,7 @@ export default function ExportButton() {
         const lbl = labelMap[`Tree-${row.id}`] || {};
         const seasonChecks = formatSeasonData(row.season_data, row.season);
         const imageUrl = row.images && row.images.length > 0 ? row.images[0] : '';
+        const thumbUrl = row.thumbnails && row.thumbnails.length > 0 ? row.thumbnails[0] : '';
 
         const rowData = [
           row.id,
@@ -165,10 +166,10 @@ export default function ExportButton() {
           urlCell.font = { color: { argb: 'FF0066CC' }, underline: true };
         }
 
-        // 사진 썸네일 삽입
+        // 사진 썸네일 삽입 (썸네일 URL 있으면 그걸 사용, 없으면 원본에서 리사이즈)
         if (imageUrl) {
           try {
-            const imgBuffer = await fetchImageAsBase64(imageUrl);
+            const imgBuffer = await fetchImageAsBase64(thumbUrl || imageUrl);
             if (imgBuffer) {
               const imageId = wb.addImage({
                 buffer: imgBuffer,
