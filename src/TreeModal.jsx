@@ -95,6 +95,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
   const [newImage, setNewImage] = useState(null);
   const [history, setHistory] = useState([]);
   const [showTable, setShowTable] = useState(false);
+  const [previewImg, setPreviewImg] = useState(null);
   const toggleShowTable = () => setShowTable(!showTable);
   const [sortCol, setSortCol] = useState('date');
   const [sortAsc, setSortAsc] = useState(false); // 디폴트: 최신 먼저 (내림차순)
@@ -689,7 +690,14 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     <td style={cellStyle}>{row.comments}</td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
-                        <img src={row.images[0]} alt="기록 이미지" style={{ width: '50px', borderRadius: '4px' }} />
+                        <img
+                          src={row.images[0]}
+                          alt="기록 이미지"
+                          loading="lazy"
+                          decoding="async"
+                          onClick={(e) => { e.stopPropagation(); setPreviewImg(row.images[0]); }}
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'zoom-in' }}
+                        />
                       ) : '-'}
                     </td>
                     <td style={cellStyle}>{row.producer}</td>
@@ -714,6 +722,24 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           Cancel
         </button>
       </div>
+
+      {/* 사진 원본 팝업 */}
+      {previewImg && (
+        <div
+          onClick={() => setPreviewImg(null)}
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2000, cursor: 'zoom-out',
+          }}
+        >
+          <img
+            src={previewImg}
+            alt="원본 이미지"
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }}
+          />
+        </div>
+      )}
     </div>
   );
 };
