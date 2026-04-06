@@ -1,6 +1,7 @@
 // src/components/ExportButton.jsx
 import React from 'react';
 import { supabase } from '../supabaseClient';
+import { useLabels } from '../LabelContext';
 import ExcelJS from 'exceljs';
 
 const SEASON_NAMES = {
@@ -72,6 +73,7 @@ async function fetchImageAsBase64(url) {
 
 export default function ExportButton() {
   const [loading, setLoading] = React.useState(false);
+  const { labels } = useLabels();
 
   const exportToXlsx = async () => {
     setLoading(true);
@@ -80,8 +82,8 @@ export default function ExportButton() {
       const { data, error } = await supabase
         .from('trees')
         .select('*')
-        .order('id', { ascending: true })
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .order('id', { ascending: true });
 
       if (error) throw error;
       if (!data || data.length === 0) {
@@ -90,10 +92,8 @@ export default function ExportButton() {
         return;
       }
 
-      // 라벨 가져오기
-      const { data: labels } = await supabase.from('tree_labels').select('*');
-      const labelMap = {};
-      if (labels) labels.forEach(l => { labelMap[`Tree-${l.id}`] = l; });
+      // LabelContext에서 가져온 labels 사용 (key: "Tree-1-1" 형식)
+      const labelMap = labels || {};
 
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('Farm Data');
@@ -133,8 +133,8 @@ export default function ExportButton() {
       // 데이터 행 추가
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        const treeKey = `Tree-${row.id}`;
-        const lbl = labelMap[treeKey] || {};
+        // LabelContext key: "Tree-1-1", trees.id: "1-1"
+        const lbl = labelMap[`Tree-${row.id}`] || {};
         const seasonChecks = formatSeasonData(row.season_data, row.season);
         const imageUrl = row.images && row.images.length > 0 ? row.images[0] : '';
 
