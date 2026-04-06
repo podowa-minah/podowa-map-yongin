@@ -8,17 +8,29 @@ import treeSVG from "./assets/icons/tree.svg";
 import bugSVG from "./assets/icons/bug.svg";
 import clockSVG from "./assets/icons/clock.svg";
 
-const daysSince = (isoDate) =>
-  (Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24);
+const daysSince = (isoDate) => {
+  const todayKST = getToday();
+  const [ty, tm, td] = todayKST.split('-').map(Number);
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const today = new Date(ty, tm - 1, td);
+  const target = new Date(y, m - 1, d);
+  return (today - target) / (1000 * 60 * 60 * 24);
+};
+
+function toKSTDate(d) {
+  // 한국 시간(KST, UTC+9) 기준 날짜
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
 
 function getToday() {
-  return new Date().toISOString().slice(0, 10);
+  return toKSTDate(new Date());
 }
 
 function getYesterday() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
+  return toKSTDate(d);
 }
 
 function computeTriggers(records) {
