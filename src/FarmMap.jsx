@@ -293,12 +293,14 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
             return (
               <div
                 key={id}
+                onClick={() => handleLabelClick(id)}
                 style={{
                   width: cellW,
-                  height: cellH,
+                  height: cellH + 10,
                   backgroundColor: "#d3d3d3",
                   opacity: 0.5,
                   borderRadius: 2,
+                  cursor: "pointer",
                 }}
               />
             );

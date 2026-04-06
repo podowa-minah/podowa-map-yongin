@@ -2,6 +2,7 @@
 // src/TreeModal.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 
 
@@ -75,6 +76,9 @@ const SEASON_NAMES = {
 const TreeModal = ({ treeId, initialData, onClose, user }) => {
   const todayMMDDYYYY = getTodayMMDDYYYY();
   const actualTreeId = parseTreeId(treeId);
+  const { labels } = useLabels();
+  const lbl = labels[treeId] || {};
+  const displayName = lbl.name ? `${actualTreeId} ${lbl.name}` : actualTreeId;
 
   const [treeData, setTreeData] = useState(() => ({
     date: todayMMDDYYYY,
@@ -303,21 +307,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             display: 'flex', alignItems: 'center',
           }}
         >
-          {(() => {
-            const parts = treeId.split(' ');
-            const num = parts[0];
-            const label = parts.slice(1).join(' ');
-            return (
-              <>
-                <span style={{ fontSize: '1.4rem', fontWeight: 600 }}>{num}</span>
-                {label && (
-                  <span style={{ marginLeft: 8, fontSize: '1.1rem', color: '#555', fontWeight: 500 }}>
-                    {label}
-                  </span>
-                )}
-              </>
-            );
-          })()}
+          <span style={{ fontSize: '1.4rem', fontWeight: 600 }}>{displayName}</span>
         </div>
 
         {/* Chart */}
