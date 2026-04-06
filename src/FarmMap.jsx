@@ -1,18 +1,12 @@
 // src/FarmMap.jsx
-import React, { useState, useRef, useEffect } from "react";
-import {
-  Stage,
-  Layer,
-  Group,
-  Rect,
-  Text,
-  Image as KImage,
-} from "react-konva";
-
-import useIcons from "./hooks/useIcons";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useSignalLights } from "./SignalLightsContext";
 import RenamePopup from "./RenamePopup";
 import { useLabels } from "./LabelContext";
+
+import treeSVG from "./assets/icons/tree.svg";
+import bugSVG from "./assets/icons/bug.svg";
+import clockSVG from "./assets/icons/clock.svg";
 
 const daysSince = (isoDate) =>
   (Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24);
@@ -42,281 +36,353 @@ function computeTriggers(records) {
 }
 
 export default function FarmMap({ treeData = {}, onTreeClick }) {
-  const rows     = 25;
-  const cols     = 8;
-  const cellW    = 44;
-  const cellH    = 26;
-  const gapX     = 6;
-  const gapY     = 8;
+  const rows = 25;
+  const cols = 8;
+  const cellW = 44;
+  const cellH = 26;
+  const gapX = 6;
+  const gapY = 8;
   const iconSize = 12;
-  const iconGap  = 2;
+  const iconGap = 2;
 
-  const stageRef = useRef(null);
-  const lastDistRef = useRef(null);
+  const containerRef = useRef(null);
+  const gridRef = useRef(null);
   const scaleRef = useRef(1);
   const posRef = useRef({ x: 0, y: 0 });
+  const lastDistRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const pointerStartRef = useRef({ x: 0, y: 0 });
+  const wasDragRef = useRef(false);
 
-  // 헤더 높이만큼 Stage 높이 줄이기
-  const [stageHeight, setStageHeight] = useState(window.innerHeight);
-  useEffect(() => {
-    function calcHeight() {
-      const header = document.querySelector('.app-header-bar');
-      const headerH = header ? header.getBoundingClientRect().height : 50;
-      setStageHeight(window.innerHeight - headerH);
-    }
-    calcHeight();
-    window.addEventListener('resize', calcHeight);
-    return () => window.removeEventListener('resize', calcHeight);
+  const { signalOn } = useSignalLights();
+  const { labels, upsert } = useLabels();
+  const [editId, setEditId] = useState(null);
+
+  // transform 적용 (React state 안 씀 → 렉 없음)
+  const applyTransform = useCallback(() => {
+    if (!gridRef.current) return;
+    const s = scaleRef.current;
+    const p = posRef.current;
+    gridRef.current.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
   }, []);
 
-  // 데스크탑에서 초기 스케일 키우기
+  // 데스크탑 초기 스케일
   useEffect(() => {
     const isDesktop = window.innerWidth >= 1025;
     if (isDesktop) {
       const initScale = Math.min(window.innerWidth / 500, 2.5);
       scaleRef.current = initScale;
       posRef.current = { x: 20, y: 20 };
-      if (stageRef.current) {
-        stageRef.current.scale({ x: initScale, y: initScale });
-        stageRef.current.position({ x: 20, y: 20 });
-        stageRef.current.batchDraw();
-      }
     }
-  }, [stageHeight]);
+    applyTransform();
+  }, [applyTransform]);
 
-  const { tree: treeImg, bug: bugImg, clock: clockImg } = useIcons();
-  const { signalOn } = useSignalLights();
-  const { labels, upsert } = useLabels();
-  const [editId, setEditId] = useState(null);
-
-  const handleWheel = (e) => {
-    e.evt.preventDefault();
-    const stage = stageRef.current;
-    const oldScale = scaleRef.current;
-    const pointer = stage.getPointerPosition();
-    const mousePointTo = {
-      x: (pointer.x - posRef.current.x) / oldScale,
-      y: (pointer.y - posRef.current.y) / oldScale,
-    };
-    const newScale = Math.max(0.5, Math.min(4, e.evt.deltaY > 0 ? oldScale * 0.9 : oldScale * 1.1));
-    const newPos = {
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    };
-    scaleRef.current = newScale;
-    posRef.current = newPos;
-    stage.scale({ x: newScale, y: newScale });
-    stage.position(newPos);
-    stage.batchDraw();
-  };
-
-  // 핀치줌: DOM 직접 → Konva 직접 조작 (React setState 없음 = 렉 없음)
+  // 마우스 휠 줌
   useEffect(() => {
-    const container = stageRef.current?.container();
-    if (!container) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const oldScale = scaleRef.current;
+      const newScale = Math.max(0.5, Math.min(4, e.deltaY > 0 ? oldScale * 0.9 : oldScale * 1.1));
+      const oldPos = posRef.current;
+      const newPos = {
+        x: pointer.x - ((pointer.x - oldPos.x) / oldScale) * newScale,
+        y: pointer.y - ((pointer.y - oldPos.y) / oldScale) * newScale,
+      };
+      scaleRef.current = newScale;
+      posRef.current = newPos;
+      applyTransform();
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [applyTransform]);
+
+  // 터치: 드래그(1손가락) + 핀치줌(2손가락)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
     const onTouchStart = (e) => {
       if (e.touches.length === 2) {
+        // 핀치 시작
+        isDraggingRef.current = false;
         lastDistRef.current = Math.hypot(
           e.touches[1].clientX - e.touches[0].clientX,
           e.touches[1].clientY - e.touches[0].clientY
         );
+      } else if (e.touches.length === 1) {
+        // 드래그 시작
+        isDraggingRef.current = true;
+        wasDragRef.current = false;
+        dragStartRef.current = { ...posRef.current };
+        pointerStartRef.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+        };
       }
     };
 
     const onTouchMove = (e) => {
-      if (e.touches.length < 2) return;
       e.preventDefault();
-      e.stopPropagation();
 
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      if (lastDistRef.current === null) { lastDistRef.current = dist; return; }
+      if (e.touches.length === 2) {
+        // 핀치줌
+        isDraggingRef.current = false;
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        if (lastDistRef.current === null) { lastDistRef.current = dist; return; }
 
-      const ratio = dist / lastDistRef.current;
-      lastDistRef.current = dist;
+        const ratio = dist / lastDistRef.current;
+        lastDistRef.current = dist;
 
-      const stage = stageRef.current;
-      const oldScale = scaleRef.current;
-      const newScale = Math.max(0.5, Math.min(4, oldScale * ratio));
+        const rect = el.getBoundingClientRect();
+        const mid = {
+          x: (t1.clientX + t2.clientX) / 2 - rect.left,
+          y: (t1.clientY + t2.clientY) / 2 - rect.top,
+        };
+        const oldScale = scaleRef.current;
+        const newScale = Math.max(0.5, Math.min(4, oldScale * ratio));
+        const oldPos = posRef.current;
+        const newPos = {
+          x: mid.x - ((mid.x - oldPos.x) / oldScale) * newScale,
+          y: mid.y - ((mid.y - oldPos.y) / oldScale) * newScale,
+        };
 
-      const mid = {
-        x: (t1.clientX + t2.clientX) / 2 - container.getBoundingClientRect().left,
-        y: (t1.clientY + t2.clientY) / 2 - container.getBoundingClientRect().top,
-      };
-      const oldPos = posRef.current;
-      const newPos = {
-        x: mid.x - ((mid.x - oldPos.x) / oldScale) * newScale,
-        y: mid.y - ((mid.y - oldPos.y) / oldScale) * newScale,
-      };
-
-      scaleRef.current = newScale;
-      posRef.current = newPos;
-
-      // React state 없이 Konva 직접 업데이트
-      stage.scale({ x: newScale, y: newScale });
-      stage.position(newPos);
-      stage.batchDraw();
+        scaleRef.current = newScale;
+        posRef.current = newPos;
+        applyTransform();
+      } else if (e.touches.length === 1 && isDraggingRef.current) {
+        // 1손가락 드래그
+        const dx = e.touches[0].clientX - pointerStartRef.current.x;
+        const dy = e.touches[0].clientY - pointerStartRef.current.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragRef.current = true;
+        posRef.current = {
+          x: dragStartRef.current.x + dx,
+          y: dragStartRef.current.y + dy,
+        };
+        applyTransform();
+      }
     };
 
-    const onTouchEnd = () => { lastDistRef.current = null; };
+    const onTouchEnd = () => {
+      lastDistRef.current = null;
+      isDraggingRef.current = false;
+    };
 
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove', onTouchMove, { passive: false });
-    container.addEventListener('touchend', onTouchEnd);
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
     return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove', onTouchMove);
-      container.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
     };
-  }, [stageHeight]);
+  }, [applyTransform]);
 
-  const nodes = [];
+  // 마우스 드래그 (데스크탑)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const id = `Tree-${c + 1}-${r + 1}`;
-      const numericId = `${c + 1}-${r + 1}`;
-      const lbl = labels[id] || {};
-      const displayId = lbl.name ? `${numericId} ${lbl.name}` : numericId;
-      const isDisabled = lbl.disabled === true;
+    const onMouseDown = (e) => {
+      isDraggingRef.current = true;
+      wasDragRef.current = false;
+      dragStartRef.current = { ...posRef.current };
+      pointerStartRef.current = { x: e.clientX, y: e.clientY };
+    };
+    const onMouseMove = (e) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.clientX - pointerStartRef.current.x;
+      const dy = e.clientY - pointerStartRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDragRef.current = true;
+      posRef.current = {
+        x: dragStartRef.current.x + dx,
+        y: dragStartRef.current.y + dy,
+      };
+      applyTransform();
+    };
+    const onMouseUp = () => { isDraggingRef.current = false; };
 
-      // ✅ 수정: numericId("1-1")로 조회 (DB 키와 일치)
-      const records = treeData[numericId] || [];
-      const { treeOn, bugOn, clockOn } = computeTriggers(records);
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [applyTransform]);
 
-      const x = c * (cellW + gapX);
-      const y = r * (cellH + gapY);
-
-      if (isDisabled) {
-        nodes.push(
-          <Group key={id} x={x} y={y}>
-            <Rect
-              width={cellW}
-              height={cellH}
-              fill="#d3d3d3"
-              opacity={0.5}
-            />
-          </Group>
-        );
-      } else {
-        nodes.push(
-          <Group
-            key={id}
-            x={x}
-            y={y}
-            onClick={() => onTreeClick(id)}
-            onTap={() => onTreeClick(id)}
-          >
-            <Rect
-              width={cellW}
-              height={cellH}
-              fill="transparent"
-              listening={false}
-            />
-
-            <KImage
-              image={treeImg}
-              x={xCenter(cellW, iconSize, 0, iconGap)}
-              y={(cellH - iconSize) / 2}
-              width={iconSize}
-              height={iconSize}
-              opacity={signalOn && treeOn ? 1 : 0.25}
-            />
-            <KImage
-              image={bugImg}
-              x={xCenter(cellW, iconSize, 1, iconGap)}
-              y={(cellH - iconSize) / 2}
-              width={iconSize}
-              height={iconSize}
-              opacity={signalOn && bugOn ? 1 : 0.25}
-            />
-            <KImage
-              image={clockImg}
-              x={xCenter(cellW, iconSize, 2, iconGap)}
-              y={(cellH - iconSize) / 2}
-              width={iconSize}
-              height={iconSize}
-              opacity={signalOn && clockOn ? 1 : 0.25}
-            />
-          </Group>
-        );
-      }
-
-      if (!FarmMap._textSizer) {
-        const offscreenCanvas = document.createElement('canvas');
-        FarmMap._textSizer = offscreenCanvas.getContext('2d');
-      }
-      const ctx = FarmMap._textSizer;
-
-      const baseFont = 'sans-serif';
-      let fontSize = 8;
-      const minFontSize = 4;
-      const cellPadding = 2;
-
-      ctx.font = `${fontSize}px ${baseFont}`;
-      let textWidth = ctx.measureText(displayId).width;
-      while (textWidth + cellPadding * 2 > cellW && fontSize > minFontSize) {
-        fontSize--;
-        ctx.font = `${fontSize}px ${baseFont}`;
-        textWidth = ctx.measureText(displayId).width;
-      }
-
-      nodes.push(
-        <Group
-          key={`${id}-label`}
-          x={x}
-          y={y + iconSize + 8}
-          onClick={() => setEditId(id)}
-          onTap={() => setEditId(id)}
-        >
-          <Rect
-            width={cellW}
-            height={10}
-            fill={isDisabled ? '#999999' : (lbl.color || '#ffffff')}
-            listening={false}
-          />
-          <Text
-            width={cellW}
-            height={10}
-            text={displayId}
-            fontSize={fontSize}
-            fontFamily={baseFont}
-            align="center"
-            verticalAlign="middle"
-            ellipsis={true}
-            fill={isDisabled ? '#666666' : '#000000'}
-          />
-        </Group>
-      );
+  // 컨테이너 높이
+  const [containerHeight, setContainerHeight] = useState(window.innerHeight);
+  useEffect(() => {
+    function calcHeight() {
+      const header = document.querySelector(".app-header-bar");
+      const headerH = header ? header.getBoundingClientRect().height : 50;
+      setContainerHeight(window.innerHeight - headerH);
     }
-  }
+    calcHeight();
+    window.addEventListener("resize", calcHeight);
+    return () => window.removeEventListener("resize", calcHeight);
+  }, []);
 
-  const stageW = cols * (cellW + gapX);
-  const stageH = rows * (cellH + gapY);
+  // 셀 클릭 핸들러 (드래그와 구분)
+  const handleCellClick = useCallback((id) => {
+    if (wasDragRef.current) return;
+    onTreeClick(id);
+  }, [onTreeClick]);
 
+  const handleLabelClick = useCallback((id) => {
+    if (wasDragRef.current) return;
+    setEditId(id);
+  }, []);
 
+  // 아이콘 x 위치 계산
+  const xCenter = (i) => {
+    const stripW = 3 * iconSize + 2 * iconGap;
+    return (cellW - stripW) / 2 + i * (iconSize + iconGap);
+  };
+
+  const gridW = cols * cellW + (cols - 1) * gapX;
 
   return (
-    <div style={{ 
-      overflow: "hidden", 
-      width: "100%",
-      touchAction: "none"
-    }}>
-      <Stage
-        ref={stageRef}
-        width={window.innerWidth}
-        height={stageHeight}
-        draggable
-        onWheel={handleWheel}
-        onDragEnd={(e) => {
-          posRef.current = { x: e.target.x(), y: e.target.y() };
+    <div
+      ref={containerRef}
+      style={{
+        overflow: "hidden",
+        width: "100%",
+        height: containerHeight,
+        touchAction: "none",
+        userSelect: "none",
+        cursor: isDraggingRef.current ? "grabbing" : "grab",
+        position: "relative",
+      }}
+    >
+      <div
+        ref={gridRef}
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
+          gridTemplateRows: `repeat(${rows}, ${cellH}px)`,
+          columnGap: gapX,
+          rowGap: gapY,
+          transformOrigin: "0 0",
+          willChange: "transform",
+          width: gridW,
         }}
-        pixelRatio={window.devicePixelRatio}
       >
-        <Layer>{nodes}</Layer>
-      </Stage>
+        {Array.from({ length: rows * cols }, (_, idx) => {
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const id = `Tree-${c + 1}-${r + 1}`;
+          const numericId = `${c + 1}-${r + 1}`;
+          const lbl = labels[id] || {};
+          const displayId = lbl.name ? `${numericId} ${lbl.name}` : numericId;
+          const isDisabled = lbl.disabled === true;
+          const records = treeData[numericId] || [];
+          const { treeOn, bugOn, clockOn } = computeTriggers(records);
+
+          if (isDisabled) {
+            return (
+              <div
+                key={id}
+                style={{
+                  width: cellW,
+                  height: cellH,
+                  backgroundColor: "#d3d3d3",
+                  opacity: 0.5,
+                  borderRadius: 2,
+                }}
+              />
+            );
+          }
+
+          return (
+            <div
+              key={id}
+              style={{
+                width: cellW,
+                height: cellH,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                cursor: "pointer",
+              }}
+            >
+              {/* 아이콘 영역 */}
+              <div
+                onClick={() => handleCellClick(id)}
+                style={{
+                  display: "flex",
+                  gap: iconGap,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  flex: 1,
+                }}
+              >
+                <img
+                  src={treeSVG}
+                  width={iconSize}
+                  height={iconSize}
+                  style={{ opacity: signalOn && treeOn ? 1 : 0.25 }}
+                  draggable={false}
+                  alt=""
+                />
+                <img
+                  src={bugSVG}
+                  width={iconSize}
+                  height={iconSize}
+                  style={{ opacity: signalOn && bugOn ? 1 : 0.25 }}
+                  draggable={false}
+                  alt=""
+                />
+                <img
+                  src={clockSVG}
+                  width={iconSize}
+                  height={iconSize}
+                  style={{ opacity: signalOn && clockOn ? 1 : 0.25 }}
+                  draggable={false}
+                  alt=""
+                />
+              </div>
+
+              {/* 라벨 영역 */}
+              <div
+                onClick={() => handleLabelClick(id)}
+                style={{
+                  width: cellW,
+                  height: 10,
+                  backgroundColor: lbl.color || "#ffffff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: Math.max(4, Math.min(8, cellW / (displayId.length * 0.65))),
+                    fontFamily: "sans-serif",
+                    color: "#000000",
+                    whiteSpace: "nowrap",
+                    lineHeight: "10px",
+                  }}
+                >
+                  {displayId}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {editId && (
         <RenamePopup
           id={editId}
@@ -327,9 +393,4 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
       )}
     </div>
   );
-}
-
-function xCenter(cellWidth, icon, i, gap) {
-  const stripW = 3 * icon + 2 * gap;
-  return (cellWidth - stripW) / 2 + i * (icon + gap);
 }

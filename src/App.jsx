@@ -18,8 +18,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [headerOpen, setHeaderOpen] = useState(false); // ← 기본 접힘
-
+  const [headerOpen, setHeaderOpen] = useState(false); 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
