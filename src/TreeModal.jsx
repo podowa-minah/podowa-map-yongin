@@ -432,9 +432,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
               <LineChart
                 data={history.map(h => ({
                   ...h,
-                  powerJ: (h.powerJ || 0) + (Math.random() - 0.5) * 0.5,
-                  balanceJ: (h.balanceJ || 0) + (Math.random() - 0.5) * 0.5,
-                  bugsJ: (h.bugsJ || 0) + (Math.random() - 0.5) * 0.5,
+                  powerJ: h.powerJ != null ? h.powerJ + (Math.random() - 0.5) * 0.5 : null,
+                  balanceJ: h.balanceJ != null ? h.balanceJ + (Math.random() - 0.5) * 0.5 : null,
+                  bugsJ: h.bugsJ != null ? h.bugsJ + (Math.random() - 0.5) * 0.5 : null,
                 }))}
                 margin={{ top: 10, right: 20 }}
               >
