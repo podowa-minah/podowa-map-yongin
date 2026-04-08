@@ -58,7 +58,11 @@ function parseDateForSupabase(mmddyyyy) {
 }
 
 function getTodayMMDDYYYY() {
-  return formatDateForDisplay(new Date().toISOString().slice(0, 10));
+  // KST (UTC+9) 기준 오늘 날짜
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const isoDate = kst.toISOString().slice(0, 10);
+  return formatDateForDisplay(isoDate);
 }
 
 // ---------- CONFIGURATION OPTIONS ---------- //

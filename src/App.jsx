@@ -36,22 +36,22 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const loadAllRows = async () => {
+    const { data, error } = await supabase
+      .from('trees')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) { console.error('Error fetching trees:', error); return; }
+
+    const grouped = {};
+    data.forEach((row) => { (grouped[row.id] ??= []).push(row); });
+    setTreeData(grouped);
+    setDataLoading(false);
+  };
+
   useEffect(() => {
     if (!user) return;
-
-    async function loadAllRows() {
-      const { data, error } = await supabase
-        .from('trees')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) { console.error('Error fetching trees:', error); return; }
-
-      const grouped = {};
-      data.forEach((row) => { (grouped[row.id] ??= []).push(row); });
-      setTreeData(grouped);
-      setDataLoading(false);
-    }
 
     function subscribeRows() {
       return supabase
@@ -233,7 +233,7 @@ export default function App() {
         </main>
 
         {selectedTree && (
-          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => setSelectedTree(null)} />
+          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); loadAllRows(); }} />
         )}
 
         {showChangePassword && (
