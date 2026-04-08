@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import farmerSVG from '../assets/icons/farmer.svg';
 
-export default function ProgressBar({ completed, total }) {
+export default function ProgressBar({ completed, total, greenDots = 0 }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isComplete = total > 0 && completed >= total;
   const [showFanfare, setShowFanfare] = useState(false);
@@ -75,6 +75,18 @@ export default function ProgressBar({ completed, total }) {
         flexShrink: 0,
       }}>
         {isComplete ? '완료!' : `${pct}% (${completed}/${total})`}
+        {greenDots > 0 && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+            <span style={{
+              display: 'inline-block',
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              backgroundColor: '#10b981',
+            }} />
+            <span>{greenDots}</span>
+          </span>
+        )}
       </div>
 
       {/* 팡파레 효과 */}

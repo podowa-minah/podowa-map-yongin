@@ -88,19 +88,22 @@ export default function App() {
     setTreeData({});
   };
 
-  // 오늘 진행률 계산 (Hook은 조건문 전에 위치해야 함)
-  const ROWS = 25, COLS = 8;
-  const { completed, total } = useMemo(() => {
+  // 오늘 진행률 계산
+  // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
+  // 분자: 그 중 오늘 입력해서 불 끈 나무
+  // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
+  const { completed, total, greenDots } = useMemo(() => {
     const now = new Date();
-    const kst = new Date(now.getTime() + (9 * 60 - now.getTimezoneOffset()) * 60000);
-    const kstToday = `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, '0')}-${String(kst.getDate()).padStart(2, '0')}`;
+    const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const kstToday = kst.toISOString().slice(0, 10);
     const yesterday = new Date(kst.getTime() - 86400000);
-    const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    const yStr = yesterday.toISOString().slice(0, 10);
 
-    let litTrees = 0;
+    const ROWS = 25, COLS = 8;
     let doneTrees = 0;
+    let litTrees = 0;
+    let greenDotCount = 0;
 
-    // 모든 그리드 셀 순회 (disabled 제외)
     for (let c = 1; c <= COLS; c++) {
       for (let r = 1; r <= ROWS; r++) {
         const labelId = `Tree-${c}-${r}`;
@@ -109,59 +112,61 @@ export default function App() {
         if (lbl.disabled) continue;
 
         const records = treeData[numericId] || [];
-
-        // 기록 없는 나무 = 시계 켜짐 = 불 들어옴
-        if (!records || records.length === 0) {
-          litTrees++;
-          continue;
-        }
-
         const hasTodayRecord = records.some(rec => rec.date === kstToday);
-        if (hasTodayRecord) {
-          doneTrees++;
-          litTrees++;
-          continue;
-        }
+        if (hasTodayRecord) greenDotCount++;
 
-        // 불이 켜져있는지 체크
+        // 오늘 기록 제외하고 불 켜지는지 판단
+        const recsWithoutToday = records.filter(rec => rec.date !== kstToday);
         let anyLightOn = false;
 
-        // 나무 아이콘: 어제 세력 1,5 또는 균형 1,2
-        const yRec = records.find(rec => rec.date === yStr);
-        if (yRec) {
-          const p = String(yRec.power);
-          const b = String(yRec.balance);
-          if (['1', '5'].includes(p) || ['1', '2'].includes(b)) anyLightOn = true;
-        }
+        if (recsWithoutToday.length === 0) {
+          // 기록 없음 → 시계불 ON
+          anyLightOn = true;
+        } else {
+          // 나무 아이콘: 어제 세력 1,5 또는 균형 1,2
+          const yRec = recsWithoutToday.find(rec => rec.date === yStr);
+          if (yRec) {
+            const p = String(yRec.power);
+            const b = String(yRec.balance);
+            if (['1', '5'].includes(p) || ['1', '2'].includes(b)) anyLightOn = true;
+          }
 
-        // 벌레 아이콘
-        const bugRec = records.find(rec => rec.bugs != null && rec.bugs !== '');
-        if (bugRec) {
-          const bugScore = Number(bugRec.bugs);
-          const diffMs = kst.getTime() - new Date(bugRec.date + 'T00:00:00+09:00').getTime();
-          const days = Math.floor(diffMs / 86400000);
-          if ((bugScore >= 4 && days >= 1) || (bugScore >= 2 && bugScore <= 3 && days >= 3) || (bugScore <= 1 && days >= 4)) {
-            anyLightOn = true;
+          // 벌레 아이콘
+          if (!anyLightOn) {
+            const bugRec = recsWithoutToday.find(rec => rec.bugs != null && rec.bugs !== '');
+            if (bugRec) {
+              const bugScore = Number(bugRec.bugs);
+              const diffMs = kst.getTime() - new Date(bugRec.date + 'T00:00:00+09:00').getTime();
+              const days = Math.floor(diffMs / 86400000);
+              if ((bugScore >= 4 && days >= 1) || (bugScore >= 2 && bugScore <= 3 && days >= 3) || (bugScore <= 1 && days >= 4)) {
+                anyLightOn = true;
+              }
+            }
+          }
+
+          // 시계 아이콘: 5일간 세력/균형 없으면
+          if (!anyLightOn) {
+            const scoreRec = recsWithoutToday.find(rec =>
+              (rec.power != null && rec.power !== '' && rec.power !== '판단불가/지켜봐야함') ||
+              (rec.balance != null && rec.balance !== '' && rec.balance !== '판단불가/지켜봐야함')
+            );
+            if (scoreRec) {
+              const diffMs = kst.getTime() - new Date(scoreRec.date + 'T00:00:00+09:00').getTime();
+              if (Math.floor(diffMs / 86400000) >= 5) anyLightOn = true;
+            } else {
+              anyLightOn = true;
+            }
           }
         }
 
-        // 시계 아이콘: 5일간 세력/균형 없으면
-        const scoreRec = records.find(rec =>
-          (rec.power != null && rec.power !== '' && rec.power !== '판단불가/지켜봐야함') ||
-          (rec.balance != null && rec.balance !== '' && rec.balance !== '판단불가/지켜봐야함')
-        );
-        if (scoreRec) {
-          const diffMs = kst.getTime() - new Date(scoreRec.date + 'T00:00:00+09:00').getTime();
-          if (Math.floor(diffMs / 86400000) >= 5) anyLightOn = true;
-        } else {
-          anyLightOn = true;
+        if (anyLightOn) {
+          if (hasTodayRecord) doneTrees++;
+          else litTrees++;
         }
-
-        if (anyLightOn) litTrees++;
       }
     }
 
-    return { completed: doneTrees, total: litTrees };
+    return { completed: doneTrees, total: doneTrees + litTrees, greenDots: greenDotCount };
   }, [treeData, labels]);
 
   if (loading || (user && dataLoading)) {
@@ -226,14 +231,14 @@ export default function App() {
           )}
         </header>
 
-        <ProgressBar completed={completed} total={total} />
+        <ProgressBar completed={completed} total={total} greenDots={greenDots} />
 
         <main className="app-content">
           <FarmMap treeData={treeData} onTreeClick={setSelectedTree} />
         </main>
 
         {selectedTree && (
-          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); loadAllRows(); }} />
+          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); setTimeout(loadAllRows, 500); }} />
         )}
 
         {showChangePassword && (
