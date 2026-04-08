@@ -353,6 +353,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
           const isDisabled = lbl.disabled === true;
           const records = treeData[numericId] || [];
           const { treeOn, bugOn, bugEmphasis, clockOn } = computeTriggers(records);
+          const hasTodayInput = records.some(r => r.date === getToday());
 
           if (isDisabled) {
             return (
@@ -440,6 +441,13 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                   overflow: "hidden",
                 }}
               >
+                {hasTodayInput && (
+                  <span style={{
+                    width: 4, height: 4, borderRadius: '50%',
+                    backgroundColor: '#10b981', flexShrink: 0,
+                    marginRight: 1,
+                  }} />
+                )}
                 <span
                   style={{
                     fontSize: Math.max(4, Math.min(8, cellW / (displayId.length * 0.65))),
