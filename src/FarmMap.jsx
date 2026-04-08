@@ -383,8 +383,22 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                 alignItems: "center",
                 cursor: "pointer",
                 outline: "1.5px solid #000000",
+                position: "relative",
               }}
             >
+              {/* 오늘 입력 표시 - 우측상단 초록 점 */}
+              {hasTodayInput && (
+                <span style={{
+                  position: 'absolute',
+                  top: 1,
+                  right: 1,
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  zIndex: 1,
+                }} />
+              )}
               {/* 아이콘 영역 */}
               <div
                 onClick={() => handleCellClick(id)}
@@ -441,13 +455,6 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                   overflow: "hidden",
                 }}
               >
-                {hasTodayInput && (
-                  <span style={{
-                    width: 4, height: 4, borderRadius: '50%',
-                    backgroundColor: '#10b981', flexShrink: 0,
-                    marginRight: 1,
-                  }} />
-                )}
                 <span
                   style={{
                     fontSize: Math.max(4, Math.min(8, cellW / (displayId.length * 0.65))),
