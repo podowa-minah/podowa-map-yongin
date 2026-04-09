@@ -26,11 +26,11 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
       gap: '8px',
     }}>
       {/* 바 + 농부 (왼쪽, 넓게) */}
-      <div style={{ position: 'relative', height: '32px', flex: 1, marginLeft: '6px' }}>
+      <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px' }}>
         {/* 배경 바 */}
         <div style={{
           position: 'absolute',
-          top: '18px',
+          top: '22px',
           left: 0,
           right: 0,
           height: '10px',
@@ -42,9 +42,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           <div style={{
             height: '100%',
             width: `${pct}%`,
-            background: isComplete
-              ? 'linear-gradient(90deg, #10b981, #34d399)'
-              : 'linear-gradient(90deg, #667eea, #764ba2)',
+            background: 'linear-gradient(90deg, #667eea, #764ba2)',
             borderRadius: '5px',
             transition: 'width 0.5s ease',
           }} />
@@ -56,10 +54,10 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           alt="farmer"
           style={{
             position: 'absolute',
-            left: `clamp(-14px, calc(${pct}% - 14px), calc(100% - 28px))`,
+            left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 34px))`,
             top: '-2px',
-            width: '28px',
-            height: '32px',
+            width: '34px',
+            height: '38px',
             transition: 'left 0.5s ease',
             filter: isComplete ? 'drop-shadow(0 0 4px gold)' : 'none',
           }}
@@ -70,11 +68,11 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
       <div style={{
         fontSize: '0.75rem',
         fontWeight: 600,
-        color: isComplete ? '#10b981' : '#4a5568',
+        color: '#4a5568',
         whiteSpace: 'nowrap',
         flexShrink: 0,
       }}>
-        {isComplete ? '완료!' : `${pct}% (${completed}/${total})`}
+        {`${pct}% (${completed}/${total})`}
         {greenDots > 0 && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
             <span style={{
