@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import farmerSVG from '../assets/icons/farmer.svg';
+import farmerRestSVG from '../assets/icons/farmer_rest.svg';
 
-export default function ProgressBar({ completed, total, greenDots = 0 }) {
+export default function ProgressBar({ completed, total, greenDots = 0, treeData = {} }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isComplete = total > 0 && completed >= total;
   const [showFanfare, setShowFanfare] = useState(false);
+  const [showLog, setShowLog] = useState(false);
 
   useEffect(() => {
     if (isComplete) {
@@ -14,6 +16,26 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
       return () => clearTimeout(timer);
     }
   }, [isComplete]);
+
+  // 오늘 작업자별 나무 수 계산
+  const workerStats = useMemo(() => {
+    const now = new Date();
+    const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const kstToday = kst.toISOString().slice(0, 10);
+    const counts = {};
+
+    Object.values(treeData).forEach(records => {
+      records.forEach(rec => {
+        if (rec.date === kstToday && rec.producer) {
+          counts[rec.producer] = (counts[rec.producer] || 0) + 1;
+        }
+      });
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+  }, [treeData]);
 
   if (total === 0) return null;
 
@@ -25,6 +47,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
+      position: 'relative',
     }}>
       {/* 바 + 농부 (왼쪽, 넓게) */}
       <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
@@ -53,6 +76,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
         <img
           src={farmerSVG}
           alt="farmer"
+          onClick={() => setShowLog(v => !v)}
           style={{
             position: 'absolute',
             left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 22px))`,
@@ -62,6 +86,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
             transition: 'left 0.5s ease',
             filter: isComplete ? 'drop-shadow(0 0 4px gold)' : 'none',
             zIndex: 1,
+            cursor: 'pointer',
           }}
         />
       </div>
@@ -97,6 +122,81 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           {`${pct}% (${completed}/${total})`}
         </span>
       </div>
+
+      {/* 오늘의 작업일지 팝업 */}
+      {showLog && ReactDOM.createPortal(
+        <div
+          onClick={() => setShowLog(false)}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.3)',
+            zIndex: 10000,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              padding: '20px',
+              minWidth: '260px',
+              maxWidth: '340px',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+              position: 'relative',
+            }}
+          >
+            {/* 닫기 버튼 */}
+            <button
+              onClick={() => setShowLog(false)}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '12px',
+                background: 'none',
+                border: 'none',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                color: '#888',
+              }}
+            >✕</button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <img src={farmerRestSVG} alt="resting farmer" style={{ width: '40px', height: '28px' }} />
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748' }}>오늘의 작업일지</span>
+            </div>
+
+            {workerStats.length === 0 ? (
+              <div style={{ fontSize: '0.9rem', color: '#888' }}>아직 오늘 기록이 없습니다.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {workerStats.map(({ name, count }) => (
+                  <div key={name} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: '#f7fafc',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                  }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#4a5568' }}>{name}</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#667eea' }}>{count}그루</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: '14px', fontSize: '0.8rem', color: '#a0aec0', textAlign: 'center' }}>
+              총 {workerStats.reduce((s, w) => s + w.count, 0)}그루 완료
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* 팡파레 효과 — portal로 body에 렌더 */}
       {showFanfare && ReactDOM.createPortal(
