@@ -126,7 +126,6 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
     season_data: {},
   }));
 
-  const [newImage, setNewImage] = useState(null);
   const [history, setHistory] = useState([]);
   const [showTable, setShowTable] = useState(false);
   const [previewImg, setPreviewImg] = useState(null);
@@ -314,21 +313,25 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
     });
   }
 
-  async function handleImageUpload() {
-    if (!newImage || treeData.images.length >= 5) return;
-    const fileName = `${treeId}-${Date.now()}-${newImage.name}`;
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImageUploadDirect(file) {
+    if (!file || treeData.images.length >= 5) return;
+    setUploading(true);
+    const fileName = `${treeId}-${Date.now()}-${file.name}`;
 
     // 원본 업로드
-    const { error } = await supabase.storage.from('tree-images').upload(fileName, newImage);
+    const { error } = await supabase.storage.from('tree-images').upload(fileName, file);
     if (error) {
       console.error('Error uploading image:', error.message);
+      setUploading(false);
       return;
     }
     const { data: urlData } = supabase.storage.from('tree-images').getPublicUrl(fileName);
 
     // 썸네일 생성 & 업로드
     let thumbUrl = '';
-    const thumbBlob = await createThumbnail(newImage);
+    const thumbBlob = await createThumbnail(file);
     if (thumbBlob) {
       const thumbName = `thumb/${fileName}`;
       const { error: thumbErr } = await supabase.storage.from('tree-images').upload(thumbName, thumbBlob);
@@ -345,7 +348,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         thumbnails: [...(prev.thumbnails || []), thumbUrl],
       }));
     }
-    setNewImage(null);
+    setUploading(false);
   }
 
   async function handleImageDelete(url) {
@@ -501,7 +504,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           <label>생육시기:</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
             {SEASONS.map((s) => (
-              <button key={s} onClick={() => handleChange('season', String(s))} style={buttonStyle(treeData.season === String(s))}>
+              <button key={s} onClick={() => handleChange('season', treeData.season === String(s) ? '' : String(s))} style={buttonStyle(treeData.season === String(s))}>
                 {SEASON_NAMES[s] || `Season ${s}`}
               </button>
             ))}
@@ -558,6 +561,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                             type="radio"
                             name={`quality_${q}`}
                             checked={currentScore === score}
+                            onClick={() => { if (currentScore === score) handleLikertChange(7, q, ''); }}
                             onChange={() => handleLikertChange(7, q, score)}
                             style={{ width: '1.5rem', height: '1.5rem' }}
                           />
@@ -576,7 +580,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           <label>나무의 세력:</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
             {POWER_OPTIONS.map((p) => (
-              <button key={p} onClick={() => handleChange('power', p)} style={buttonStyle(treeData.power === p)}>{p}</button>
+              <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
             ))}
           </div>
         </div>
@@ -586,7 +590,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           <label>나무의 균형도:</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
             {BALANCE_OPTIONS.map((b) => (
-              <button key={b} onClick={() => handleChange('balance', b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
+              <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
             ))}
           </div>
         </div>
@@ -596,7 +600,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           <label>해충관리:</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
             {BUG_OPTIONS.map((num) => (
-              <button key={num} onClick={() => handleChange('bugs', String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
+              <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
             ))}
           </div>
         </div>
@@ -643,9 +647,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: treeData.images.length >= 5 ? '#ccc' : '#2196f3',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#2196f3',
               color: 'white', padding: '0.5rem 1rem', borderRadius: '0.3rem',
-              cursor: treeData.images.length >= 5 ? 'not-allowed' : 'pointer',
+              cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
               fontSize: '0.95rem',
             }}>
               📷 촬영
@@ -653,8 +657,8 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                 type="file"
                 accept="image/*"
                 capture="environment"
-                onChange={(e) => { if (e.target.files[0]) { setNewImage(e.target.files[0]); } }}
-                disabled={treeData.images.length >= 5}
+                onChange={(e) => { if (e.target.files[0]) { handleImageUploadDirect(e.target.files[0]); e.target.value = ''; } }}
+                disabled={treeData.images.length >= 5 || uploading}
                 style={{ display: 'none' }}
               />
             </label>
@@ -662,40 +666,23 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             {/* 🖼 갤러리에서 선택 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: treeData.images.length >= 5 ? '#ccc' : '#607d8b',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#607d8b',
               color: 'white', padding: '0.5rem 1rem', borderRadius: '0.3rem',
-              cursor: treeData.images.length >= 5 ? 'not-allowed' : 'pointer',
+              cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
               fontSize: '0.95rem',
             }}>
               🖼 갤러리
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => { if (e.target.files[0]) { setNewImage(e.target.files[0]); } }}
-                disabled={treeData.images.length >= 5}
+                onChange={(e) => { if (e.target.files[0]) { handleImageUploadDirect(e.target.files[0]); e.target.value = ''; } }}
+                disabled={treeData.images.length >= 5 || uploading}
                 style={{ display: 'none' }}
               />
             </label>
 
-            {/* 선택된 파일명 + 업로드 버튼 */}
-            {newImage && (
-              <>
-                <span style={{ fontSize: '0.85rem', color: '#555', alignSelf: 'center', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {newImage.name}
-                </span>
-                <button
-                  onClick={handleImageUpload}
-                  style={{ backgroundColor: 'green', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '0.3rem', cursor: 'pointer' }}
-                >
-                  ✅ 업로드
-                </button>
-                <button
-                  onClick={() => setNewImage(null)}
-                  style={{ backgroundColor: '#ccc', color: '#333', padding: '0.5rem 0.7rem', border: 'none', borderRadius: '0.3rem', cursor: 'pointer' }}
-                >
-                  ✕
-                </button>
-              </>
+            {uploading && (
+              <span style={{ fontSize: '0.85rem', color: '#555', alignSelf: 'center' }}>업로드 중...</span>
             )}
           </div>
         </div>
