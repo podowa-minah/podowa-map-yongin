@@ -41,7 +41,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           {/* 채워진 바 */}
           <div style={{
             height: '100%',
-            width: `${pct}%`,
+            width: isComplete ? 'calc(100% - 10px)' : `${pct}%`,
             background: 'linear-gradient(90deg, #667eea, #764ba2)',
             borderRadius: '5px',
             transition: 'width 0.5s ease',
@@ -54,7 +54,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           alt="farmer"
           style={{
             position: 'absolute',
-            left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 34px))`,
+            left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 22px))`,
             top: '0px',
             width: '30px',
             height: '34px',
