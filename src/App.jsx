@@ -93,7 +93,7 @@ export default function App() {
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
   // 분자: 그 중 오늘 입력해서 불 끈 나무
   // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
-  const { completed, total, greenDots } = useMemo(() => {
+  const { completed, total, greenDots, litTreeIds } = useMemo(() => {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
@@ -104,6 +104,7 @@ export default function App() {
     let doneTrees = 0;
     let litTrees = 0;
     let greenDotCount = 0;
+    const litSet = new Set();
 
     for (let c = 1; c <= COLS; c++) {
       for (let r = 1; r <= ROWS; r++) {
@@ -162,12 +163,15 @@ export default function App() {
 
         if (anyLightOn) {
           if (hasTodayRecord) doneTrees++;
-          else litTrees++;
+          else {
+            litSet.add(numericId);
+            litTrees++;
+          }
         }
       }
     }
 
-    return { completed: doneTrees, total: doneTrees + litTrees, greenDots: greenDotCount };
+    return { completed: doneTrees, total: doneTrees + litTrees, greenDots: greenDotCount, litTreeIds: litSet };
   }, [treeData, labels]);
 
   if (loading || (user && dataLoading)) {
@@ -237,7 +241,7 @@ export default function App() {
         </header>
 
         <main className="app-content">
-          <FarmMap treeData={treeData} onTreeClick={setSelectedTree} />
+          <FarmMap treeData={treeData} onTreeClick={setSelectedTree} litTreeIds={litTreeIds} />
         </main>
 
         {selectedTree && (
