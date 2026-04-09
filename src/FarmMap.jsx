@@ -138,7 +138,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
   useEffect(() => {
     const isDesktop = window.innerWidth >= 1025;
     if (isDesktop) {
-      const initScale = Math.min(window.innerWidth / 500, 2.5);
+      const initScale = Math.min(window.innerWidth / 350, 3.5);
       scaleRef.current = initScale;
       posRef.current = { x: 20, y: 20 };
     }

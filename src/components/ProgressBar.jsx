@@ -26,11 +26,11 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
       gap: '8px',
     }}>
       {/* 바 + 농부 (왼쪽, 넓게) */}
-      <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px' }}>
+      <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
         {/* 배경 바 */}
         <div style={{
           position: 'absolute',
-          top: '22px',
+          top: '24px',
           left: 0,
           right: 0,
           height: '10px',
@@ -55,11 +55,12 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           style={{
             position: 'absolute',
             left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 34px))`,
-            top: '-2px',
-            width: '34px',
-            height: '38px',
+            top: '0px',
+            width: '30px',
+            height: '34px',
             transition: 'left 0.5s ease',
             filter: isComplete ? 'drop-shadow(0 0 4px gold)' : 'none',
+            zIndex: 1,
           }}
         />
       </div>
