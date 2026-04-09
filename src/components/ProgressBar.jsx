@@ -191,7 +191,7 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
             )}
 
             <div style={{ marginTop: '14px', fontSize: '0.8rem', color: '#a0aec0', textAlign: 'center' }}>
-              총 {workerStats.reduce((s, w) => s + w.count, 0)}그루 완료
+              총 {workerStats.reduce((s, w) => s + w.count, 0)}그루 돌봄
             </div>
           </div>
         </div>,
