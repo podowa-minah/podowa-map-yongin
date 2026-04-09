@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import farmerSVG from '../assets/icons/farmer.svg';
 
 export default function ProgressBar({ completed, total, greenDots = 0 }) {
@@ -9,7 +10,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
   useEffect(() => {
     if (isComplete) {
       setShowFanfare(true);
-      const timer = setTimeout(() => setShowFanfare(false), 3000);
+      const timer = setTimeout(() => setShowFanfare(false), 7000);
       return () => clearTimeout(timer);
     }
   }, [isComplete]);
@@ -97,8 +98,8 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
         </span>
       </div>
 
-      {/* 팡파레 효과 */}
-      {showFanfare && (
+      {/* 팡파레 효과 — portal로 body에 렌더 */}
+      {showFanfare && ReactDOM.createPortal(
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -114,7 +115,6 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
           }}>
             🎉🎊🥳
           </div>
-          {/* 떨어지는 컨페티 */}
           {Array.from({ length: 20 }).map((_, i) => (
             <span
               key={i}
@@ -123,7 +123,7 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
                 top: '-10px',
                 left: `${5 + Math.random() * 90}%`,
                 fontSize: `${12 + Math.random() * 16}px`,
-                animation: `confetti ${1.5 + Math.random() * 2}s ease-out ${Math.random() * 0.5}s forwards`,
+                animation: `confetti ${3 + Math.random() * 3}s ease-out ${Math.random() * 0.8}s forwards`,
                 opacity: 0,
               }}
             >
@@ -139,10 +139,11 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
             }
             @keyframes confetti {
               0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-              100% { transform: translateY(80vh) rotate(720deg); opacity: 0; }
+              100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
             }
           `}</style>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
