@@ -6,6 +6,63 @@ import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 
 
+// ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
+function PinchZoomWrapper({ children }) {
+  const containerRef = React.useRef(null);
+  const scaleRef = React.useRef(1);
+  const lastDistRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const inner = el.firstElementChild;
+    if (!inner) return;
+
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        lastDistRef.current = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+      }
+    };
+
+    const onTouchMove = (e) => {
+      if (e.touches.length !== 2) return;
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      );
+      if (lastDistRef.current === null) { lastDistRef.current = dist; return; }
+      const ratio = dist / lastDistRef.current;
+      lastDistRef.current = dist;
+      scaleRef.current = Math.max(1, Math.min(3, scaleRef.current * ratio));
+      inner.style.transform = `scale(${scaleRef.current})`;
+      inner.style.transformOrigin = 'top left';
+      e.preventDefault();
+    };
+
+    const onTouchEnd = () => { lastDistRef.current = null; };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ maxHeight: '300px', overflow: 'auto', marginBottom: '0.2rem' }}>
+      <div style={{ minWidth: 'fit-content' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ---------- THUMB IMAGE WITH BLUR LOADING ---------- //
 function ThumbImg({ src, fullSrc, onPreview }) {
   const [loaded, setLoaded] = React.useState(false);
@@ -722,7 +779,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         </div>
 
         {showTable && (
-          <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '0.2rem' }}>
+          <PinchZoomWrapper>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f3f3f3' }}>
@@ -776,7 +833,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </PinchZoomWrapper>
         )}
 
         {/* SAVE & CANCEL */}

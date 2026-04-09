@@ -64,17 +64,17 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
         />
       </div>
 
-      {/* 퍼센트 텍스트 (오른쪽) */}
+      {/* 오른쪽: 초록점(위) + 퍼센트(아래) */}
       <div style={{
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        color: '#4a5568',
-        whiteSpace: 'nowrap',
         flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        height: '38px',
       }}>
-        {`${pct}% (${completed}/${total})`}
-        {greenDots > 0 && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+        {greenDots > 0 ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
             <span style={{
               display: 'inline-block',
               width: 6,
@@ -84,7 +84,16 @@ export default function ProgressBar({ completed, total, greenDots = 0 }) {
             }} />
             <span>{greenDots}</span>
           </span>
-        )}
+        ) : <span />}
+        <span style={{
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          color: '#4a5568',
+          whiteSpace: 'nowrap',
+          marginBottom: '3.4px',
+        }}>
+          {`${pct}% (${completed}/${total})`}
+        </span>
       </div>
 
       {/* 팡파레 효과 */}
