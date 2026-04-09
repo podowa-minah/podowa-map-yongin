@@ -88,7 +88,7 @@ function computeTriggers(records) {
   return { treeOn, bugOn, bugEmphasis, clockOn };
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set() }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -383,6 +383,7 @@ export default function FarmMap({ treeData = {}, onTreeClick }) {
                 alignItems: "center",
                 cursor: "pointer",
                 outline: "1.5px solid #000000",
+                backgroundColor: litTreeIds.has(numericId) ? "#c2d9c7" : undefined,
                 position: "relative",
               }}
             >
