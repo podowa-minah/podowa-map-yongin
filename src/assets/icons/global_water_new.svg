@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- 흰 둥근 사각형 배경 -->
+  <rect x="4" y="4" width="92" height="92" rx="16" ry="16" fill="#ffffff" stroke="#4a7c3f" stroke-width="4"/>
+
+  <!-- 물방울 (좀 더 작게) -->
+  <path d="M50 18 C50 18 30 42 30 53 C30 66 39 74 50 74 C61 74 70 66 70 53 C70 42 50 18 50 18Z" fill="#2196f3"/>
+
+  <!-- 눈 (정면 응시) -->
+  <circle cx="42" cy="52" r="5" fill="#ffffff"/>
+  <circle cx="56" cy="52" r="5" fill="#ffffff"/>
+  <circle cx="42" cy="52" r="2.8" fill="#222222"/>
+  <circle cx="56" cy="52" r="2.8" fill="#222222"/>
+
+  <!-- 미소 -->
+  <path d="M43 60 Q50 66 57 60" fill="none" stroke="#1565c0" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- 파도 (같은 모양 두 줄, 위로 올림) -->
+  <path d="M18 76 Q27 71 36 76 Q45 81 54 76 Q63 71 72 76 Q81 81 84 76" fill="none" stroke="#2196f3" stroke-width="3" stroke-linecap="round"/>
+  <path d="M18 84 Q27 79 36 84 Q45 89 54 84 Q63 79 72 84 Q81 89 84 84" fill="none" stroke="#2196f3" stroke-width="3" stroke-linecap="round"/>
+</svg>

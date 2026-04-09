@@ -198,8 +198,8 @@ export default function App() {
               <WeatherDate />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <IconLink href="https://example.com/water" src={waterlink} alt="global water" />
-              <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" />
+              <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
+              <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
               <button
                 className="header-toggle-btn"
                 onClick={() => setHeaderOpen((v) => !v)}

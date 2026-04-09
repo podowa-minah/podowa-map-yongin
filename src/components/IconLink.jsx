@@ -1,10 +1,10 @@
-export default function IconLink({ href, src, alt }) {
+export default function IconLink({ href, src, alt, size = 36, style = {} }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      style={{ display: 'inline-block', width: 36, height: 36}}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, verticalAlign: 'middle', ...style }}
     >
       <img
         src={src}
