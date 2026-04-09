@@ -233,9 +233,8 @@ export default function App() {
               </button>
             </div>
           )}
+          <ProgressBar completed={completed} total={total} greenDots={greenDots} />
         </header>
-
-        <ProgressBar completed={completed} total={total} greenDots={greenDots} />
 
         <main className="app-content">
           <FarmMap treeData={treeData} onTreeClick={setSelectedTree} />
