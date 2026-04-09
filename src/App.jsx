@@ -237,7 +237,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <ProgressBar completed={completed} total={total} greenDots={greenDots} />
+          <ProgressBar completed={completed} total={total} greenDots={greenDots} treeData={treeData} />
         </header>
 
         <main className="app-content">
