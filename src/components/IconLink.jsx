@@ -4,7 +4,7 @@ export default function IconLink({ href, src, alt }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      style={{ display: 'inline-block', width: 24, height: 24}}
+      style={{ display: 'inline-block', width: 36, height: 36}}
     >
       <img
         src={src}

@@ -6,6 +6,7 @@ import Login from './components/Login.jsx';
 import ExportButton from './components/ExportButton.jsx';
 import ChangePassword from './components/ChangePassword.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
+import WeatherDate from './components/WeatherDate.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
 import './App.css';
@@ -190,16 +191,23 @@ export default function App() {
         <header className="app-header-bar">
           <div className="header-bar-inner">
             <div className="header-title">
-              <h1>Podowa App</h1>
-              <span className="version">v1.0.1</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <h1>Podowa App</h1>
+                <span className="version">v1.0.1</span>
+              </div>
+              <WeatherDate />
             </div>
-            <button
-              className="header-toggle-btn"
-              onClick={() => setHeaderOpen((v) => !v)}
-              aria-label="메뉴 열기/닫기"
-            >
-              {headerOpen ? '✕' : '☰'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <IconLink href="https://example.com/water" src={waterlink} alt="global water" />
+              <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" />
+              <button
+                className="header-toggle-btn"
+                onClick={() => setHeaderOpen((v) => !v)}
+                aria-label="메뉴 열기/닫기"
+              >
+                {headerOpen ? '✕' : '☰'}
+              </button>
+            </div>
           </div>
 
           {/* ── 접히는 메뉴 ── */}
@@ -212,10 +220,6 @@ export default function App() {
               flexDirection: 'column',
               gap: '0.6rem',
             }}>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <IconLink href="https://example.com/water" src={waterlink} alt="global water" />
-                <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" />
-              </div>
               <ExportButton />
               <span style={{ fontSize: '0.85rem', color: '#666' }}>{user.email}</span>
               <button
