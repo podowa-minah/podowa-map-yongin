@@ -75,10 +75,10 @@ function computeTriggers(records) {
     }
   }
 
-  // --- 시계 아이콘: 5일간 세력/균형 입력 없으면 활성화 ---
+  // --- 시계 아이콘: 5일간 세력/균형 입력 없으면 활성화 (판단불가도 입력으로 인정) ---
   const recentWithScore = records.find(r =>
-    (r.power !== null && r.power !== undefined && r.power !== '' && r.power !== '판단불가/지켜봐야함') ||
-    (r.balance !== null && r.balance !== undefined && r.balance !== '' && r.balance !== '판단불가/지켜봐야함')
+    (r.power !== null && r.power !== undefined && r.power !== '') ||
+    (r.balance !== null && r.balance !== undefined && r.balance !== '')
   );
   let clockOn = true;
   if (recentWithScore) {

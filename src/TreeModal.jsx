@@ -293,9 +293,11 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           images: d.images || [],
           thumbnails: d.thumbnails || [],
           partial_treatment: d.partial_treatment || false,
-          powerJ: d.power != null && d.power !== '' ? parseInt(d.power) : null,
-          balanceJ: d.balance != null && d.balance !== '' ? parseInt(d.balance) : null,
+          powerJ: d.power != null && d.power !== '' && d.power !== '판단불가/지켜봐야함' ? parseInt(d.power) : null,
+          balanceJ: d.balance != null && d.balance !== '' && d.balance !== '판단불가/지켜봐야함' ? parseInt(d.balance) : null,
           bugsJ: d.bugs != null && d.bugs !== '' ? parseInt(d.bugs) : null,
+          powerNA: d.power === '판단불가/지켜봐야함' ? 0 : null,
+          balanceNA: d.balance === '판단불가/지켜봐야함' ? 0 : null,
         }));
         setHistory(formattedData);
       }
@@ -513,7 +515,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                   wrapperStyle={{ display: 'flex', justifyContent: 'center' }}
                   content={({ payload }) => (
                     <div style={{ display: 'flex', gap: 18 }}>
-                      {payload.map(({ color, value }) => {
+                      {payload.filter(p => !p.value.endsWith('NA')).map(({ color, value }) => {
                         const label = { powerJ: '세력', balanceJ: '균형', bugsJ: '해충' }[value] || value;
                         return (
                           <span key={value} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
@@ -540,6 +542,8 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                 <Line type="basis" dataKey="powerJ" stroke="green" strokeWidth={2} dot={{ r: 4, fill: 'green' }} name="세력" isAnimationActive={false} connectNulls={true} />
                 <Line type="basis" dataKey="balanceJ" stroke="blue" strokeWidth={2} dot={{ r: 4, fill: 'blue' }} name="균형" isAnimationActive={false} connectNulls={true} />
                 <Line type="basis" dataKey="bugsJ" stroke="red" strokeWidth={2} dot={{ r: 4, fill: 'red' }} name="해충" isAnimationActive={false} connectNulls={true} />
+                <Line dataKey="powerNA" stroke="none" strokeWidth={0} dot={{ r: 4, fill: 'green', strokeWidth: 1, stroke: '#fff' }} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="none" strokeWidth={0} dot={{ r: 4, fill: 'blue', strokeWidth: 1, stroke: '#fff' }} isAnimationActive={false} legendType="none" />
               </LineChart>
             </ResponsiveContainer>
           </div>

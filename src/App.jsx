@@ -146,11 +146,11 @@ export default function App() {
             }
           }
 
-          // 시계 아이콘: 5일간 세력/균형 없으면
+          // 시계 아이콘: 5일간 세력/균형 없으면 (판단불가도 입력으로 인정)
           if (!anyLightOn) {
             const scoreRec = recsWithoutToday.find(rec =>
-              (rec.power != null && rec.power !== '' && rec.power !== '판단불가/지켜봐야함') ||
-              (rec.balance != null && rec.balance !== '' && rec.balance !== '판단불가/지켜봐야함')
+              (rec.power != null && rec.power !== '') ||
+              (rec.balance != null && rec.balance !== '')
             );
             if (scoreRec) {
               const diffMs = kst.getTime() - new Date(scoreRec.date + 'T00:00:00+09:00').getTime();
