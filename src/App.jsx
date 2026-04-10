@@ -18,6 +18,17 @@ import trtlink from './assets/icons/global_trt.svg';
 export default function App() {
   const [treeData, setTreeData] = useState({});
   const [selectedTree, setSelectedTree] = useState(null);
+
+  // 안드로이드 뒤로가기 버튼으로 모달 닫기
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedTree) {
+        setSelectedTree(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedTree]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
@@ -241,11 +252,11 @@ export default function App() {
         </header>
 
         <main className="app-content">
-          <FarmMap treeData={treeData} onTreeClick={setSelectedTree} litTreeIds={litTreeIds} />
+          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} />
         </main>
 
         {selectedTree && (
-          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); setTimeout(loadAllRows, 500); }} />
+          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedTree(null); setTimeout(loadAllRows, 500); }} />
         )}
 
         {showChangePassword && (
