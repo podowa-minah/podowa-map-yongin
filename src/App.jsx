@@ -111,6 +111,14 @@ export default function App() {
     const yesterday = new Date(kst.getTime() - 86400000);
     const yStr = yesterday.toISOString().slice(0, 10);
 
+    // 한국 달력 날짜 기준 경과일 계산 (시간 무시, FarmMap과 통일)
+    const [ty, tm, td] = kstToday.split('-').map(Number);
+    const todayDateObj = new Date(ty, tm - 1, td);
+    const daysSinceKST = (isoDate) => {
+      const [y, m, d] = isoDate.split('-').map(Number);
+      return (todayDateObj - new Date(y, m - 1, d)) / 86400000;
+    };
+
     const ROWS = 25, COLS = 8;
     let doneTrees = 0;
     let litTrees = 0;
@@ -149,8 +157,7 @@ export default function App() {
             const bugRec = recsWithoutToday.find(rec => rec.bugs != null && rec.bugs !== '');
             if (bugRec) {
               const bugScore = Number(bugRec.bugs);
-              const diffMs = kst.getTime() - new Date(bugRec.date + 'T00:00:00+09:00').getTime();
-              const days = Math.floor(diffMs / 86400000);
+              const days = daysSinceKST(bugRec.date);
               if ((bugScore >= 4 && days >= 1) || (bugScore >= 2 && bugScore <= 3 && days >= 3) || (bugScore <= 1 && days >= 4)) {
                 anyLightOn = true;
               }
@@ -164,8 +171,7 @@ export default function App() {
               (rec.balance != null && rec.balance !== '')
             );
             if (scoreRec) {
-              const diffMs = kst.getTime() - new Date(scoreRec.date + 'T00:00:00+09:00').getTime();
-              if (Math.floor(diffMs / 86400000) >= 5) anyLightOn = true;
+              if (daysSinceKST(scoreRec.date) >= 5) anyLightOn = true;
             } else {
               anyLightOn = true;
             }
