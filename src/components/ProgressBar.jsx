@@ -37,18 +37,39 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
       .map(([name, count]) => ({ name, count }));
   }, [treeData]);
 
-  if (total === 0) return null;
+  // Empty state: no trees to care for today
+  const isEmpty = total === 0;
 
   return (
     <div style={{
-      padding: '4px 0.85rem',
+      padding: isEmpty ? '6px 0.85rem' : '4px 0.85rem',
       background: '#fff',
       borderBottom: '1px solid #e0e0e0',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
+      gap: isEmpty ? '10px' : '8px',
       position: 'relative',
     }}>
+    {isEmpty ? (
+      <>
+        <img
+          src={farmerRestSVG}
+          alt="resting farmer"
+          onClick={() => setShowLog(v => !v)}
+          style={{ width: '44px', height: '32px', flexShrink: 0, cursor: 'pointer' }}
+        />
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#4a5568', flex: 1 }}>
+          오늘은 돌볼 나무가 없어요 🌿
+        </span>
+        {greenDots > 0 && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
+            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981' }} />
+            <span>{greenDots}</span>
+          </span>
+        )}
+      </>
+    ) : (
+      <>
       {/* 바 + 농부 (왼쪽, 넓게) */}
       <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
         {/* 배경 바 */}
@@ -122,6 +143,8 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
           {`${pct}% (${completed}/${total})`}
         </span>
       </div>
+      </>
+    )}
 
       {/* 오늘의 작업일지 팝업 */}
       {showLog && ReactDOM.createPortal(
