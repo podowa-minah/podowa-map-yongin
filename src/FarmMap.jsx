@@ -38,6 +38,10 @@ function computeTriggers(records) {
     return { treeOn: false, bugOn: false, bugEmphasis: false, clockOn: true };
   }
 
+  // 최신 날짜 기록이 먼저 오도록 정렬
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+  records = sorted;
+
   const today = getToday();
 
   // ★ 공통 규칙: 오늘 날짜로 저장된 기록이 있으면 → 모든 아이콘 OFF

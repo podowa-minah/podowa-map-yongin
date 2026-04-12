@@ -19,7 +19,7 @@ const WEATHER_EMOJI = {
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function WeatherDate() {
+export default function WeatherDate({ onClick }) {
   const [weather, setWeather] = useState(null);
 
   // KST 날짜
@@ -53,12 +53,18 @@ export default function WeatherDate() {
   const emoji = weather ? (WEATHER_EMOJI[weather.code] || '🌡️') : '';
 
   return (
-    <span style={{
-      fontSize: '0.75rem',
-      color: '#666',
-      fontWeight: 500,
-      whiteSpace: 'nowrap',
-    }}>
+    <span
+      onClick={onClick}
+      style={{
+        fontSize: '0.75rem',
+        color: '#666',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+        cursor: onClick ? 'pointer' : 'default',
+        textDecoration: onClick ? 'underline dotted #aaa' : 'none',
+        textUnderlineOffset: '3px',
+      }}
+    >
       {dateStr}{weather ? ` ${emoji} ${weather.temp}°` : ''}
     </span>
   );

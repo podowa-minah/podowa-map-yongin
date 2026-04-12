@@ -7,8 +7,10 @@ import ExportButton from './components/ExportButton.jsx';
 import ChangePassword from './components/ChangePassword.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import WeatherDate from './components/WeatherDate.jsx';
+import HistoryPopup from './components/HistoryPopup.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
+import { getKSTToday, offsetDate, computeStatsForDate } from './utils/dailyStats';
 import './App.css';
 
 import IconLink from './components/IconLink';
@@ -34,6 +36,7 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -136,8 +139,10 @@ export default function App() {
         const hasTodayRecord = records.some(rec => rec.date === kstToday);
         if (hasTodayRecord) greenDotCount++;
 
-        // 오늘 기록 제외하고 불 켜지는지 판단
-        const recsWithoutToday = records.filter(rec => rec.date !== kstToday);
+        // 오늘 기록 제외, 최신순 정렬 (find()가 최신 기록 먼저 찾도록)
+        const recsWithoutToday = records
+          .filter(rec => rec.date !== kstToday)
+          .sort((a, b) => b.date.localeCompare(a.date));
         let anyLightOn = false;
 
         if (recsWithoutToday.length === 0) {
@@ -191,6 +196,45 @@ export default function App() {
     return { completed: doneTrees, total: doneTrees + litTrees, greenDots: greenDotCount, litTreeIds: litSet };
   }, [treeData, labels]);
 
+  // ── 어제치 daily_summary 자동 저장 (앱 로딩 시) ──
+  useEffect(() => {
+    if (!user || dataLoading || Object.keys(treeData).length === 0) return;
+
+    async function saveMissingSummaries() {
+      const today = getKSTToday();
+      const DATA_START = '2026-04-09';
+      // 시작일부터 어제까지 모든 날짜
+      const dates = [];
+      let d = DATA_START;
+      while (d < today) {
+        dates.push(d);
+        d = offsetDate(d, 1);
+      }
+      if (dates.length === 0) return;
+
+      const { data: existing } = await supabase
+        .from('daily_summaries')
+        .select('date')
+        .gte('date', DATA_START);
+
+      const existingDates = new Set((existing || []).map(r => r.date));
+      const missing = dates.filter(d => !existingDates.has(d));
+
+      for (const d of missing) {
+        const stats = computeStatsForDate(treeData, labels, d);
+        await supabase.from('daily_summaries').upsert({
+          date: d,
+          completed: stats.completed,
+          total: stats.total,
+          green_dots: stats.green_dots,
+          workers: stats.workers,
+        });
+      }
+    }
+
+    saveMissingSummaries();
+  }, [user, dataLoading, treeData, labels]);
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
@@ -216,7 +260,7 @@ export default function App() {
                 <h1>Podowa App</h1>
                 <span className="version">v1.0.1</span>
               </div>
-              <WeatherDate />
+              <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
@@ -267,6 +311,15 @@ export default function App() {
 
         {showChangePassword && (
           <ChangePassword onClose={() => setShowChangePassword(false)} />
+        )}
+
+        {showHistory && (
+          <HistoryPopup
+            onClose={() => setShowHistory(false)}
+            treeData={treeData}
+            labels={labels}
+            litTreeIds={litTreeIds}
+          />
         )}
       </div>
     </div>
