@@ -37,6 +37,7 @@ export default function App() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [historySummaries, setHistorySummaries] = useState(null);
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -107,7 +108,7 @@ export default function App() {
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
   // 분자: 그 중 오늘 입력해서 불 끈 나무
   // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
-  const { completed, total, greenDots, litTreeIds } = useMemo(() => {
+  const { completed, total, greenDots, litTreeIds, todayWorkers, tomorrowTotal } = useMemo(() => {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
@@ -193,7 +194,97 @@ export default function App() {
       }
     }
 
-    return { completed: doneTrees, total: doneTrees + litTrees, greenDots: greenDotCount, litTreeIds: litSet };
+    // 오늘 작업자 통계
+    const workerCounts = {};
+    for (let c = 1; c <= COLS; c++) {
+      for (let r = 1; r <= ROWS; r++) {
+        const numericId = `${c}-${r}`;
+        const records = treeData[numericId] || [];
+        records.forEach(rec => {
+          if (rec.date === kstToday && rec.producer) {
+            workerCounts[rec.producer] = (workerCounts[rec.producer] || 0) + 1;
+          }
+        });
+      }
+    }
+    const todayWorkers = Object.entries(workerCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
+
+    // 내일 예상 (오늘 불 켜진 나무 전부 입력했다고 가정)
+    const tomorrowStr = offsetDate(kstToday, 1);
+    const [tty, ttm, ttd] = tomorrowStr.split('-').map(Number);
+    const tomorrowDateObj = new Date(tty, ttm - 1, ttd);
+    const daysSinceTomorrow = (isoDate) => {
+      const [y2, m2, d2] = isoDate.split('-').map(Number);
+      return (tomorrowDateObj - new Date(y2, m2 - 1, d2)) / 86400000;
+    };
+    const tomorrowYStr = kstToday; // 내일 기준 어제 = 오늘
+
+    let tomorrowTotal = 0;
+    for (let c = 1; c <= COLS; c++) {
+      for (let r = 1; r <= ROWS; r++) {
+        const labelId = `Tree-${c}-${r}`;
+        const numericId = `${c}-${r}`;
+        const lbl = labels[labelId] || {};
+        if (lbl.disabled) continue;
+
+        // 내일 기준 이전 기록 = 오늘까지의 기록 (불 켜진 나무는 오늘 입력 가정)
+        const records = treeData[numericId] || [];
+        const hasToday = records.some(rec => rec.date === kstToday);
+        const assumeToday = !hasToday && litSet.has(numericId);
+        const allRecs = assumeToday
+          ? [...records, { date: kstToday, power: '', balance: '', bugs: '' }]
+          : records;
+
+        const recsBefore = allRecs
+          .filter(rec => rec.date < tomorrowStr)
+          .sort((a, b) => b.date.localeCompare(a.date));
+
+        let anyLight = false;
+        if (recsBefore.length === 0) {
+          anyLight = true;
+        } else {
+          const yRec = recsBefore.find(rec => rec.date === tomorrowYStr);
+          if (yRec) {
+            const p = String(yRec.power);
+            const b = String(yRec.balance);
+            if (['1', '5'].includes(p) || ['1', '2'].includes(b)) anyLight = true;
+          }
+          if (!anyLight) {
+            const bugRec = recsBefore.find(rec => rec.bugs != null && rec.bugs !== '');
+            if (bugRec) {
+              const score = Number(bugRec.bugs);
+              const days = daysSinceTomorrow(bugRec.date);
+              if ((score >= 4 && days >= 1) || (score >= 2 && score <= 3 && days >= 3) || (score <= 1 && days >= 4)) {
+                anyLight = true;
+              }
+            }
+          }
+          if (!anyLight) {
+            const scoreRec = recsBefore.find(rec =>
+              (rec.power != null && rec.power !== '') ||
+              (rec.balance != null && rec.balance !== '')
+            );
+            if (scoreRec) {
+              if (daysSinceTomorrow(scoreRec.date) >= 5) anyLight = true;
+            } else {
+              anyLight = true;
+            }
+          }
+        }
+        if (anyLight) tomorrowTotal++;
+      }
+    }
+
+    return {
+      completed: doneTrees,
+      total: doneTrees + litTrees,
+      greenDots: greenDotCount,
+      litTreeIds: litSet,
+      todayWorkers,
+      tomorrowTotal,
+    };
   }, [treeData, labels]);
 
   // ── 어제치 daily_summary 자동 저장 (앱 로딩 시) ──
@@ -232,7 +323,18 @@ export default function App() {
       }
     }
 
-    saveMissingSummaries();
+    saveMissingSummaries().then(() => {
+      // 자동저장 완료 후 히스토리 데이터 미리 fetch
+      supabase
+        .from('daily_summaries')
+        .select('*')
+        .gte('date', DATA_START)
+        .order('date', { ascending: false })
+        .limit(30)
+        .then(({ data }) => {
+          if (data) setHistorySummaries(data);
+        });
+    });
   }, [user, dataLoading, treeData, labels]);
 
   if (loading || (user && dataLoading)) {
@@ -258,7 +360,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa App</h1>
-                <span className="version">v1.0.1</span>
+                <span className="version">v1.0.2</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -316,9 +418,9 @@ export default function App() {
         {showHistory && (
           <HistoryPopup
             onClose={() => setShowHistory(false)}
-            treeData={treeData}
-            labels={labels}
-            litTreeIds={litTreeIds}
+            todayStats={{ completed, total, green_dots: greenDots, workers: todayWorkers }}
+            tomorrowTotal={tomorrowTotal}
+            prefetchedSummaries={historySummaries}
           />
         )}
       </div>

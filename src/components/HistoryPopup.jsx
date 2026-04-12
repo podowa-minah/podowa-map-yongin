@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { getKSTToday, offsetDate, computeStatsForDate, computeTomorrowPrediction } from '../utils/dailyStats';
+import { getKSTToday, offsetDate } from '../utils/dailyStats';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
@@ -109,16 +109,20 @@ function DayRow({ label, completed, total, greenDots, workers, isTomorrow, isTod
 
 const PAGE_SIZE = 30;
 
-export default function HistoryPopup({ onClose, treeData, labels, litTreeIds }) {
-  const [summaries, setSummaries] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries }) {
+  const [summaries, setSummaries] = useState(prefetchedSummaries || []);
+  const [loading, setLoading] = useState(!prefetchedSummaries);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(
+    prefetchedSummaries ? prefetchedSummaries.length >= PAGE_SIZE : false
+  );
 
   const today = getKSTToday();
+  const tomorrowDate = offsetDate(today, 1);
 
-  // Supabase에서 과거 summary 불러오기 (최근 30일)
+  // prefetch 없을 때만 Supabase fetch
   useEffect(() => {
+    if (prefetchedSummaries) return;
     async function fetchSummaries() {
       const { data, error } = await supabase
         .from('daily_summaries')
@@ -133,7 +137,7 @@ export default function HistoryPopup({ onClose, treeData, labels, litTreeIds }) 
       setLoading(false);
     }
     fetchSummaries();
-  }, []);
+  }, [prefetchedSummaries]);
 
   const loadMore = async () => {
     if (loadingMore || summaries.length === 0) return;
@@ -152,19 +156,6 @@ export default function HistoryPopup({ onClose, treeData, labels, litTreeIds }) 
     }
     setLoadingMore(false);
   };
-
-  // 내일 예상
-  const tomorrow = useMemo(() => {
-    if (!treeData || !labels) return null;
-    const result = computeTomorrowPrediction(treeData, labels, litTreeIds);
-    return { date: offsetDate(today, 1), ...result };
-  }, [treeData, labels, litTreeIds, today]);
-
-  // 오늘 통계 (실시간)
-  const todayStats = useMemo(() => {
-    if (!treeData || !labels) return null;
-    return computeStatsForDate(treeData, labels, today);
-  }, [treeData, labels, today]);
 
   return (
     <div style={{
@@ -215,16 +206,16 @@ export default function HistoryPopup({ onClose, treeData, labels, litTreeIds }) 
         ) : (
           <>
             {/* 내일 예상 */}
-            {tomorrow && tomorrow.total > 0 && (
+            {tomorrowTotal > 0 && (
               <DayRow
-                label={formatDate(tomorrow.date)}
+                label={formatDate(tomorrowDate)}
                 completed={0}
-                total={tomorrow.total}
+                total={tomorrowTotal}
                 isTomorrow
               />
             )}
 
-            {/* 오늘 (실시간) */}
+            {/* 오늘 (실시간, App.jsx에서 계산된 props) */}
             {todayStats && (
               <DayRow
                 label={formatDate(today)}
