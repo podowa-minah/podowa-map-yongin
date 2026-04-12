@@ -60,7 +60,7 @@ function DayRow({ label, completed, total, greenDots, workers, isTomorrow, isTod
           color: isTomorrow ? '#7c3aed' : isIncomplete ? '#e09600' : '#2d3748',
           minWidth: '80px', flexShrink: 0,
         }}>
-          {isTomorrow && '🔮 '}{label}
+          {isTomorrow && '🔮 '}{isToday && '📍 '}{label}
         </span>
 
         {isEmpty ? (
