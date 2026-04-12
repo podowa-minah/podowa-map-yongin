@@ -8,6 +8,8 @@ import ChangePassword from './components/ChangePassword.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import WeatherDate from './components/WeatherDate.jsx';
 import HistoryPopup from './components/HistoryPopup.jsx';
+import AnnouncementBar from './components/AnnouncementBar.jsx';
+import AnnouncementPopup from './components/AnnouncementPopup.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
 import { getKSTToday, offsetDate, computeStatsForDate } from './utils/dailyStats';
@@ -38,6 +40,8 @@ export default function App() {
   const [headerOpen, setHeaderOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historySummaries, setHistorySummaries] = useState(null);
+  const [latestAnnouncement, setLatestAnnouncement] = useState(null);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -103,6 +107,34 @@ export default function App() {
     setUser(null);
     setTreeData({});
   };
+
+  // ── 핀된 공지사항 fetch + 실시간 구독 ──
+  const fetchPinned = async () => {
+    const { data } = await supabase
+      .from('announcements')
+      .select('*')
+      .eq('pinned', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    setLatestAnnouncement(data && data.length > 0 ? data[0] : null);
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetchPinned();
+
+    const channel = supabase
+      .channel('announcements-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' },
+        () => { fetchPinned(); }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [user]);
+
+  const authorName = user?.user_metadata?.nickname || user?.email || '';
 
   // 오늘 진행률 계산
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
@@ -359,11 +391,12 @@ export default function App() {
           <div className="header-bar-inner">
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                <h1>Podowa App</h1>
+                <h1>Podowa</h1>
                 <span className="version">v1.0.2</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
+            <AnnouncementBar latest={latestAnnouncement} onClick={() => setShowAnnouncements(true)} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
               <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
@@ -413,6 +446,13 @@ export default function App() {
 
         {showChangePassword && (
           <ChangePassword onClose={() => setShowChangePassword(false)} />
+        )}
+
+        {showAnnouncements && (
+          <AnnouncementPopup
+            onClose={() => setShowAnnouncements(false)}
+            authorName={authorName}
+          />
         )}
 
         {showHistory && (
