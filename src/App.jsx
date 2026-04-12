@@ -392,7 +392,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.0.2</span>
+                <span className="version">v1.0.3</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -452,6 +452,7 @@ export default function App() {
           <AnnouncementPopup
             onClose={() => setShowAnnouncements(false)}
             authorName={authorName}
+            onPinChange={(pinned) => setLatestAnnouncement(pinned)}
           />
         )}
 

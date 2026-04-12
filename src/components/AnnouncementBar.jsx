@@ -30,7 +30,6 @@ export default function AnnouncementBar({ latest, onClick }) {
           WebkitBoxOrient: 'vertical',
           lineHeight: '1.4',
         }}>
-          <span style={{ color: '#888', marginRight: '6px' }}>{latest.author}</span>
           {latest.message}
         </span>
       ) : (

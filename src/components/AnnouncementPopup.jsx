@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 
 const PAGE_SIZE = 30;
 
-export default function AnnouncementPopup({ onClose, authorName }) {
+export default function AnnouncementPopup({ onClose, authorName, onPinChange }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -34,20 +34,24 @@ export default function AnnouncementPopup({ onClose, authorName }) {
     if (pinning) return;
     setPinning(true);
 
-    if (item.pinned) {
-      // 핀 해제
-      await supabase.from('announcements').update({ pinned: false }).eq('id', item.id);
-    } else {
-      // 기존 핀 전부 해제 → 이 글만 핀
+    const newPinned = !item.pinned;
+
+    // 옵티미스틱: 로컬 즉시 반영
+    setItems(prev => prev.map(it => ({
+      ...it,
+      pinned: it.id === item.id ? newPinned : false,
+    })));
+    onPinChange?.(newPinned ? { ...item, pinned: true } : null);
+
+    // DB 반영
+    if (newPinned) {
       await supabase.from('announcements').update({ pinned: false }).eq('pinned', true);
       await supabase.from('announcements').update({ pinned: true }).eq('id', item.id);
+    } else {
+      await supabase.from('announcements').update({ pinned: false }).eq('id', item.id);
     }
 
     setPinning(false);
-    // 리스트 새로고침
-    setHasMore(true);
-    setOffset(0);
-    fetchItems(0, false);
   };
 
   const handleSend = async () => {
