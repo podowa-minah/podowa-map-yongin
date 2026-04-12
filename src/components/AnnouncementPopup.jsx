@@ -3,16 +3,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const PAGE_SIZE = 30;
+const DELETE_PASSWORD = '1234';
 
-export default function AnnouncementPopup({ onClose, authorName, onPinChange }) {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function AnnouncementPopup({ onClose, authorName, onPinChange, prefetchedItems, onListChange }) {
+  const [items, setItems] = useState(prefetchedItems || []);
+  const [loading, setLoading] = useState(!prefetchedItems);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(prefetchedItems ? PAGE_SIZE : 0);
+  const [hasMore, setHasMore] = useState(!prefetchedItems || prefetchedItems.length >= PAGE_SIZE);
   const [pinning, setPinning] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletePass, setDeletePass] = useState('');
+  const [deleteError, setDeleteError] = useState(false);
   const inputRef = useRef(null);
+  const deleteInputRef = useRef(null);
 
   const fetchItems = async (from = 0, append = false) => {
     const { data, error } = await supabase
@@ -28,7 +33,14 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange }) 
     setLoading(false);
   };
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => {
+    if (prefetchedItems) {
+      setItems(prefetchedItems);
+      setLoading(false);
+    } else {
+      fetchItems();
+    }
+  }, []);
 
   const handlePin = async (item) => {
     if (pinning) return;
@@ -52,6 +64,32 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange }) 
     }
 
     setPinning(false);
+    onListChange?.();
+  };
+
+  const handleDelete = async () => {
+    if (deletePass !== DELETE_PASSWORD) {
+      setDeleteError(true);
+      return;
+    }
+
+    const wasPinned = deleteTarget.pinned;
+
+    // 옵티미스틱
+    setItems(prev => prev.filter(it => it.id !== deleteTarget.id));
+    if (wasPinned) onPinChange?.(null);
+
+    await supabase.from('announcements').delete().eq('id', deleteTarget.id);
+
+    setDeleteTarget(null);
+    setDeletePass('');
+    setDeleteError(false);
+    onListChange?.();
+  };
+
+  const handleDeleteKeyDown = (e) => {
+    if (e.key === 'Enter') handleDelete();
+    if (e.key === 'Escape') { setDeleteTarget(null); setDeletePass(''); setDeleteError(false); }
   };
 
   const handleSend = async () => {
@@ -59,9 +97,11 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange }) 
     if (!trimmed || sending) return;
     setSending(true);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('announcements')
-      .insert({ message: trimmed, author: authorName });
+      .insert({ message: trimmed, author: authorName })
+      .select()
+      .single();
 
     if (error) {
       console.error(error);
@@ -69,11 +109,12 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange }) 
       return;
     }
 
+    // 옵티미스틱
+    if (data) setItems(prev => [data, ...prev]);
+
     setMessage('');
     setSending(false);
-    setHasMore(true);
-    setOffset(0);
-    fetchItems(0, false);
+    onListChange?.();
   };
 
   const handleKeyDown = (e) => {
@@ -167,13 +208,61 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange }) 
                       <span style={{ fontWeight: 500, fontSize: '0.85rem', color: '#444' }}>
                         {'\uD83E\uDDD1\u200D\uD83C\uDF3E'} {item.author}
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
-                        {formatTime(item.created_at)}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
+                          {formatTime(item.created_at)}
+                        </span>
+                        <button
+                          onClick={() => { setDeleteTarget(item); setDeletePass(''); setDeleteError(false); }}
+                          style={{
+                            background: 'none', border: 'none',
+                            fontSize: '0.75rem', color: '#ccc',
+                            cursor: 'pointer', padding: '0 2px',
+                          }}
+                        >✕</button>
+                      </div>
                     </div>
                     <div style={{ fontSize: '0.9rem', color: '#222', lineHeight: '1.45' }}>
                       {item.message}
                     </div>
+
+                    {/* 삭제 비번 입력 */}
+                    {deleteTarget?.id === item.id && (
+                      <div style={{
+                        marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center',
+                      }}>
+                        <input
+                          ref={deleteInputRef}
+                          type="password"
+                          value={deletePass}
+                          onChange={e => { setDeletePass(e.target.value); setDeleteError(false); }}
+                          onKeyDown={handleDeleteKeyDown}
+                          placeholder="비밀번호"
+                          autoFocus
+                          style={{
+                            width: '100px', padding: '4px 8px',
+                            border: deleteError ? '1px solid #e53935' : '1px solid #ddd',
+                            borderRadius: '4px', fontSize: '0.8rem', outline: 'none',
+                          }}
+                        />
+                        <button
+                          onClick={handleDelete}
+                          style={{
+                            padding: '4px 10px', fontSize: '0.8rem',
+                            backgroundColor: '#e53935', color: '#fff',
+                            border: 'none', borderRadius: '4px', cursor: 'pointer',
+                          }}
+                        >삭제</button>
+                        <button
+                          onClick={() => { setDeleteTarget(null); setDeletePass(''); setDeleteError(false); }}
+                          style={{
+                            padding: '4px 8px', fontSize: '0.8rem',
+                            backgroundColor: '#eee', color: '#666',
+                            border: 'none', borderRadius: '4px', cursor: 'pointer',
+                          }}
+                        >취소</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

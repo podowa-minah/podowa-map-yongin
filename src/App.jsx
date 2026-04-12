@@ -42,6 +42,7 @@ export default function App() {
   const [historySummaries, setHistorySummaries] = useState(null);
   const [latestAnnouncement, setLatestAnnouncement] = useState(null);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -108,7 +109,7 @@ export default function App() {
     setTreeData({});
   };
 
-  // ── 핀된 공지사항 fetch + 실시간 구독 ──
+  // ── 공지사항 프리페치 + 핀 fetch + 실시간 구독 ──
   const fetchPinned = async () => {
     const { data } = await supabase
       .from('announcements')
@@ -119,15 +120,25 @@ export default function App() {
     setLatestAnnouncement(data && data.length > 0 ? data[0] : null);
   };
 
+  const fetchAllAnnouncements = async () => {
+    const { data } = await supabase
+      .from('announcements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (data) setPrefetchedAnnouncements(data);
+  };
+
   useEffect(() => {
     if (!user) return;
 
     fetchPinned();
+    fetchAllAnnouncements();
 
     const channel = supabase
       .channel('announcements-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' },
-        () => { fetchPinned(); }
+        () => { fetchPinned(); fetchAllAnnouncements(); }
       )
       .subscribe();
 
@@ -453,6 +464,8 @@ export default function App() {
             onClose={() => setShowAnnouncements(false)}
             authorName={authorName}
             onPinChange={(pinned) => setLatestAnnouncement(pinned)}
+            prefetchedItems={prefetchedAnnouncements}
+            onListChange={() => fetchAllAnnouncements()}
           />
         )}
 
