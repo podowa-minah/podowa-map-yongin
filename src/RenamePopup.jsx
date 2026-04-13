@@ -30,24 +30,24 @@ export default function RenamePopup({ id, current = {}, onSave, onClose }) {
           style={{ display: 'block', width: '100%', height: 32, marginTop: 4, marginBottom: 12 }}
         />
 
-        <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, marginBottom: 12 }}>
+        <label style={{ display: 'flex', alignItems: 'center', fontSize: '1.2rem', marginBottom: 12 }}>
           <input
             type="checkbox"
             checked={disabled}
             onChange={e => setDisabled(e.target.checked)}
-            style={{ marginRight: 8, width: 16, height: 16 }}
+            style={{ marginRight: 8, width: 24, height: 24 }}
           />
           비활성화 (빈 자리)
         </label>
 
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <button onClick={onClose} style={{ marginRight: 8 }}>Cancel</button>
+        <div style={{ marginTop: 16, display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '1rem 1.5rem', fontSize: '1.2rem', borderRadius: '0.5rem', border: '2px solid #ccc', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
           <button
             onClick={() => {
               onSave({ name: name.trim(), color, disabled });
               onClose();
             }}
-            style={{ background: '#0077ff', color: 'white', padding: '4px 10px' }}
+            style={{ padding: '1rem 1.5rem', fontSize: '1.2rem', borderRadius: '0.5rem', background: '#0077ff', color: 'white', border: 'none', cursor: 'pointer' }}
           >
             Save
           </button>
