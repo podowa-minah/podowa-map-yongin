@@ -6,10 +6,11 @@ export default function AnnouncementBar({ latest, onClick }) {
     <div
       onClick={onClick}
       style={{
-        flex: 1,
-        minWidth: 0,
-        maxWidth: '40%',
-        margin: '0 8px',
+        width: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        flexBasis: 0,
+        margin: '0 6px',
         border: '1px solid #ccc',
         borderRadius: '6px',
         fontSize: '0.78rem',
@@ -20,7 +21,8 @@ export default function AnnouncementBar({ latest, onClick }) {
         alignSelf: 'stretch',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 10px',
+        justifyContent: 'center',
+        padding: '0 8px',
       }}
     >
       {latest ? (
@@ -34,7 +36,7 @@ export default function AnnouncementBar({ latest, onClick }) {
           {latest.message}
         </span>
       ) : (
-        <span style={{ color: '#aaa', margin: '0 auto' }}>{'\u{1F48C}'}</span>
+        <span style={{ color: '#aaa' }}>{'\u{1F48C}'}</span>
       )}
     </div>
   );
