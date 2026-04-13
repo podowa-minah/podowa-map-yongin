@@ -95,16 +95,21 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
         gap: '10px',
       }}>
         {/* 미니맵 */}
-        <div style={{
-          flexShrink: 0,
-          padding: '4px',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '4px',
-          border: '1px solid #e0e0e0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
+        <div
+          onClick={() => setCollapsed(true)}
+          style={{
+            flexShrink: 0,
+            padding: '4px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '4px',
+            border: '1px solid #e0e0e0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
           <MiniMap litTreeIds={litTreeIds} viewportInfo={viewportInfo} />
         </div>
 
