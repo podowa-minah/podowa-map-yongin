@@ -709,9 +709,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
               backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#2196f3',
-              color: 'white', padding: '0.5rem 1rem', borderRadius: '0.3rem',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
+              fontSize: '1.2rem',
             }}>
               📷 촬영
               <input
@@ -728,9 +728,9 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
               backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#607d8b',
-              color: 'white', padding: '0.5rem 1rem', borderRadius: '0.3rem',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
+              fontSize: '1.2rem',
             }}>
               🖼 갤러리
               <input
@@ -776,7 +776,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         <div style={{ marginBottom: '0.5rem' }}>
           <button
             onClick={toggleShowTable}
-            style={{ padding: '0.5rem 1rem', backgroundColor: '#5c6bc0', color: 'white', border: 'none', borderRadius: '5px' }}
+            style={{ padding: '1rem 1.5rem', backgroundColor: '#5c6bc0', color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '1.2rem' }}
           >
             {showTable ? '간단히 보기' : '더보기'}
           </button>
@@ -843,13 +843,13 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         {/* SAVE & CANCEL */}
         <button
           onClick={saveChanges}
-          style={{ backgroundColor: 'blue', color: 'white', padding: '1rem 2rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.1rem' }}
+          style={{ backgroundColor: 'blue', color: 'white', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
         >
           Save & Close
         </button>
         <button
           onClick={onClose}
-          style={{ marginLeft: '0.5rem', backgroundColor: '#ccc', color: 'black', padding: '0.5rem 1rem', border: 'none', borderRadius: '0.3rem', cursor: 'pointer' }}
+          style={{ marginLeft: '0.5rem', backgroundColor: '#ccc', color: 'black', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
         >
           Cancel
         </button>
