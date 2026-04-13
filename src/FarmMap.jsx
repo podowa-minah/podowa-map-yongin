@@ -400,7 +400,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width: 5,
                   height: 5,
                   borderRadius: '50%',
-                  backgroundColor: doneTreeIds.has(numericId) ? '#667eea' : '#10b981',
+                  backgroundColor: doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
                   zIndex: 1,
                 }} />
               )}
