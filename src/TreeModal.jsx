@@ -825,11 +825,16 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     <td style={cellStyle}>{row.comments}</td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
-                        <ThumbImg
-                          src={row.thumbnails?.[0] || row.images[0]}
-                          fullSrc={row.images[0]}
-                          onPreview={(url) => { setPreviewImg(url); }}
-                        />
+                        <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
+                          {row.images.map((img, imgIdx) => (
+                            <ThumbImg
+                              key={imgIdx}
+                              src={row.thumbnails?.[imgIdx] || img}
+                              fullSrc={img}
+                              onPreview={(url) => { setPreviewImg(url); }}
+                            />
+                          ))}
+                        </div>
                       ) : '-'}
                     </td>
                     <td style={cellStyle}>{row.producer}</td>

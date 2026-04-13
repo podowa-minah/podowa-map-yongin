@@ -92,7 +92,7 @@ function computeTriggers(records) {
   return { treeOn, bugOn, bugEmphasis, clockOn };
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set() }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set() }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -391,7 +391,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 position: "relative",
               }}
             >
-              {/* 오늘 입력 표시 - 우측상단 초록 점 */}
+              {/* 오늘 입력 표시 - 우측상단 점 (불 켜져있었으면 보라, 아니면 초록) */}
               {hasTodayInput && (
                 <span style={{
                   position: 'absolute',
@@ -400,7 +400,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width: 5,
                   height: 5,
                   borderRadius: '50%',
-                  backgroundColor: '#10b981',
+                  backgroundColor: doneTreeIds.has(numericId) ? '#667eea' : '#10b981',
                   zIndex: 1,
                 }} />
               )}
