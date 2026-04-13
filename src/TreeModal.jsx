@@ -843,7 +843,7 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
         {/* SAVE & CANCEL */}
         <button
           onClick={saveChanges}
-          style={{ backgroundColor: 'blue', color: 'white', padding: '0.5rem 1rem', border: 'none', borderRadius: '0.3rem', cursor: 'pointer' }}
+          style={{ backgroundColor: 'blue', color: 'white', padding: '1rem 2rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.1rem' }}
         >
           Save & Close
         </button>
