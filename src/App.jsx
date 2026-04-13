@@ -400,7 +400,7 @@ export default function App() {
         {/* ── 상단 바 + 접히는 메뉴 (sticky 안에 같이) ── */}
         <header className="app-header-bar">
           <div className="header-bar-inner">
-            <div className="header-title">
+            <div className="header-title" style={{ flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
                 <span className="version">v1.0.3</span>
@@ -408,7 +408,7 @@ export default function App() {
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
             <AnnouncementBar latest={latestAnnouncement} onClick={() => setShowAnnouncements(true)} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
               <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
               <button
