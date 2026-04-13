@@ -43,6 +43,7 @@ export default function App() {
   const [latestAnnouncement, setLatestAnnouncement] = useState([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
+  const [viewportInfo, setViewportInfo] = useState(null);
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -448,13 +449,14 @@ export default function App() {
         </header>
 
         <main className="app-content" style={{ paddingBottom: '70px' }}>
-          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} />
+          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} onViewportChange={setViewportInfo} />
         </main>
 
         <BottomBar
           onAnnouncementClick={() => setShowAnnouncements(true)}
           litTreeIds={litTreeIds}
           pinnedItems={latestAnnouncement}
+          viewportInfo={viewportInfo}
         />
 
         {selectedTree && (

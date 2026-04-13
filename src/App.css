@@ -255,6 +255,29 @@
   }
 }
 
+/* 하단 바 — app-container와 동일한 max-width */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .bottom-bar {
+    max-width: 900px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .bottom-bar {
+    max-width: 1600px;
+  }
+}
+
 /* 항상 보이는 상단 바 */
 .app-header-bar {
   position: sticky;

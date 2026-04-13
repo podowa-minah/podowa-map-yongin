@@ -92,7 +92,7 @@ function computeTriggers(records) {
   return { treeOn, bugOn, bugEmphasis, clockOn };
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set() }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), onViewportChange }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -120,6 +120,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
   const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
 
   // transform 적용 (React state 안 씀 → 렉 없음)
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
+
   const applyTransform = useCallback(() => {
     if (!gridRef.current || !containerRef.current) return;
     const s = scaleRef.current;
@@ -136,6 +139,11 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
     posRef.current = p;
 
     gridRef.current.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
+
+    // 미니맵 뷰포트 박스용 콜백
+    if (onViewportChangeRef.current) {
+      onViewportChangeRef.current({ scale: s, posX: p.x, posY: p.y, containerW: cw, containerH: ch, gridW, gridH });
+    }
   }, [gridW, gridH]);
 
   // 데스크탑 초기 스케일

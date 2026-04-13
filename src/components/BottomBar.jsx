@@ -3,23 +3,21 @@ import React from 'react';
 import MiniMap from './MiniMap';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 
-export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [] }) {
+export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo }) {
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 100,
-      backgroundColor: '#fff',
-      borderTop: '1px solid #e0e0e0',
-      display: 'flex',
-      alignItems: 'stretch',
-      padding: '6px 12px',
-      gap: '10px',
-      WebkitTransform: 'translateZ(0)',
-      transform: 'translateZ(0)',
-    }}>
+    <div
+      className="bottom-bar"
+      style={{
+        backgroundColor: '#fff',
+        borderTop: '1px solid #e0e0e0',
+        display: 'flex',
+        alignItems: 'stretch',
+        padding: '6px 12px',
+        gap: '10px',
+        WebkitTransform: 'translateZ(0)',
+        transform: 'translateZ(0)',
+      }}
+    >
       {/* 미니맵 */}
       <div style={{
         flexShrink: 0,
@@ -31,7 +29,7 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        <MiniMap litTreeIds={litTreeIds} />
+        <MiniMap litTreeIds={litTreeIds} viewportInfo={viewportInfo} />
       </div>
 
       {/* 게시판 */}
@@ -50,21 +48,33 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
           padding: '4px 10px',
         }}
       >
-        {/* 타이틀 */}
+        {/* 타이틀: "농부님 주목!" 중앙정렬, 메가폰은 텍스트 왼쪽에 absolute */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '4px',
+          textAlign: 'center',
           flexShrink: 0,
+          lineHeight: 1,
         }}>
-          <img src={farmerAnnounce} alt="" style={{ width: 20, height: 20 }} />
           <span style={{
+            position: 'relative',
+            display: 'inline-block',
             fontFamily: "'Poor Story', cursive",
             fontSize: '0.95rem',
             color: '#666',
             fontWeight: 400,
           }}>
+            <img
+              src={farmerAnnounce}
+              alt=""
+              style={{
+                position: 'absolute',
+                right: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 45,
+                height: 45,
+                marginRight: '2px',
+              }}
+            />
             농부님 주목!
           </span>
         </div>
@@ -74,11 +84,12 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
           <div style={{
             flex: 1,
             overflow: 'hidden',
-            marginTop: '2px',
+            marginTop: '6px',
           }}>
             {pinnedItems.map((item) => (
               <div key={item.id} style={{
-                fontSize: '0.82rem',
+                fontFamily: "'Poor Story', cursive",
+                fontSize: '0.85rem',
                 color: '#555',
                 lineHeight: '1.3',
                 whiteSpace: 'nowrap',
