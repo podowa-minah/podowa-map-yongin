@@ -8,6 +8,7 @@ export default function AnnouncementBar({ latest, onClick }) {
       style={{
         flex: 1,
         minWidth: 0,
+        maxWidth: '40%',
         margin: '0 8px',
         border: '1px solid #ccc',
         borderRadius: '6px',
