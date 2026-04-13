@@ -44,6 +44,7 @@ export default function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const [viewportInfo, setViewportInfo] = useState(null);
+  const [lastSeenAt, setLastSeenAt] = useState(() => new Date().toISOString());
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -405,7 +406,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.0.3</span>
+                <span className="version">v1.0.4</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -453,10 +454,11 @@ export default function App() {
         </main>
 
         <BottomBar
-          onAnnouncementClick={() => setShowAnnouncements(true)}
+          onAnnouncementClick={() => { setLastSeenAt(new Date().toISOString()); setShowAnnouncements(true); }}
           litTreeIds={litTreeIds}
           pinnedItems={latestAnnouncement}
           viewportInfo={viewportInfo}
+          hasNew={prefetchedAnnouncements?.some(a => a.created_at > lastSeenAt) || false}
         />
 
         {selectedTree && (

@@ -238,7 +238,7 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
           }}>
             🎉🎊🥳
           </div>
-          {Array.from({ length: 20 }).map((_, i) => (
+          {Array.from({ length: 60 }).map((_, i) => (
             <span
               key={i}
               style={{

@@ -1,107 +1,185 @@
 // src/components/BottomBar.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import MiniMap from './MiniMap';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 
-export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo }) {
+export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasNew = false }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  // 빨간 점 뱃지
+  const redDot = hasNew ? (
+    <span style={{
+      display: 'inline-block',
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      backgroundColor: '#ef4444',
+      marginLeft: '4px',
+      verticalAlign: 'middle',
+    }} />
+  ) : null;
+
+  // 접힌 상태
+  if (collapsed) {
+    return (
+      <div
+        className="bottom-bar"
+        style={{
+          backgroundColor: '#fff',
+          borderTop: '1px solid #e0e0e0',
+          WebkitTransform: 'translateZ(0)',
+          transform: 'translateZ(0)',
+        }}
+      >
+        <div
+          onClick={() => setCollapsed(false)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '36px',
+            cursor: 'pointer',
+            userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <img src={farmerAnnounce} alt="" style={{ width: 28, height: 28 }} />
+            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: '0.85rem', color: '#666' }}>
+              농부님 주목!
+            </span>
+            {redDot}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // 펼친 상태
   return (
     <div
       className="bottom-bar"
       style={{
         backgroundColor: '#fff',
         borderTop: '1px solid #e0e0e0',
-        display: 'flex',
-        alignItems: 'stretch',
-        padding: '6px 12px',
-        gap: '10px',
         WebkitTransform: 'translateZ(0)',
         transform: 'translateZ(0)',
       }}
     >
-      {/* 미니맵 */}
-      <div style={{
-        flexShrink: 0,
-        padding: '4px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '4px',
-        border: '1px solid #e0e0e0',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <MiniMap litTreeIds={litTreeIds} viewportInfo={viewportInfo} />
-      </div>
-
-      {/* 게시판 */}
+      {/* 손잡이 탭 — 누르면 접기 */}
       <div
-        onClick={onAnnouncementClick}
+        onClick={() => setCollapsed(true)}
         style={{
-          flex: 1,
-          minWidth: 0,
-          border: '1px solid #ccc',
-          borderRadius: '6px',
-          backgroundColor: '#fafafa',
-          cursor: 'pointer',
-          overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column',
-          padding: '4px 10px',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '20px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
-        {/* 타이틀: "농부님 주목!" 중앙정렬, 메가폰은 텍스트 왼쪽에 absolute */}
         <div style={{
-          textAlign: 'center',
+          width: '40px',
+          height: '4px',
+          borderRadius: '2px',
+          backgroundColor: '#ccc',
+        }} />
+      </div>
+
+      {/* 콘텐츠 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        padding: '0 12px 6px',
+        gap: '10px',
+      }}>
+        {/* 미니맵 */}
+        <div style={{
           flexShrink: 0,
-          lineHeight: 1,
+          padding: '4px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '4px',
+          border: '1px solid #e0e0e0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
-          <span style={{
-            position: 'relative',
-            display: 'inline-block',
-            fontFamily: "'Poor Story', cursive",
-            fontSize: '0.95rem',
-            color: '#666',
-            fontWeight: 400,
-          }}>
-            <img
-              src={farmerAnnounce}
-              alt=""
-              style={{
-                position: 'absolute',
-                right: '100%',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 45,
-                height: 45,
-                marginRight: '2px',
-              }}
-            />
-            농부님 주목!
-          </span>
+          <MiniMap litTreeIds={litTreeIds} viewportInfo={viewportInfo} />
         </div>
 
-        {/* 핀된 항목 */}
-        {pinnedItems.length > 0 && (
-          <div style={{
+        {/* 게시판 */}
+        <div
+          onClick={onAnnouncementClick}
+          style={{
             flex: 1,
+            minWidth: 0,
+            border: '1px solid #ccc',
+            borderRadius: '6px',
+            backgroundColor: '#fafafa',
+            cursor: 'pointer',
             overflow: 'hidden',
-            marginTop: '6px',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '4px 10px',
+          }}
+        >
+          {/* 타이틀 */}
+          <div style={{
+            textAlign: 'center',
+            flexShrink: 0,
+            lineHeight: 1,
           }}>
-            {pinnedItems.map((item) => (
-              <div key={item.id} style={{
-                fontFamily: "'Poor Story', cursive",
-                fontSize: '0.85rem',
-                color: '#555',
-                lineHeight: '1.3',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}>
-                <span style={{ color: '#999', marginRight: '4px' }}>•</span>
-                {item.message}
-              </div>
-            ))}
+            <span style={{
+              position: 'relative',
+              display: 'inline-block',
+              fontFamily: "'Poor Story', cursive",
+              fontSize: '0.95rem',
+              color: '#666',
+              fontWeight: 400,
+            }}>
+              <img
+                src={farmerAnnounce}
+                alt=""
+                style={{
+                  position: 'absolute',
+                  right: '100%',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 45,
+                  height: 45,
+                  marginRight: '2px',
+                }}
+              />
+              농부님 주목!
+              {redDot}
+            </span>
           </div>
-        )}
+
+          {/* 핀된 항목 */}
+          {pinnedItems.length > 0 && (
+            <div style={{
+              flex: 1,
+              overflow: 'hidden',
+              marginTop: '6px',
+            }}>
+              {pinnedItems.map((item) => (
+                <div key={item.id} style={{
+                  fontFamily: "'Poor Story', cursive",
+                  fontSize: '0.85rem',
+                  color: '#555',
+                  lineHeight: '1.3',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  <span style={{ color: '#999', marginRight: '4px' }}>•</span>
+                  {item.message}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
