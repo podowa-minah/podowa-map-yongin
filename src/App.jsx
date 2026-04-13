@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import FarmMap from './FarmMap.jsx';
 import TreeModal from './TreeModal.jsx';
 import Login from './components/Login.jsx';
@@ -8,8 +8,8 @@ import ChangePassword from './components/ChangePassword.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
 import WeatherDate from './components/WeatherDate.jsx';
 import HistoryPopup from './components/HistoryPopup.jsx';
-import AnnouncementBar from './components/AnnouncementBar.jsx';
 import AnnouncementPopup from './components/AnnouncementPopup.jsx';
+import BottomBar from './components/BottomBar.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
 import { getKSTToday, offsetDate, computeStatsForDate } from './utils/dailyStats';
@@ -40,7 +40,7 @@ export default function App() {
   const [headerOpen, setHeaderOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [historySummaries, setHistorySummaries] = useState(null);
-  const [latestAnnouncement, setLatestAnnouncement] = useState(null);
+  const [latestAnnouncement, setLatestAnnouncement] = useState([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const { labels } = useLabels();
@@ -115,9 +115,8 @@ export default function App() {
       .from('announcements')
       .select('*')
       .eq('pinned', true)
-      .order('created_at', { ascending: false })
-      .limit(1);
-    setLatestAnnouncement(data && data.length > 0 ? data[0] : null);
+      .order('created_at', { ascending: false });
+    setLatestAnnouncement(data || []);
   };
 
   const fetchAllAnnouncements = async () => {
@@ -402,14 +401,13 @@ export default function App() {
         {/* ── 상단 바 + 접히는 메뉴 (sticky 안에 같이) ── */}
         <header className="app-header-bar">
           <div className="header-bar-inner">
-            <div className="header-title" style={{ flexShrink: 0 }}>
+            <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
                 <span className="version">v1.0.3</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
-            <AnnouncementBar latest={latestAnnouncement} onClick={() => setShowAnnouncements(true)} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
               <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
@@ -449,9 +447,15 @@ export default function App() {
           <ProgressBar completed={completed} total={total} greenDots={greenDots} treeData={treeData} />
         </header>
 
-        <main className="app-content">
+        <main className="app-content" style={{ paddingBottom: '70px' }}>
           <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} />
         </main>
+
+        <BottomBar
+          onAnnouncementClick={() => setShowAnnouncements(true)}
+          litTreeIds={litTreeIds}
+          pinnedItems={latestAnnouncement}
+        />
 
         {selectedTree && (
           <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedTree(null); setTimeout(loadAllRows, 500); }} />
@@ -465,9 +469,8 @@ export default function App() {
           <AnnouncementPopup
             onClose={() => setShowAnnouncements(false)}
             authorName={authorName}
-            onPinChange={(pinned) => setLatestAnnouncement(pinned)}
             prefetchedItems={prefetchedAnnouncements}
-            onListChange={() => fetchAllAnnouncements()}
+            onListChange={() => { fetchAllAnnouncements(); fetchPinned(); }}
           />
         )}
 

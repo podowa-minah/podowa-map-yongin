@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 const PAGE_SIZE = 30;
 const DELETE_PASSWORD = '1234';
 
-export default function AnnouncementPopup({ onClose, authorName, onPinChange, prefetchedItems, onListChange }) {
+export default function AnnouncementPopup({ onClose, authorName, prefetchedItems, onListChange }) {
   const [items, setItems] = useState(prefetchedItems || []);
   const [loading, setLoading] = useState(!prefetchedItems);
   const [message, setMessage] = useState('');
@@ -48,20 +48,13 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange, pr
 
     const newPinned = !item.pinned;
 
-    // 옵티미스틱: 로컬 즉시 반영
-    setItems(prev => prev.map(it => ({
-      ...it,
-      pinned: it.id === item.id ? newPinned : false,
-    })));
-    onPinChange?.(newPinned ? { ...item, pinned: true } : null);
+    // 옵티미스틱: 로컬 즉시 반영 (여러 개 체크 가능)
+    setItems(prev => prev.map(it =>
+      it.id === item.id ? { ...it, pinned: newPinned } : it
+    ));
 
     // DB 반영
-    if (newPinned) {
-      await supabase.from('announcements').update({ pinned: false }).eq('pinned', true);
-      await supabase.from('announcements').update({ pinned: true }).eq('id', item.id);
-    } else {
-      await supabase.from('announcements').update({ pinned: false }).eq('id', item.id);
-    }
+    await supabase.from('announcements').update({ pinned: newPinned }).eq('id', item.id);
 
     setPinning(false);
     onListChange?.();
@@ -77,7 +70,6 @@ export default function AnnouncementPopup({ onClose, authorName, onPinChange, pr
 
     // 옵티미스틱
     setItems(prev => prev.filter(it => it.id !== deleteTarget.id));
-    if (wasPinned) onPinChange?.(null);
 
     await supabase.from('announcements').delete().eq('id', deleteTarget.id);
 
