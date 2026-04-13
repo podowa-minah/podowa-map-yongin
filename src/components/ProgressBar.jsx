@@ -1,7 +1,55 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerRestSVG from '../assets/icons/farmer_rest.svg';
+
+const EMOJIS = ['🎉', '✨', '🌟', '🎊', '🍇', '🌿'];
+const BATCH = 20;
+const TOTAL_CONFETTI = 60;
+
+// 이모지 데이터를 미리 생성 (렌더 중 Math.random 방지)
+function makeConfetti(startIdx) {
+  return Array.from({ length: BATCH }, (_, i) => {
+    const idx = startIdx + i;
+    return {
+      key: idx,
+      left: `${5 + Math.random() * 90}%`,
+      fontSize: `${12 + Math.random() * 16}px`,
+      duration: `${2.5 + Math.random() * 1.5}s`,
+      delay: `${idx * 0.03}s`,
+      emoji: EMOJIS[Math.floor(Math.random() * 6)],
+    };
+  });
+}
+
+function ConfettiRain() {
+  const [batches, setBatches] = useState(() => [makeConfetti(0)]);
+
+  useEffect(() => {
+    if (batches.length >= TOTAL_CONFETTI / BATCH) return;
+    const timer = setTimeout(() => {
+      setBatches(prev => [...prev, makeConfetti(prev.length * BATCH)]);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [batches.length]);
+
+  return batches.flat().map(c => (
+    <span
+      key={c.key}
+      style={{
+        position: 'absolute',
+        top: '-10px',
+        left: c.left,
+        fontSize: c.fontSize,
+        animation: `confetti ${c.duration} ease-out ${c.delay} forwards`,
+        opacity: 0,
+        willChange: 'transform, opacity',
+      }}
+    >
+      {c.emoji}
+    </span>
+  ));
+}
 
 export default function ProgressBar({ completed, total, greenDots = 0, treeData = {} }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -238,21 +286,7 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
           }}>
             🎉🎊🥳
           </div>
-          {Array.from({ length: 60 }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                top: '-10px',
-                left: `${5 + Math.random() * 90}%`,
-                fontSize: `${12 + Math.random() * 16}px`,
-                animation: `confetti ${3 + Math.random() * 3}s ease-out ${Math.random() * 0.8}s forwards`,
-                opacity: 0,
-              }}
-            >
-              {['🎉', '✨', '🌟', '🎊', '🍇', '🌿'][Math.floor(Math.random() * 6)]}
-            </span>
-          ))}
+          <ConfettiRain />
           <style>{`
             @keyframes fanfare {
               0% { transform: scale(0); opacity: 0; }
@@ -261,8 +295,8 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
               100% { transform: scale(0.8); opacity: 0; }
             }
             @keyframes confetti {
-              0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-              100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
+              0% { transform: translate3d(0,0,0) rotate(0deg); opacity: 1; }
+              100% { transform: translate3d(0,120vh,0) rotate(720deg); opacity: 0; }
             }
           `}</style>
         </div>,
