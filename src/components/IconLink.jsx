@@ -4,7 +4,7 @@ export default function IconLink({ href, src, alt, size = 36, style = {} }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, verticalAlign: 'middle', ...style }}
+      style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size, verticalAlign: 'middle', overflow: 'hidden', fontSize: 0, ...style }}
     >
       <img
         src={src}

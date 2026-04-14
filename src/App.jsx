@@ -16,8 +16,8 @@ import { getKSTToday, offsetDate, computeStatsForDate } from './utils/dailyStats
 import './App.css';
 
 import IconLink from './components/IconLink';
-import waterlink from './assets/icons/global_water.svg';
-import trtlink from './assets/icons/global_trt.svg';
+import waterlink from './assets/icons/global_water_small.png';
+import trtlink from './assets/icons/global_trt_small.png';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
