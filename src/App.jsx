@@ -18,6 +18,7 @@ import './App.css';
 import IconLink from './components/IconLink';
 import waterlink from './assets/icons/global_water_small.png';
 import trtlink from './assets/icons/global_trt_small.png';
+import grasslink from './assets/icons/grass.svg';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -411,6 +412,7 @@ export default function App() {
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); alert('풀 지도 준비 중!'); }} />
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
               <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
               <button
@@ -458,7 +460,8 @@ export default function App() {
           litTreeIds={litTreeIds}
           pinnedItems={latestAnnouncement}
           viewportInfo={viewportInfo}
-          hasNew={prefetchedAnnouncements?.some(a => a.created_at > lastSeenAt) || false}
+          hasUnseen={prefetchedAnnouncements?.some(a => a.created_at > lastSeenAt) || false}
+          hasRecent={prefetchedAnnouncements?.some(a => (Date.now() - new Date(a.created_at).getTime()) < 24 * 60 * 60 * 1000) || false}
         />
 
         {selectedTree && (

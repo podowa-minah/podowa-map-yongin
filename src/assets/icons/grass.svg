@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 왼쪽 잎 -->
+  <path d="M28 54 C28 54, 10 40, 12 22 C14 12, 24 10, 28 18 C28 18, 28 32, 28 54Z" fill="#7bc67e" stroke="#3d8b40" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M27 50 C24 40, 18 30, 16 22" fill="none" stroke="#5aad5e" stroke-width="1" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- 오른쪽 잎 -->
+  <path d="M32 54 C32 54, 52 42, 52 24 C52 14, 42 10, 34 18 C34 18, 32 32, 32 54Z" fill="#8fd491" stroke="#3d8b40" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M33 50 C37 40, 44 32, 48 24" fill="none" stroke="#6bbe6e" stroke-width="1" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- 가운데 작은 잎 -->
+  <path d="M30 54 C30 54, 23 42, 25 34 C27 28, 33 28, 35 34 C37 42, 30 54, 30 54Z" fill="#a8e6a8" stroke="#5aad5e" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- 줄기 -->
+  <path d="M30 54 L30 60" stroke="#3d8b40" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

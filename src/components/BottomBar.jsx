@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import MiniMap from './MiniMap';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 
-export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasNew = false }) {
+export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasUnseen = false, hasRecent = false }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  // 빨간 점 뱃지
-  const redDot = hasNew ? (
+  // 빨간 점 뱃지 (24시간 이내 공지 있으면)
+  const redDot = hasRecent ? (
     <span style={{
       display: 'inline-block',
       width: 8,
@@ -18,6 +18,11 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
       verticalAlign: 'middle',
     }} />
   ) : null;
+
+  // 메가폰 농부 크기: 미확인 새 공지 → 크게 + 흔들림
+  const farmerSizeExpanded = 70;
+  const farmerSizeNormal = 45;
+  const farmerSizeCollapsed = hasUnseen ? 40 : 28;
 
   // 접힌 상태
   if (collapsed) {
@@ -31,21 +36,39 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
           transform: 'translateZ(0)',
         }}
       >
+        <style>{`
+          @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            15% { transform: rotate(-12deg); }
+            30% { transform: rotate(10deg); }
+            45% { transform: rotate(-8deg); }
+            60% { transform: rotate(6deg); }
+            75% { transform: rotate(-3deg); }
+          }
+        `}</style>
         <div
           onClick={() => setCollapsed(false)}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            height: '36px',
+            height: '44px',
             cursor: 'pointer',
             userSelect: 'none',
             WebkitTapHighlightColor: 'transparent',
           }}
         >
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <img src={farmerAnnounce} alt="" style={{ width: 28, height: 28 }} />
-            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: '0.85rem', color: '#666' }}>
+            <img
+              src={farmerAnnounce}
+              alt=""
+              style={{
+                width: farmerSizeCollapsed,
+                height: farmerSizeCollapsed,
+                animation: hasUnseen ? 'shake 0.8s ease-in-out infinite' : 'none',
+              }}
+            />
+            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: hasUnseen ? '1rem' : '0.85rem', color: hasUnseen ? '#d97706' : '#666', fontWeight: hasUnseen ? 700 : 400 }}>
               농부님 주목!
             </span>
             {redDot}
@@ -66,6 +89,17 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
         transform: 'translateZ(0)',
       }}
     >
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateY(-50%) rotate(0deg); }
+          15% { transform: translateY(-50%) rotate(-12deg); }
+          30% { transform: translateY(-50%) rotate(10deg); }
+          45% { transform: translateY(-50%) rotate(-8deg); }
+          60% { transform: translateY(-50%) rotate(6deg); }
+          75% { transform: translateY(-50%) rotate(-3deg); }
+        }
+      `}</style>
+
       {/* 손잡이 탭 — 누르면 접기 */}
       <div
         onClick={() => setCollapsed(true)}
@@ -139,9 +173,9 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
               position: 'relative',
               display: 'inline-block',
               fontFamily: "'Poor Story', cursive",
-              fontSize: '0.95rem',
-              color: '#666',
-              fontWeight: 400,
+              fontSize: hasUnseen ? '1.1rem' : '0.95rem',
+              color: hasUnseen ? '#d97706' : '#666',
+              fontWeight: hasUnseen ? 700 : 400,
             }}>
               <img
                 src={farmerAnnounce}
@@ -151,9 +185,11 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
                   right: '100%',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  width: 45,
-                  height: 45,
+                  width: hasUnseen ? farmerSizeExpanded : farmerSizeNormal,
+                  height: hasUnseen ? farmerSizeExpanded : farmerSizeNormal,
                   marginRight: '2px',
+                  animation: hasUnseen ? 'shake 0.8s ease-in-out infinite' : 'none',
+                  transition: 'width 0.3s, height 0.3s',
                 }}
               />
               농부님 주목!
