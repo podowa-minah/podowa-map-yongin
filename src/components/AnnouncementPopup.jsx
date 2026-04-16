@@ -23,6 +23,7 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
     const { data, error } = await supabase
       .from('announcements')
       .select('*')
+      .eq('deleted', false)
       .order('created_at', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 
@@ -71,7 +72,7 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
     // 옵티미스틱
     setItems(prev => prev.filter(it => it.id !== deleteTarget.id));
 
-    await supabase.from('announcements').delete().eq('id', deleteTarget.id);
+    await supabase.from('announcements').update({ deleted: true, pinned: false }).eq('id', deleteTarget.id);
 
     setDeleteTarget(null);
     setDeletePass('');

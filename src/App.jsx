@@ -118,6 +118,7 @@ export default function App() {
       .from('announcements')
       .select('*')
       .eq('pinned', true)
+      .eq('deleted', false)
       .order('created_at', { ascending: false });
     setLatestAnnouncement(data || []);
   };
@@ -126,6 +127,7 @@ export default function App() {
     const { data } = await supabase
       .from('announcements')
       .select('*')
+      .eq('deleted', false)
       .order('created_at', { ascending: false })
       .limit(30);
     if (data) setPrefetchedAnnouncements(data);
