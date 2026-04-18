@@ -46,6 +46,7 @@ export default function App() {
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const [viewportInfo, setViewportInfo] = useState(null);
   const [lastSeenAt, setLastSeenAt] = useState(() => new Date().toISOString());
+  const [dismissedAt, setDismissedAt] = useState('1970-01-01T00:00:00.000Z');
   const { labels } = useLabels();
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -150,6 +151,14 @@ export default function App() {
   }, [user]);
 
   const authorName = user?.user_metadata?.nickname || user?.email || '';
+
+  // authorName 확정 후 localStorage에서 dismissed_at 로드
+  useEffect(() => {
+    if (authorName) {
+      const stored = localStorage.getItem(`dismissed_at_${authorName}`);
+      if (stored) setDismissedAt(stored);
+    }
+  }, [authorName]);
 
   // 오늘 진행률 계산
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
@@ -464,7 +473,7 @@ export default function App() {
           pinnedItems={latestAnnouncement}
           viewportInfo={viewportInfo}
           hasUnseen={prefetchedAnnouncements?.some(a => a.created_at > lastSeenAt) || false}
-          hasRecent={prefetchedAnnouncements?.some(a => (Date.now() - new Date(a.created_at).getTime()) < 24 * 60 * 60 * 1000) || false}
+          hasRecent={prefetchedAnnouncements?.some(a => a.created_at > dismissedAt) || false}
         />
 
         {selectedTree && (
@@ -480,7 +489,13 @@ export default function App() {
             onClose={() => setShowAnnouncements(false)}
             authorName={authorName}
             prefetchedItems={prefetchedAnnouncements}
+            dismissedAt={dismissedAt}
             onListChange={() => { fetchAllAnnouncements(); fetchPinned(); }}
+            onDismiss={() => {
+              const now = new Date().toISOString();
+              localStorage.setItem(`dismissed_at_${authorName}`, now);
+              setDismissedAt(now);
+            }}
           />
         )}
 

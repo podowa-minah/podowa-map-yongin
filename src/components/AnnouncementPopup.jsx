@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 const PAGE_SIZE = 30;
 const DELETE_PASSWORD = '1234';
 
-export default function AnnouncementPopup({ onClose, authorName, prefetchedItems, onListChange }) {
+export default function AnnouncementPopup({ onClose, authorName, prefetchedItems, onListChange, onDismiss, dismissedAt }) {
   const [items, setItems] = useState(prefetchedItems || []);
   const [loading, setLoading] = useState(!prefetchedItems);
   const [message, setMessage] = useState('');
@@ -16,6 +16,10 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePass, setDeletePass] = useState('');
   const [deleteError, setDeleteError] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (!dismissedAt || !prefetchedItems || prefetchedItems.length === 0) return false;
+    return !prefetchedItems.some(a => a.created_at > dismissedAt);
+  });
   const inputRef = useRef(null);
   const deleteInputRef = useRef(null);
 
@@ -150,10 +154,26 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <span style={{ fontWeight: 600, fontSize: '1rem' }}>전달사항</span>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', fontSize: '1.2rem',
-            cursor: 'pointer', color: '#888', padding: '4px',
-          }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => { if (!dismissed) { setDismissed(true); onDismiss?.(); } }}
+              style={{
+                background: dismissed ? '#f0fdf4' : 'none',
+                border: dismissed ? '1px solid #86efac' : '1px solid #e2e8f0',
+                borderRadius: '6px', padding: '4px 10px',
+                fontSize: '0.75rem',
+                color: dismissed ? '#718096' : '#718096',
+                cursor: dismissed ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+                boxShadow: dismissed ? '0 0 6px rgba(16, 185, 129, 0.4)' : 'none',
+              }}
+            >{dismissed ? <span>다 확인했어요 🙆‍♂️ <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span></span> : '다 확인했어요 🙆‍♂️'}</button>
+            <button onClick={onClose} style={{
+              background: 'none', border: 'none', fontSize: '1.2rem',
+              cursor: 'pointer', color: '#888', padding: '4px',
+            }}>✕</button>
+          </div>
         </div>
 
         {/* 리스트 */}
