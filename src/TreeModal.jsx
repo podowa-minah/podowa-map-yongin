@@ -496,37 +496,54 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
           <div style={{ height: 220, marginBottom: 16 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
-                data={history.map(h => ({
-                  ...h,
-                  powerJ: h.powerJ != null ? h.powerJ + (Math.random() - 0.5) * 0.5 : null,
-                  balanceJ: h.balanceJ != null ? h.balanceJ + (Math.random() - 0.5) * 0.5 : null,
-                  bugsJ: h.bugsJ != null ? h.bugsJ + (Math.random() - 0.5) * 0.5 : null,
-                }))}
+                data={history}
                 margin={{ top: 10, right: 20 }}
               >
                 <CartesianGrid vertical={false} horizontal={false} />
-                {[1, 2, 3, 4, 5].map((y) => (
+                {[0, 1, 2, 3, 4, 5].map((y) => (
                   <ReferenceLine key={y} y={y} stroke="#ccc" strokeDasharray="3 3" ifOverflow="extendDomain" />
                 ))}
                 <XAxis dataKey="date" tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }} axisLine />
                 <YAxis domain={[0, 5]} ticks={[0, 1, 2, 3, 4, 5]} tickFormatter={(v) => (v === 0 ? '0/NA' : v)} axisLine />
-                <Tooltip cursor={false} formatter={(val) => Math.round(val)} />
+                <Tooltip
+                  cursor={false}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#5c8db8', balanceNA: '#5c8db8', bugsJ: '#e57373' };
+                    const nameMap = { powerJ: '세력', powerNA: '세력', balanceJ: '균형', balanceNA: '균형', bugsJ: '해충' };
+                    const order = ['powerJ', 'powerNA', 'balanceJ', 'balanceNA', 'bugsJ'];
+                    const items = payload
+                      .filter(p => p.value != null)
+                      .sort((a, b) => order.indexOf(a.dataKey) - order.indexOf(b.dataKey));
+                    return (
+                      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 3 }}>{label}</div>
+                        {items.map(p => (
+                          <div key={p.dataKey} style={{ color: colorMap[p.dataKey] }}>
+                            {nameMap[p.dataKey]} : {p.dataKey.endsWith('NA') ? '판단불가' : Math.round(p.value)}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
                 <Legend
                   wrapperStyle={{ display: 'flex', justifyContent: 'center' }}
-                  content={({ payload }) => (
+                  content={() => (
                     <div style={{ display: 'flex', gap: 18 }}>
-                      {payload.filter(p => !p.value.endsWith('NA')).map(({ color, value }) => {
-                        const label = { powerJ: '세력', balanceJ: '균형', bugsJ: '해충' }[value] || value;
-                        return (
-                          <span key={value} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
-                            <svg width="30" height="10" style={{ marginRight: 4 }}>
-                              <line x1="0" y1="5" x2="26" y2="5" stroke={color} strokeWidth="2" />
-                              <circle cx="13" cy="5" r="3.5" fill={color} />
-                            </svg>
-                            {label}
-                          </span>
-                        );
-                      })}
+                      {[
+                        { color: '#66bb6a', label: '세력' },
+                        { color: '#5c8db8', label: '균형' },
+                        { color: '#e57373', label: '해충' },
+                      ].map(({ color, label }) => (
+                        <span key={label} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
+                          <svg width="30" height="10" style={{ marginRight: 4 }}>
+                            <line x1="0" y1="5" x2="26" y2="5" stroke={color} strokeWidth="2" />
+                            <circle cx="13" cy="5" r="3" fill={color} />
+                          </svg>
+                          {label}
+                        </span>
+                      ))}
                     </div>
                   )}
                 />
@@ -539,11 +556,11 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                <Line type="basis" dataKey="powerJ" stroke="green" strokeWidth={2} dot={{ r: 4, fill: 'green' }} name="세력" isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="balanceJ" stroke="blue" strokeWidth={2} dot={{ r: 4, fill: 'blue' }} name="균형" isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="bugsJ" stroke="red" strokeWidth={2} dot={{ r: 4, fill: 'red' }} name="해충" isAnimationActive={false} connectNulls={true} />
-                <Line dataKey="powerNA" stroke="none" strokeWidth={0} dot={{ r: 4, fill: 'green', strokeWidth: 1, stroke: '#fff' }} isAnimationActive={false} legendType="none" />
-                <Line dataKey="balanceNA" stroke="none" strokeWidth={0} dot={{ r: 4, fill: 'blue', strokeWidth: 1, stroke: '#fff' }} isAnimationActive={false} legendType="none" />
+                <Line type="basis" dataKey="bugsJ" stroke="#e57373" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={3} fill="#e57373" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="balanceJ" stroke="#5c8db8" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="powerJ" stroke="#66bb6a" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="#5c8db8" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} legendType="none" />
               </LineChart>
             </ResponsiveContainer>
           </div>

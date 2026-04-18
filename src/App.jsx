@@ -491,10 +491,15 @@ export default function App() {
             prefetchedItems={prefetchedAnnouncements}
             dismissedAt={dismissedAt}
             onListChange={() => { fetchAllAnnouncements(); fetchPinned(); }}
-            onDismiss={() => {
-              const now = new Date().toISOString();
-              localStorage.setItem(`dismissed_at_${authorName}`, now);
-              setDismissedAt(now);
+            onDismiss={(isDismissing) => {
+              if (isDismissing) {
+                const now = new Date().toISOString();
+                localStorage.setItem(`dismissed_at_${authorName}`, now);
+                setDismissedAt(now);
+              } else {
+                localStorage.removeItem(`dismissed_at_${authorName}`);
+                setDismissedAt('1970-01-01T00:00:00.000Z');
+              }
             }}
           />
         )}

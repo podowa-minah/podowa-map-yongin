@@ -156,14 +156,14 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
           <span style={{ fontWeight: 600, fontSize: '1rem' }}>전달사항</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
-              onClick={() => { if (!dismissed) { setDismissed(true); onDismiss?.(); } }}
+              onClick={() => { setDismissed(prev => !prev); onDismiss?.(!dismissed); }}
               style={{
                 background: dismissed ? '#f0fdf4' : 'none',
                 border: dismissed ? '1px solid #86efac' : '1px solid #e2e8f0',
                 borderRadius: '6px', padding: '4px 10px',
                 fontSize: '0.75rem',
                 color: dismissed ? '#718096' : '#718096',
-                cursor: dismissed ? 'default' : 'pointer',
+                cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'all 0.2s',
                 boxShadow: dismissed ? '0 0 6px rgba(16, 185, 129, 0.4)' : 'none',
