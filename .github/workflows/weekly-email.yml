@@ -1,0 +1,27 @@
+name: Weekly Excel Email
+
+on:
+  schedule:
+    # 매주 일요일 한국시간 23:59 (UTC 14:59)
+    - cron: '59 14 * * 0'
+  workflow_dispatch: # 수동 실행도 가능
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install @supabase/supabase-js exceljs resend
+
+      - name: Generate Excel and send email
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: node scripts/weekly-email.mjs
