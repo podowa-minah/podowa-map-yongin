@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- 새싹: 두 잎 + 줄기 -->
+  <path d="M8 15 L8 8" stroke="#86efac" stroke-width="1.5" stroke-linecap="round"/>
+  <ellipse cx="5.5" cy="6" rx="3" ry="4" fill="#4ade80" transform="rotate(25, 5.5, 6)"/>
+  <ellipse cx="10.5" cy="6" rx="3" ry="4" fill="#4ade80" transform="rotate(-25, 10.5, 6)"/>
+  <ellipse cx="5.8" cy="5" rx="1.2" ry="1.8" fill="#86efac" opacity="0.5" transform="rotate(25, 5.8, 5)"/>
+  <ellipse cx="10.2" cy="5" rx="1.2" ry="1.8" fill="#86efac" opacity="0.5" transform="rotate(-25, 10.2, 5)"/>
+</svg>

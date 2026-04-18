@@ -121,7 +121,7 @@ export function computeStatsForDate(treeData, labels, simDate) {
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }));
 
-  return { completed, total: totalLit, green_dots: greenDots, workers };
+  return { completed, total: totalLit, green_dots: greenDots, kind_dots: greenDots - completed, workers };
 }
 
 /**

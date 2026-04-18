@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- 동그란 열매: 초록 포도알 + 작은 잎 -->
+  <circle cx="8" cy="9" r="4.5" fill="#4ade80"/>
+  <circle cx="6.5" cy="8" r="1.5" fill="#86efac" opacity="0.5"/>
+  <path d="M8 4.5 Q6 2 8 1 Q10 2 8 4.5Z" fill="#22c55e"/>
+  <line x1="8" y1="4.5" x2="8" y2="3" stroke="#16a34a" stroke-width="0.6"/>
+</svg>

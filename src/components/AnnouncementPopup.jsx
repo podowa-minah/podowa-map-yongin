@@ -72,7 +72,8 @@ export default function AnnouncementPopup({ onClose, authorName, prefetchedItems
     // 옵티미스틱
     setItems(prev => prev.filter(it => it.id !== deleteTarget.id));
 
-    await supabase.from('announcements').update({ deleted: true, pinned: false }).eq('id', deleteTarget.id);
+    const { error: delErr } = await supabase.from('announcements').update({ deleted: true, pinned: false }).eq('id', deleteTarget.id);
+    if (delErr) console.error('soft delete failed:', delErr);
 
     setDeleteTarget(null);
     setDeletePass('');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerRestSVG from '../assets/icons/farmer_rest.svg';
+import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 
 const EMOJIS = ['🎉', '✨', '🌟', '🎊', '🍇', '🌿'];
 const BATCH = 20;
@@ -51,7 +52,7 @@ function ConfettiRain() {
   ));
 }
 
-export default function ProgressBar({ completed, total, greenDots = 0, treeData = {} }) {
+export default function ProgressBar({ completed, total, greenDots = 0, kindDots = 0, treeData = {} }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isComplete = total > 0 && completed >= total;
   const [showFanfare, setShowFanfare] = useState(false);
@@ -110,9 +111,17 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
           오늘은 돌볼 나무가 없어요 🌿
         </span>
         {greenDots > 0 && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
-            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#10b981' }} />
-            <span>{greenDots}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
+            {kindDots > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
+                <span>{kindDots}</span>
+              </span>
+            )}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+              <img src={treeIconSVG} alt="" style={{ width: 13, height: 13 }} />
+              <span>{greenDots}</span>
+            </span>
           </span>
         )}
       </>
@@ -170,15 +179,17 @@ export default function ProgressBar({ completed, total, greenDots = 0, treeData 
         height: '38px',
       }}>
         {greenDots > 0 ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
-            <span style={{
-              display: 'inline-block',
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              backgroundColor: '#10b981',
-            }} />
-            <span>{greenDots}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
+            {kindDots > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
+                <span>{kindDots}</span>
+              </span>
+            )}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+              <img src={treeIconSVG} alt="" style={{ width: 12, height: 12 }} />
+              <span>{greenDots}</span>
+            </span>
           </span>
         ) : <span />}
         <span style={{

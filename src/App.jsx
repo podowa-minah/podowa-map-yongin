@@ -367,6 +367,7 @@ export default function App() {
           completed: stats.completed,
           total: stats.total,
           green_dots: stats.green_dots,
+          kind_dots: stats.kind_dots,
           workers: stats.workers,
         });
       }
@@ -450,7 +451,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <ProgressBar completed={completed} total={total} greenDots={greenDots} treeData={treeData} />
+          <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} treeData={treeData} />
         </header>
 
         <main className="app-content" style={{ paddingBottom: '70px' }}>

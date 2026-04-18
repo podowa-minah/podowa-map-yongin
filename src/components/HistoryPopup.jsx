@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
+import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
@@ -37,7 +38,7 @@ function MiniBar({ pct, incomplete }) {
   );
 }
 
-function DayRow({ label, completed, total, greenDots, workers, isTomorrow, isToday }) {
+function DayRow({ label, completed, total, greenDots, kindDots, workers, isTomorrow, isToday }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
   const isIncomplete = !isTomorrow && !isToday && !isEmpty && pct < 100;
@@ -81,9 +82,17 @@ function DayRow({ label, completed, total, greenDots, workers, isTomorrow, isTod
             {isTomorrow && (
               <span style={{ fontSize: '0.65rem', color: '#7c3aed', fontStyle: 'italic' }}>오늘 완료 가정</span>
             )}
+            <span style={{ flex: 1 }} />
+            {kindDots != null && kindDots > 0 && (
+              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginRight: '6px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
+                <span>{kindDots}</span>
+              </span>
+            )}
             {greenDots != null && greenDots > 0 && (
-              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'flex', alignItems: 'center', gap: '1px' }}>
-                <GreenDot />{greenDots}
+              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '1px', flexShrink: 0 }}>
+                <img src={treeIconSVG} alt="" style={{ width: 11, height: 11 }} />
+                <span>{greenDots}</span>
               </span>
             )}
           </>
@@ -222,6 +231,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                 completed={todayStats.completed}
                 total={todayStats.total}
                 greenDots={todayStats.green_dots}
+                kindDots={todayStats.green_dots - todayStats.completed}
                 workers={todayStats.workers}
                 isToday
               />
@@ -237,6 +247,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   completed={s.completed}
                   total={s.total}
                   greenDots={s.green_dots}
+                  kindDots={s.kind_dots}
                   workers={typeof s.workers === 'string' ? JSON.parse(s.workers) : s.workers}
                 />
               ))

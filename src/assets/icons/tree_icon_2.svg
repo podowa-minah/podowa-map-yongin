@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- 잎사귀 하나: 둥근 잎 + 줄기 -->
+  <path d="M8 14 Q8 8 4 3 Q8 2 12 3 Q8 8 8 14Z" fill="#4ade80"/>
+  <path d="M8 14 Q8 8 5.5 4.5" fill="none" stroke="#22c55e" stroke-width="0.8" stroke-linecap="round"/>
+</svg>

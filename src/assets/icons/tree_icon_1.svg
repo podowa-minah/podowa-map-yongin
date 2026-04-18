@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- 미니 나무: 동그란 초록 원 + 갈색 줄기 -->
+  <circle cx="8" cy="6" r="5" fill="#10b981"/>
+  <circle cx="6" cy="5" r="1.2" fill="#6ee7b7" opacity="0.5"/>
+  <rect x="7" y="11" width="2" height="4" rx="0.5" fill="#a3724e"/>
+</svg>
