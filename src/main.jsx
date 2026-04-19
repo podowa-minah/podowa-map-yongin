@@ -8,19 +8,18 @@ import App from './App.jsx';
 /* ➡️  1. import the provider  */
 import { SignalLightsProvider } from './SignalLightsContext';
 import { LabelProvider } from './LabelContext.jsx';
+import { GrassLabelProvider } from './GrassLabelContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    {/* ➡️  2. wrap EVERYTHING inside the provider */}
     <SignalLightsProvider>
-        <LabelProvider>
+      <LabelProvider>
+        <GrassLabelProvider>
           <BrowserRouter basename="/farmt">
             <App />
           </BrowserRouter>
-        </LabelProvider>
+        </GrassLabelProvider>
+      </LabelProvider>
     </SignalLightsProvider>
-    {/*    ↑———————————————————————————↑
-            this guarantees every component, including FarmMap,
-            can call useSignalLights() safely                      */}
   </React.StrictMode>
 );

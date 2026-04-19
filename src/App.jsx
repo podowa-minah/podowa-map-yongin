@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import FarmMap from './FarmMap.jsx';
+import GrassMap from './GrassMap.jsx';
 import TreeModal from './TreeModal.jsx';
 import Login from './components/Login.jsx';
 import ExportButton from './components/ExportButton.jsx';
@@ -19,10 +20,12 @@ import IconLink from './components/IconLink';
 import waterlink from './assets/icons/global_water_small.png';
 import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
+import grapelink from './assets/icons/grape.svg';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
   const [selectedTree, setSelectedTree] = useState(null);
+  const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass'
 
   // 안드로이드 뒤로가기 버튼으로 모달 닫기
   useEffect(() => {
@@ -357,12 +360,16 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.0.5</span>
+                <span className="version">v1.0.6</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); alert('풀 지도 준비 중!'); }} />
+              {viewMode === 'farm' ? (
+                <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); setViewMode('grass'); }} />
+              ) : (
+                <IconLink href="#" src={grapelink} alt="farm map" size={38} style={{ transform: 'rotate(22deg)' }} onClick={(e) => { e.preventDefault(); setViewMode('farm'); }} />
+              )}
               <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
               <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
               <button
@@ -402,7 +409,11 @@ export default function App() {
         </header>
 
         <main className="app-content" style={{ paddingBottom: '70px' }}>
-          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
+          {viewMode === 'farm' ? (
+            <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
+          ) : (
+            <GrassMap />
+          )}
         </main>
 
         <BottomBar
