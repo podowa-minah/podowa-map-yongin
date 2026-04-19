@@ -83,24 +83,26 @@ function DayRow({ label, completed, total, greenDots, kindDots, fakeDots, worker
               <span style={{ fontSize: '0.65rem', color: '#7c3aed', fontStyle: 'italic' }}>오늘 완료 가정</span>
             )}
             <span style={{ flex: 1 }} />
-            {fakeDots != null && fakeDots > 0 && (
-              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginRight: '6px' }}>
-                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
-                <span>{fakeDots}</span>
-              </span>
-            )}
-            {kindDots != null && kindDots > 0 && (
-              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginRight: '6px' }}>
-                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
-                <span>{kindDots}</span>
-              </span>
-            )}
-            {greenDots != null && greenDots > 0 && (
-              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '1px', flexShrink: 0 }}>
-                <img src={treeIconSVG} alt="" style={{ width: 11, height: 11 }} />
-                <span>{greenDots}</span>
-              </span>
-            )}
+            <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, fontSize: '0.72rem', color: '#718096' }}>
+              {fakeDots != null && fakeDots > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+                  <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', backgroundColor: '#f97316' }} />
+                  <span>{fakeDots}</span>
+                </span>
+              )}
+              {kindDots != null && kindDots > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px', marginLeft: fakeDots > 0 ? '3px' : 0 }}>
+                  <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', backgroundColor: '#667eea' }} />
+                  <span>{kindDots}</span>
+                </span>
+              )}
+              {greenDots != null && greenDots > 0 && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px', marginLeft: '5px' }}>
+                  <img src={treeIconSVG} alt="" style={{ width: 11, height: 11 }} />
+                  <span>{greenDots}</span>
+                </span>
+              )}
+            </span>
           </>
         )}
       </div>

@@ -111,15 +111,15 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
           오늘은 돌볼 나무가 없어요 🌿
         </span>
         {greenDots > 0 && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
             {fakeDots > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '3px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
                 <span>{fakeDots}</span>
               </span>
             )}
             {kindDots > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '5px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
                 <span>{kindDots}</span>
               </span>
@@ -185,15 +185,15 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
         height: '38px',
       }}>
         {greenDots > 0 ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
             {fakeDots > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '3px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
                 <span>{fakeDots}</span>
               </span>
             )}
             {kindDots > 0 && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '5px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
                 <span>{kindDots}</span>
               </span>
