@@ -52,7 +52,7 @@ function ConfettiRain() {
   ));
 }
 
-export default function ProgressBar({ completed, total, greenDots = 0, kindDots = 0, treeData = {} }) {
+export default function ProgressBar({ completed, total, greenDots = 0, kindDots = 0, fakeDots = 0, treeData = {} }) {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isComplete = total > 0 && completed >= total;
   const [showFanfare, setShowFanfare] = useState(false);
@@ -112,6 +112,12 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
         </span>
         {greenDots > 0 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#4a5568', fontWeight: 600, flexShrink: 0 }}>
+            {fakeDots > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
+                <span>{fakeDots}</span>
+              </span>
+            )}
             {kindDots > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
@@ -180,6 +186,12 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
       }}>
         {greenDots > 0 ? (
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: '#4a5568', fontWeight: 600, marginTop: '1px', marginRight: '1.4px' }}>
+            {fakeDots > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
+                <span>{fakeDots}</span>
+              </span>
+            )}
             {kindDots > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />

@@ -7,15 +7,7 @@ import { useLabels } from "./LabelContext";
 import treeSVG from "./assets/icons/tree.svg";
 import bugSVG from "./assets/icons/bug.svg";
 import clockSVG from "./assets/icons/clock.svg";
-
-const daysSince = (isoDate) => {
-  const todayKST = getToday();
-  const [ty, tm, td] = todayKST.split('-').map(Number);
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const today = new Date(ty, tm - 1, td);
-  const target = new Date(y, m - 1, d);
-  return (today - target) / (1000 * 60 * 60 * 24);
-};
+import { evaluateSignals } from "./utils/dailyStats";
 
 function toKSTDate(d) {
   // 한국 시간(KST, UTC+9) 기준 날짜
@@ -27,72 +19,23 @@ function getToday() {
   return toKSTDate(new Date());
 }
 
-function getYesterday() {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return toKSTDate(d);
-}
+
 
 function computeTriggers(records) {
-  if (!records || records.length === 0) {
-    return { treeOn: false, bugOn: false, bugEmphasis: false, clockOn: true };
-  }
-
-  // 최신 날짜 기록이 먼저 오도록 정렬
-  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
-  records = sorted;
-
   const today = getToday();
+  const hasTodayRecord = records && records.some(r => r.date === today);
 
-  // ★ 공통 규칙: 오늘 날짜로 저장된 기록이 있으면 → 모든 아이콘 OFF
-  const todayRecord = records.find(r => r.date === today);
-  if (todayRecord) {
-    return { treeOn: false, bugOn: false, bugEmphasis: false, clockOn: false };
+  // 오늘 기록 있으면 → 모든 아이콘 OFF
+  if (hasTodayRecord) {
+    return { treeLevel: 'off', bugLevel: 'off', clockLevel: 'off', anyOn: false, anyOverdue: false };
   }
 
-  // --- 나무 아이콘: 어제 세력 1,5 또는 균형 1,2 ---
-  const yesterday = getYesterday();
-  const yesterdayRecord = records.find(r => r.date === yesterday);
-  let treeOn = false;
-  if (yesterdayRecord) {
-    const p = String(yesterdayRecord.power);
-    const b = String(yesterdayRecord.balance);
-    if (["1", "5"].includes(p) || ["1", "2"].includes(b)) {
-      treeOn = true;
-    }
-  }
-
-  // --- 벌레 아이콘: 해충점수 기준 + 입력일 후 지연 활성화 ---
-  let bugOn = false;
-  let bugEmphasis = false;
-  const bugRecord = records.find(r => r.bugs !== null && r.bugs !== undefined && r.bugs !== '');
-  if (bugRecord) {
-    const bugScore = Number(bugRecord.bugs);
-    const days = daysSince(bugRecord.date);
-    if (bugScore >= 4 && days >= 1) {
-      bugOn = true;
-      bugEmphasis = true;
-    } else if (bugScore >= 2 && bugScore <= 3 && days >= 3) {
-      bugOn = true;
-    } else if (bugScore <= 1 && days >= 4) {
-      bugOn = true;
-    }
-  }
-
-  // --- 시계 아이콘: 5일간 세력/균형 입력 없으면 활성화 (판단불가도 입력으로 인정) ---
-  const recentWithScore = records.find(r =>
-    (r.power !== null && r.power !== undefined && r.power !== '') ||
-    (r.balance !== null && r.balance !== undefined && r.balance !== '')
-  );
-  let clockOn = true;
-  if (recentWithScore) {
-    clockOn = daysSince(recentWithScore.date) >= 5;
-  }
-
-  return { treeOn, bugOn, bugEmphasis, clockOn };
+  // 오늘 이전 기록만 넘겨서 판정
+  const recsBefore = (records || []).filter(r => r.date < today);
+  return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), onViewportChange }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), onViewportChange }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -370,7 +313,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           const displayId = lbl.name ? `${numericId} ${lbl.name}` : numericId;
           const isDisabled = lbl.disabled === true;
           const records = treeData[numericId] || [];
-          const { treeOn, bugOn, bugEmphasis, clockOn } = computeTriggers(records);
+          const { treeLevel, bugLevel, clockLevel, anyOn, anyOverdue } = computeTriggers(records);
           const hasTodayInput = records.some(r => r.date === getToday());
 
           if (isDisabled) {
@@ -401,11 +344,11 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 alignItems: "center",
                 cursor: "pointer",
                 outline: "1.5px solid #000000",
-                backgroundColor: litTreeIds.has(numericId) ? "#c2d9c7" : undefined,
+                backgroundColor: (signalOn && anyOn) ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : undefined,
                 position: "relative",
               }}
             >
-              {/* 오늘 입력 표시 - 우측상단 점 (불 켜져있었으면 보라, 아니면 초록) */}
+              {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 헛돌봄=오렌지, 착한돌봄=파랑) */}
               {hasTodayInput && (
                 <span style={{
                   position: 'absolute',
@@ -414,7 +357,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width: 5,
                   height: 5,
                   borderRadius: '50%',
-                  backgroundColor: doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
+                  backgroundColor: fakeDoneTreeIds.has(numericId) ? '#f97316' : doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
                   zIndex: 1,
                 }} />
               )}
@@ -433,7 +376,13 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   src={treeSVG}
                   width={iconSize}
                   height={iconSize}
-                  style={{ opacity: signalOn && treeOn ? 1 : 0.25 }}
+                  style={{
+                    opacity: signalOn && treeLevel !== 'off' ? 1 : 0.25,
+                    ...(signalOn && treeLevel === 'emphasis' ? {
+                      filter: "drop-shadow(0 0 2px #10b981) drop-shadow(0 0 4px #10b981)",
+                      transform: "scale(1.3)",
+                    } : {}),
+                  }}
                   draggable={false}
                   alt=""
                 />
@@ -442,8 +391,8 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width={iconSize}
                   height={iconSize}
                   style={{
-                    opacity: signalOn && bugOn ? 1 : 0.25,
-                    ...(signalOn && bugOn && bugEmphasis ? {
+                    opacity: signalOn && bugLevel !== 'off' ? 1 : 0.25,
+                    ...(signalOn && bugLevel === 'emphasis' ? {
                       filter: "drop-shadow(0 0 2px red) drop-shadow(0 0 4px red)",
                       transform: "scale(1.3)",
                     } : {}),
@@ -455,7 +404,13 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   src={clockSVG}
                   width={iconSize}
                   height={iconSize}
-                  style={{ opacity: signalOn && clockOn ? 1 : 0.25 }}
+                  style={{
+                    opacity: signalOn && clockLevel !== 'off' ? 1 : 0.25,
+                    ...(signalOn && clockLevel === 'emphasis' ? {
+                      filter: "drop-shadow(0 0 2px #f59e0b) drop-shadow(0 0 4px #f59e0b)",
+                      transform: "scale(1.3)",
+                    } : {}),
+                  }}
                   draggable={false}
                   alt=""
                 />

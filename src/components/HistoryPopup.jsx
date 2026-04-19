@@ -38,7 +38,7 @@ function MiniBar({ pct, incomplete }) {
   );
 }
 
-function DayRow({ label, completed, total, greenDots, kindDots, workers, isTomorrow, isToday }) {
+function DayRow({ label, completed, total, greenDots, kindDots, fakeDots, workers, isTomorrow, isToday }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
   const isIncomplete = !isTomorrow && !isToday && !isEmpty && pct < 100;
@@ -83,6 +83,12 @@ function DayRow({ label, completed, total, greenDots, kindDots, workers, isTomor
               <span style={{ fontSize: '0.65rem', color: '#7c3aed', fontStyle: 'italic' }}>오늘 완료 가정</span>
             )}
             <span style={{ flex: 1 }} />
+            {fakeDots != null && fakeDots > 0 && (
+              <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginRight: '6px' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#f97316' }} />
+                <span>{fakeDots}</span>
+              </span>
+            )}
             {kindDots != null && kindDots > 0 && (
               <span style={{ fontSize: '0.72rem', color: '#718096', display: 'inline-flex', alignItems: 'center', gap: '2px', flexShrink: 0, marginRight: '6px' }}>
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#667eea' }} />
@@ -232,6 +238,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                 total={todayStats.total}
                 greenDots={todayStats.green_dots}
                 kindDots={todayStats.green_dots - todayStats.completed}
+                fakeDots={todayStats.fake_dots}
                 workers={todayStats.workers}
                 isToday
               />
@@ -248,6 +255,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   total={s.total}
                   greenDots={s.green_dots}
                   kindDots={s.kind_dots}
+                  fakeDots={s.fake_dots}
                   workers={typeof s.workers === 'string' ? JSON.parse(s.workers) : s.workers}
                 />
               ))

@@ -12,7 +12,7 @@ import AnnouncementPopup from './components/AnnouncementPopup.jsx';
 import BottomBar from './components/BottomBar.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
-import { getKSTToday, offsetDate, computeStatsForDate } from './utils/dailyStats';
+import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals } from './utils/dailyStats';
 import './App.css';
 
 import IconLink from './components/IconLink';
@@ -164,27 +164,19 @@ export default function App() {
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
   // 분자: 그 중 오늘 입력해서 불 끈 나무
   // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
-  const { completed, total, greenDots, litTreeIds, doneTreeIds, todayWorkers, tomorrowTotal } = useMemo(() => {
+  const { completed, total, greenDots, litTreeIds, doneTreeIds, fakeDoneTreeIds, fakeDoneCount, todayWorkers, tomorrowTotal } = useMemo(() => {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
-    const yesterday = new Date(kst.getTime() - 86400000);
-    const yStr = yesterday.toISOString().slice(0, 10);
-
-    // 한국 달력 날짜 기준 경과일 계산 (시간 무시, FarmMap과 통일)
-    const [ty, tm, td] = kstToday.split('-').map(Number);
-    const todayDateObj = new Date(ty, tm - 1, td);
-    const daysSinceKST = (isoDate) => {
-      const [y, m, d] = isoDate.split('-').map(Number);
-      return (todayDateObj - new Date(y, m - 1, d)) / 86400000;
-    };
 
     const ROWS = 25, COLS = 8;
     let doneTrees = 0;
     let litTrees = 0;
     let greenDotCount = 0;
+    let fakeDoneTrees = 0;
     const litSet = new Set();
-    const doneSet = new Set(); // 불 켜져 있었는데 오늘 입력한 나무 (보라점용)
+    const doneSet = new Set(); // 불 켜져 있었는데 오늘 입력한 나무
+    const fakeDoneSet = new Set(); // 헛돌봄: 입력은 했지만 해당 메트릭 미입력
 
     for (let c = 1; c <= COLS; c++) {
       for (let r = 1; r <= ROWS; r++) {
@@ -194,56 +186,40 @@ export default function App() {
         if (lbl.disabled) continue;
 
         const records = treeData[numericId] || [];
-        const hasTodayRecord = records.some(rec => rec.date === kstToday);
+        const todayRecords = records.filter(rec => rec.date === kstToday);
+        const hasTodayRecord = todayRecords.length > 0;
         if (hasTodayRecord) greenDotCount++;
 
-        // 오늘 기록 제외, 최신순 정렬 (find()가 최신 기록 먼저 찾도록)
-        const recsWithoutToday = records
-          .filter(rec => rec.date !== kstToday)
-          .sort((a, b) => b.date.localeCompare(a.date));
-        let anyLightOn = false;
+        // 오늘 기록 제외하고 신호등 판정
+        const recsBefore = records.filter(rec => rec.date < kstToday);
+        const signals = evaluateSignals(recsBefore, kstToday);
 
-        if (recsWithoutToday.length === 0) {
-          // 기록 없음 → 시계불 ON
-          anyLightOn = true;
-        } else {
-          // 나무 아이콘: 어제 세력 1,5 또는 균형 1,2
-          const yRec = recsWithoutToday.find(rec => rec.date === yStr);
-          if (yRec) {
-            const p = String(yRec.power);
-            const b = String(yRec.balance);
-            if (['1', '5'].includes(p) || ['1', '2'].includes(b)) anyLightOn = true;
-          }
+        if (signals.anyOn) {
+          if (hasTodayRecord) {
+            doneTrees++;
+            doneSet.add(numericId);
 
-          // 벌레 아이콘
-          if (!anyLightOn) {
-            const bugRec = recsWithoutToday.find(rec => rec.bugs != null && rec.bugs !== '');
-            if (bugRec) {
-              const bugScore = Number(bugRec.bugs);
-              const days = daysSinceKST(bugRec.date);
-              if ((bugScore >= 4 && days >= 1) || (bugScore >= 2 && bugScore <= 3 && days >= 3) || (bugScore <= 1 && days >= 4)) {
-                anyLightOn = true;
-              }
+            // 헛돌봄 판정: 켜진 아이콘의 메트릭이 오늘 입력에 있는지 체크
+            const hasPower = todayRecords.some(r => r.power != null && r.power !== '');
+            const hasBal = todayRecords.some(r => r.balance != null && r.balance !== '');
+            const hasBugs = todayRecords.some(r => r.bugs != null && r.bugs !== undefined && r.bugs !== '');
+            const hasAnyMetric = hasPower || hasBal || hasBugs;
+
+            let isFake = false;
+            if (signals.powerLevel !== 'off' && !hasPower) isFake = true;
+            if (signals.balLevel !== 'off' && !hasBal) isFake = true;
+            if (signals.bugLevel !== 'off' && !hasBugs) isFake = true;
+            // 시계: 5일+ 된 메트릭을 입력해야 정돌봄
+            if (signals.clockLevel !== 'off') {
+              if (signals.clockNeedsPower && !hasPower) isFake = true;
+              if (signals.clockNeedsBal && !hasBal) isFake = true;
+              if (signals.clockNeedsBugs && !hasBugs) isFake = true;
+              // 메트릭 이력 자체가 없는 경우 (아무거나라도 입력 필요)
+              if (!signals.clockNeedsPower && !signals.clockNeedsBal && !signals.clockNeedsBugs && !hasAnyMetric) isFake = true;
             }
-          }
 
-          // 시계 아이콘: 5일간 세력/균형 없으면 (판단불가도 입력으로 인정)
-          if (!anyLightOn) {
-            const scoreRec = recsWithoutToday.find(rec =>
-              (rec.power != null && rec.power !== '') ||
-              (rec.balance != null && rec.balance !== '')
-            );
-            if (scoreRec) {
-              if (daysSinceKST(scoreRec.date) >= 5) anyLightOn = true;
-            } else {
-              anyLightOn = true;
-            }
-          }
-        }
-
-        if (anyLightOn) {
-          if (hasTodayRecord) { doneTrees++; doneSet.add(numericId); }
-          else {
+            if (isFake) { fakeDoneTrees++; fakeDoneSet.add(numericId); }
+          } else {
             litSet.add(numericId);
             litTrees++;
           }
@@ -270,13 +246,6 @@ export default function App() {
 
     // 내일 예상 (오늘 불 켜진 나무 전부 입력했다고 가정)
     const tomorrowStr = offsetDate(kstToday, 1);
-    const [tty, ttm, ttd] = tomorrowStr.split('-').map(Number);
-    const tomorrowDateObj = new Date(tty, ttm - 1, ttd);
-    const daysSinceTomorrow = (isoDate) => {
-      const [y2, m2, d2] = isoDate.split('-').map(Number);
-      return (tomorrowDateObj - new Date(y2, m2 - 1, d2)) / 86400000;
-    };
-    const tomorrowYStr = kstToday; // 내일 기준 어제 = 오늘
 
     let tomorrowTotal = 0;
     for (let c = 1; c <= COLS; c++) {
@@ -294,43 +263,9 @@ export default function App() {
           ? [...records, { date: kstToday, power: '', balance: '', bugs: '' }]
           : records;
 
-        const recsBefore = allRecs
-          .filter(rec => rec.date < tomorrowStr)
-          .sort((a, b) => b.date.localeCompare(a.date));
-
-        let anyLight = false;
-        if (recsBefore.length === 0) {
-          anyLight = true;
-        } else {
-          const yRec = recsBefore.find(rec => rec.date === tomorrowYStr);
-          if (yRec) {
-            const p = String(yRec.power);
-            const b = String(yRec.balance);
-            if (['1', '5'].includes(p) || ['1', '2'].includes(b)) anyLight = true;
-          }
-          if (!anyLight) {
-            const bugRec = recsBefore.find(rec => rec.bugs != null && rec.bugs !== '');
-            if (bugRec) {
-              const score = Number(bugRec.bugs);
-              const days = daysSinceTomorrow(bugRec.date);
-              if ((score >= 4 && days >= 1) || (score >= 2 && score <= 3 && days >= 3) || (score <= 1 && days >= 4)) {
-                anyLight = true;
-              }
-            }
-          }
-          if (!anyLight) {
-            const scoreRec = recsBefore.find(rec =>
-              (rec.power != null && rec.power !== '') ||
-              (rec.balance != null && rec.balance !== '')
-            );
-            if (scoreRec) {
-              if (daysSinceTomorrow(scoreRec.date) >= 5) anyLight = true;
-            } else {
-              anyLight = true;
-            }
-          }
-        }
-        if (anyLight) tomorrowTotal++;
+        const recsBefore = allRecs.filter(rec => rec.date < tomorrowStr);
+        const tSignals = evaluateSignals(recsBefore, tomorrowStr);
+        if (tSignals.anyOn) tomorrowTotal++;
       }
     }
 
@@ -340,6 +275,8 @@ export default function App() {
       greenDots: greenDotCount,
       litTreeIds: litSet,
       doneTreeIds: doneSet,
+      fakeDoneTreeIds: fakeDoneSet,
+      fakeDoneCount: fakeDoneTrees,
       todayWorkers,
       tomorrowTotal,
     };
@@ -377,6 +314,7 @@ export default function App() {
           total: stats.total,
           green_dots: stats.green_dots,
           kind_dots: stats.kind_dots,
+          fake_dots: stats.fake_dots,
           workers: stats.workers,
         });
       }
@@ -419,7 +357,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.0.4</span>
+                <span className="version">v1.0.5</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -460,11 +398,11 @@ export default function App() {
               </button>
             </div>
           )}
-          <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} treeData={treeData} />
+          <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
         <main className="app-content" style={{ paddingBottom: '70px' }}>
-          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} onViewportChange={setViewportInfo} />
+          <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
         </main>
 
         <BottomBar
@@ -507,7 +445,7 @@ export default function App() {
         {showHistory && (
           <HistoryPopup
             onClose={() => setShowHistory(false)}
-            todayStats={{ completed, total, green_dots: greenDots, workers: todayWorkers }}
+            todayStats={{ completed, total, green_dots: greenDots, fake_dots: fakeDoneCount, workers: todayWorkers }}
             tomorrowTotal={tomorrowTotal}
             prefetchedSummaries={historySummaries}
           />
