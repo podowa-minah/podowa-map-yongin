@@ -132,10 +132,11 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
     const scaledW = gridW * s;
     const scaledH = gridH * s;
 
-    // 지도가 화면 밖으로 완전히 사라지지 않게 제한
-    const margin = 50; // 최소 50px은 보이게
-    p.x = Math.max(-scaledW + margin, Math.min(cw - margin, p.x));
-    p.y = Math.max(-scaledH + margin, Math.min(ch - margin, p.y));
+    // 지도가 75% 이상 항상 보이게 제한
+    const marginX = cw * 0.25;
+    const marginY = ch * 0.25;
+    p.x = Math.max(-scaledW + cw - marginX, Math.min(marginX, p.x));
+    p.y = Math.max(-scaledH + ch - marginY, Math.min(marginY, p.y));
     posRef.current = p;
 
     gridRef.current.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
@@ -146,16 +147,21 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
     }
   }, [gridW, gridH]);
 
-  // 데스크탑 초기 스케일
+  // 초기 스케일: 1~8열이 화면 너비에 맞게
   useEffect(() => {
-    const isDesktop = window.innerWidth >= 1025;
-    if (isDesktop) {
-      const initScale = Math.min(window.innerWidth / 350, 3.5);
-      scaleRef.current = initScale;
-      posRef.current = { x: 20, y: 20 };
-    }
+    if (!containerRef.current) return;
+    const cw = containerRef.current.clientWidth;
+    const padding = 2;
+    const initScale = Math.max(0.8, Math.min((cw - padding * 2) / gridW, 3.5));
+    scaleRef.current = initScale;
+    // 가로 중앙 정렬, 세로는 약간 위에서 시작
+    const scaledW = gridW * initScale;
+    posRef.current = {
+      x: Math.max(0, (cw - scaledW) / 2),
+      y: 2,
+    };
     applyTransform();
-  }, [applyTransform]);
+  }, [applyTransform, gridW]);
 
   // 마우스 휠 줌
   useEffect(() => {
