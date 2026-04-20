@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
+import grasslink from './assets/icons/grass.svg';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -163,7 +164,7 @@ const SEASON_NAMES = {
 };
 
 // ---------- MAIN COMPONENT ---------- //
-const TreeModal = ({ treeId, initialData, onClose, user }) => {
+const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   const todayMMDDYYYY = getTodayMMDDYYYY();
   const actualTreeId = parseTreeId(treeId);
   const { labels } = useLabels();
@@ -488,7 +489,15 @@ const TreeModal = ({ treeId, initialData, onClose, user }) => {
             display: 'flex', alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: '1.4rem', fontWeight: 600 }}>{displayName}</span>
+          <span style={{ fontSize: '1.4rem', fontWeight: 600, flex: 1 }}>{displayName}</span>
+          {onOpenGrass && (
+            <img
+              src={grasslink}
+              alt="풀 모달"
+              onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
+              style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7 }}
+            />
+          )}
         </div>
 
         {/* Chart */}

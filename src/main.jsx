@@ -9,15 +9,18 @@ import App from './App.jsx';
 import { SignalLightsProvider } from './SignalLightsContext';
 import { LabelProvider } from './LabelContext.jsx';
 import { GrassLabelProvider } from './GrassLabelContext.jsx';
+import { GrassTypesProvider } from './GrassTypesContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <SignalLightsProvider>
       <LabelProvider>
         <GrassLabelProvider>
-          <BrowserRouter basename="/farmt">
-            <App />
-          </BrowserRouter>
+          <GrassTypesProvider>
+            <BrowserRouter basename="/farmt">
+              <App />
+            </BrowserRouter>
+          </GrassTypesProvider>
         </GrassLabelProvider>
       </LabelProvider>
     </SignalLightsProvider>

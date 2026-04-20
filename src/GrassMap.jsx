@@ -1,13 +1,27 @@
 // src/GrassMap.jsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import RenamePopup from "./RenamePopup";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useGrassLabels } from "./GrassLabelContext";
+import { useGrassTypes } from "./GrassTypesContext";
+import { useLabels } from "./LabelContext";
+import treeBgSVG from "./assets/icons/tree_bg.svg";
 
-export default function GrassMap() {
+/** HEX 색상을 어둡게 (밝은 색 → 글자용으로 대비 확보) */
+function darkenColor(hex, factor = 0.55) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const dr = Math.round(r * factor);
+  const dg = Math.round(g * factor);
+  const db = Math.round(b * factor);
+  return `rgb(${dr},${dg},${db})`;
+}
+
+export default function GrassMap({ grassRecords = {}, onCellClick }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
-  const cellH = 26;
+  const cellH = 36;
   const gapX = 6;
   const gapY = 8;
 
@@ -21,11 +35,30 @@ export default function GrassMap() {
   const pointerStartRef = useRef({ x: 0, y: 0 });
   const wasDragRef = useRef(false);
 
-  const { labels, upsert } = useGrassLabels();
-  const [editId, setEditId] = useState(null);
+  const { labels: grassLabels } = useGrassLabels();
+  const { labels: treeLabels } = useLabels();
+  const { colorMap } = useGrassTypes();
 
   const gridW = cols * cellW + (cols - 1) * gapX;
-  const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
+  const gridH = rows * cellH + (rows - 1) * gapY;
+
+  // 각 셀의 우세종 계산 (가장 최근 기록 기준)
+  const dominantMap = useMemo(() => {
+    const map = {};
+    Object.entries(grassRecords).forEach(([numId, records]) => {
+      if (records.length > 0) {
+        // 최신 기록
+        const latest = records[0]; // already sorted desc
+        map[numId] = {
+          name: latest.dominant_grass || '',
+          distribution: typeof latest.distribution === 'string'
+            ? JSON.parse(latest.distribution)
+            : latest.distribution,
+        };
+      }
+    });
+    return map;
+  }, [grassRecords]);
 
   // transform 적용
   const applyTransform = useCallback(() => {
@@ -199,10 +232,10 @@ export default function GrassMap() {
     return () => window.removeEventListener("resize", calcHeight);
   }, []);
 
-  const handleLabelClick = useCallback((id) => {
+  const handleCellClick = useCallback((id) => {
     if (wasDragRef.current) return;
-    setEditId(id);
-  }, []);
+    if (onCellClick) onCellClick(id);
+  }, [onCellClick]);
 
   return (
     <div
@@ -222,7 +255,7 @@ export default function GrassMap() {
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
-          gridTemplateRows: `repeat(${rows}, ${cellH + 10}px)`,
+          gridTemplateRows: `repeat(${rows}, ${cellH}px)`,
           columnGap: gapX,
           rowGap: gapY,
           transformOrigin: "0 0",
@@ -233,20 +266,31 @@ export default function GrassMap() {
         {Array.from({ length: rows * cols }, (_, idx) => {
           const r = Math.floor(idx / cols);
           const c = idx % cols;
-          const id = `Grass-${c + 1}-${r + 1}`;
+          const grassId = `Grass-${c + 1}-${r + 1}`;
           const numericId = `${c + 1}-${r + 1}`;
-          const lbl = labels[id] || {};
-          const displayName = lbl.name || `풀 ${numericId}`;
-          const isDisabled = lbl.disabled === true;
+          const grassLbl = grassLabels[grassId] || {};
+          const isDisabled = grassLbl.disabled === true;
+
+          // 포도나무 활성 여부
+          const treeLabelId = `Tree-${c + 1}-${r + 1}`;
+          const treeLbl = treeLabels[treeLabelId] || {};
+          const hasActiveTree = !treeLbl.disabled;
+
+          // 우세종 정보
+          const dom = dominantMap[numericId];
+          const dominantName = dom?.name || '';
+          const dominantColor = dominantName ? (colorMap[dominantName] || '#e8f5e9') : '#e8f5e9';
+
+          // 칸에 표시할 이름
+          const displayName = dominantName || (grassLbl.name || '풀');
 
           if (isDisabled) {
             return (
               <div
-                key={id}
-                onClick={() => handleLabelClick(id)}
+                key={grassId}
                 style={{
                   width: cellW,
-                  height: cellH + 10,
+                  height: cellH,
                   backgroundColor: "#d3d3d3",
                   opacity: 0.5,
                   borderRadius: 2,
@@ -258,46 +302,71 @@ export default function GrassMap() {
 
           return (
             <div
-              key={id}
-              onClick={() => handleLabelClick(id)}
+              key={grassId}
+              onClick={() => handleCellClick(grassId)}
               style={{
                 width: cellW,
-                height: cellH + 10,
+                height: cellH,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                outline: "1.5px solid #7cb342",
-                backgroundColor: lbl.color || '#e8f5e9',
+                outline: "1px solid #ccc",
+                backgroundColor: dominantName
+                  ? `${dominantColor}30`   // 우세종 색 + 투명도
+                  : '#ffffff',
                 position: "relative",
+                borderRadius: 2,
+                overflow: "hidden",
               }}
             >
-              <span
-                style={{
-                  fontSize: Math.max(5, Math.min(9, cellW / (displayName.length * 0.6))),
-                  fontFamily: "sans-serif",
-                  color: "#33691e",
-                  whiteSpace: "nowrap",
-                  fontWeight: 600,
-                  lineHeight: "1.2",
-                }}
-              >
+              {/* 포도나무 있는 칸: 투명 나무 배경 (셀에 가득 차게) */}
+              {hasActiveTree && (
+                <img
+                  src={treeBgSVG}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    top: 0,
+                    left: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+
+              {/* 풀 이름 (위, 크게) */}
+              <span style={{
+                fontSize: Math.max(5, Math.min(8, cellW / (displayName.length * 0.65))),
+                fontFamily: "sans-serif",
+                color: dominantName ? darkenColor(dominantColor) : "#444",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+                lineHeight: "1.1",
+                zIndex: 1,
+              }}>
                 {displayName}
+              </span>
+
+              {/* 좌표 (아래, 작게) */}
+              <span style={{
+                fontSize: 6,
+                fontFamily: "sans-serif",
+                color: dominantName ? darkenColor(dominantColor) : "#999",
+                whiteSpace: "nowrap",
+                lineHeight: "1",
+                zIndex: 1,
+                opacity: dominantName ? 0.7 : 1,
+              }}>
+                {numericId}
               </span>
             </div>
           );
         })}
       </div>
-
-      {editId && (
-        <RenamePopup
-          id={editId}
-          current={labels[editId]}
-          onSave={(payload) => upsert(editId, payload)}
-          onClose={() => setEditId(null)}
-        />
-      )}
     </div>
   );
 }

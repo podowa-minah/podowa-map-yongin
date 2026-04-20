@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 36" fill="none">
+  <!-- 나무 몸통 -->
+  <rect x="19" y="24" width="6" height="12" rx="1" fill="#8d6e63" opacity="0.18"/>
+  <!-- 나무 수관 (둥근 삼각형 3단) -->
+  <ellipse cx="22" cy="22" rx="12" ry="6" fill="#6d9b3a" opacity="0.13"/>
+  <ellipse cx="22" cy="17" rx="10" ry="6" fill="#7cb342" opacity="0.15"/>
+  <ellipse cx="22" cy="12" rx="8" ry="6" fill="#8bc34a" opacity="0.14"/>
+  <ellipse cx="22" cy="8" rx="5" ry="4.5" fill="#9ccc65" opacity="0.12"/>
+</svg>

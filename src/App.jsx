@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import FarmMap from './FarmMap.jsx';
 import GrassMap from './GrassMap.jsx';
+import GrassModal from './GrassModal.jsx';
 import TreeModal from './TreeModal.jsx';
 import Login from './components/Login.jsx';
 import ExportButton from './components/ExportButton.jsx';
@@ -26,17 +27,23 @@ export default function App() {
   const [treeData, setTreeData] = useState({});
   const [selectedTree, setSelectedTree] = useState(null);
   const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass'
+  const [grassRecords, setGrassRecords] = useState({});
+  const [selectedGrassCell, setSelectedGrassCell] = useState(null);
 
   // 안드로이드 뒤로가기 버튼으로 모달 닫기
   useEffect(() => {
     const handlePopState = () => {
-      if (selectedTree) {
+      // AddGrassPopup이 pushState한 grassPopup 상태면 무시 (팝업 자체가 처리)
+      if (window.history.state?.grassPopup) return;
+      if (selectedGrassCell) {
+        setSelectedGrassCell(null);
+      } else if (selectedTree) {
         setSelectedTree(null);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedTree]);
+  }, [selectedTree, selectedGrassCell]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
@@ -78,6 +85,20 @@ export default function App() {
     setDataLoading(false);
   };
 
+  const loadGrassRecords = async () => {
+    const { data, error } = await supabase
+      .from('grass_records')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('id', { ascending: false });
+
+    if (error) { console.error('Error fetching grass_records:', error); return; }
+
+    const grouped = {};
+    data.forEach((row) => { (grouped[row.tree_id] ??= []).push(row); });
+    setGrassRecords(grouped);
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -106,6 +127,7 @@ export default function App() {
     }
 
     loadAllRows();
+    loadGrassRecords();
     const channel = subscribeRows();
     return () => supabase.removeChannel(channel);
   }, [user]);
@@ -360,7 +382,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.0.6</span>
+                <span className="version">v1.1.0</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -412,7 +434,7 @@ export default function App() {
           {viewMode === 'farm' ? (
             <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
           ) : (
-            <GrassMap />
+            <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
           )}
         </main>
 
@@ -426,7 +448,11 @@ export default function App() {
         />
 
         {selectedTree && (
-          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedTree(null); setTimeout(loadAllRows, 500); }} />
+          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedTree(null); setTimeout(loadAllRows, 500); }} onOpenGrass={(grassId) => { setSelectedTree(null); setTimeout(() => setSelectedGrassCell(grassId), 100); }} />
+        )}
+
+        {selectedGrassCell && (
+          <GrassModal cellId={selectedGrassCell} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedGrassCell(null); setTimeout(loadGrassRecords, 500); }} onOpenTree={(treeId) => { setSelectedGrassCell(null); setTimeout(() => setSelectedTree(treeId), 100); }} />
         )}
 
         {showChangePassword && (
