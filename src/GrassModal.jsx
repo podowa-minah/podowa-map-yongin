@@ -459,6 +459,9 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   const [showAddPopup, setShowAddPopup] = useState(false);
   const [previewImg, setPreviewImg] = useState(null);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const [confirmPopup, setConfirmPopup] = useState(null); // { type: 'overwrite'|'delete', onConfirm }
+  const [confirmPw, setConfirmPw] = useState('');
+  const [confirmPwError, setConfirmPwError] = useState('');
 
   // 히스토리 로딩
   useEffect(() => {
@@ -534,10 +537,14 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   const totalPct = distribution.reduce((s, d) => s + d.value, 0);
   const remaining = 100 - totalPct;
 
-  const dominant = useMemo(() => {
-    if (distribution.length === 0) return null;
-    return distribution.reduce((best, d) => d.value > best.value ? d : best, distribution[0]);
+  // 우세종 (동률 포함)
+  const dominants = useMemo(() => {
+    if (distribution.length === 0) return [];
+    const maxVal = Math.max(...distribution.map(d => d.value));
+    if (maxVal === 0) return [];
+    return distribution.filter(d => d.value === maxVal);
   }, [distribution]);
+  const dominant = dominants.length > 0 ? dominants[0] : null;
 
   // ── 차트 데이터 ──
   const chartGrasses = useMemo(() => {
@@ -651,43 +658,71 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
     setThumbnails(prev => { const n = [...prev]; if (idx >= 0) n.splice(idx, 1); return n; });
   }
 
-  // ── 저장 ──
-  const handleSave = async () => {
-    if (totalPct !== 100) return;
+  // 해당 날짜에 기존 기록 있는지
+  const existingRecord = useMemo(() => {
+    return history.find(r => r.date === date) || null;
+  }, [history, date]);
+
+  const isEmpty = distribution.length === 0 || totalPct === 0;
+
+  // ── 저장/삭제 실행 ──
+  const executeSave = async () => {
     setSaving(true);
-
-    const distObj = {};
-    distribution.forEach(d => { if (d.value > 0) distObj[d.name] = d.value; });
-
-    const dominantName = dominant ? dominant.name : null;
     const producer = user?.user_metadata?.nickname || user?.email || '';
 
-    const { data: existing } = await supabase
-      .from('grass_records')
-      .select('id')
-      .eq('tree_id', numericId)
-      .eq('date', date)
-      .limit(1);
+    if (isEmpty && existingRecord) {
+      // 빈 상태 → 기존 기록 삭제
+      await supabase.from('grass_records').delete().eq('id', existingRecord.id);
+    } else if (!isEmpty && totalPct === 100) {
+      const distObj = {};
+      distribution.forEach(d => { if (d.value > 0) distObj[d.name] = d.value; });
+      const dominantName = dominants.length > 0 ? dominants.map(d => d.name).join(',') : null;
 
-    let error;
-    if (existing && existing.length > 0) {
-      ({ error } = await supabase.from('grass_records')
-        .update({
-          distribution: distObj, dominant_grass: dominantName,
-          comment, producer,
+      if (existingRecord) {
+        await supabase.from('grass_records')
+          .update({
+            distribution: distObj, dominant_grass: dominantName,
+            comment, producer, photo_urls: images, thumbnails,
+          })
+          .eq('id', existingRecord.id);
+      } else {
+        await supabase.from('grass_records').insert({
+          tree_id: numericId, date, distribution: distObj,
+          dominant_grass: dominantName, comment, producer,
           photo_urls: images, thumbnails,
-        })
-        .eq('id', existing[0].id));
-    } else {
-      ({ error } = await supabase.from('grass_records').insert({
-        tree_id: numericId, date, distribution: distObj,
-        dominant_grass: dominantName, comment, producer,
-        photo_urls: images, thumbnails,
-      }));
+        });
+      }
     }
 
     setSaving(false);
-    if (!error) onClose();
+    onClose();
+  };
+
+  // ── 저장 버튼 핸들러 ──
+  const handleSave = () => {
+    // 새 기록 (기존 없음): 바로 저장
+    if (!existingRecord) {
+      if (totalPct !== 100) return;
+      executeSave();
+      return;
+    }
+    // 기존 기록 있음 → 비번 확인 팝업
+    setConfirmPopup({
+      type: isEmpty ? 'delete' : 'overwrite',
+      onConfirm: executeSave,
+    });
+    setConfirmPw('');
+    setConfirmPwError('');
+  };
+
+  const handleConfirmSubmit = () => {
+    const requiredPw = confirmPopup.type === 'delete' ? '6687' : '1234';
+    if (confirmPw !== requiredPw) {
+      setConfirmPwError('비밀번호가 틀렸습니다');
+      return;
+    }
+    confirmPopup.onConfirm();
+    setConfirmPopup(null);
   };
 
   return (
@@ -738,7 +773,7 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
             <div style={{ height: 160 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ left: -10, right: 5, top: 5, bottom: 0 }}>
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} padding={{ left: 15, right: 15 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} tickFormatter={v => `${v}%`} width={40} />
                   <Tooltip content={({ payload, label }) => {
                     if (!payload?.length) return null;
@@ -771,14 +806,39 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
                     />
                   ))}
                   {/* 실선 레이어: 실제 데이터 (위에 덮음) */}
-                  {chartGrasses.map(g => (
+                  {chartGrasses.map((g, gi) => (
                     <Line
                       key={g}
                       type="monotone"
                       dataKey={g}
                       stroke={colorMap[g] || '#999'}
                       strokeWidth={2}
-                      dot={{ r: 3 }}
+                      dot={(props) => {
+                        const { cx, cy, payload, value } = props;
+                        if (value == null) return null;
+                        // 같은 값 가진 풀들만 모아서 [-2, +2] 범위 안에서 분산
+                        const sameGroup = chartGrasses
+                          .map((og, oi) => ({ name: og, idx: oi }))
+                          .filter(o => payload[o.name] === value);
+                        let offset = 0;
+                        if (sameGroup.length > 1) {
+                          const pos = sameGroup.findIndex(o => o.idx === gi);
+                          const step = Math.min(3, 4 / (sameGroup.length - 1));
+                          offset = (pos - (sameGroup.length - 1) / 2) * step;
+                        }
+                        const color = colorMap[g] || '#999';
+                        return (
+                          <circle
+                            key={`${g}-${cx}`}
+                            cx={cx + offset}
+                            cy={cy}
+                            r={3}
+                            fill="rgba(255,255,255,0.5)"
+                            stroke={color}
+                            strokeWidth={1.5}
+                          />
+                        );
+                      }}
                       name={g}
                     />
                   ))}
@@ -843,20 +903,24 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
         </div>
 
         {/* 우세종 */}
-        {dominant && dominant.value > 0 && (
+        {dominants.length > 0 && (
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '10px 14px', background: '#f9fbe7', borderRadius: '8px',
-            marginBottom: '16px',
+            marginBottom: '16px', flexWrap: 'wrap', gap: '4px',
           }}>
             <span style={{ fontSize: '0.8rem', color: '#888' }}>우세종 (자동 계산)</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-              <span style={{
-                width: 14, height: 14, borderRadius: 3,
-                backgroundColor: colorMap[dominant.name] || '#999',
-                display: 'inline-block',
-              }} />
-              {dominant.name} {dominant.value}%
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, flexWrap: 'wrap' }}>
+              {dominants.map(d => (
+                <span key={d.name} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{
+                    width: 14, height: 14, borderRadius: 3,
+                    backgroundColor: colorMap[d.name] || '#999',
+                    display: 'inline-block',
+                  }} />
+                  {d.name} {d.value}%
+                </span>
+              ))}
             </span>
           </div>
         )}
@@ -946,19 +1010,25 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
 
         {/* 저장 버튼 */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          <button
-            onClick={handleSave}
-            disabled={totalPct !== 100 || saving}
-            style={{
-              flex: 1, padding: '14px', borderRadius: '10px', border: 'none',
-              background: totalPct === 100 ? '#7cb342' : '#ccc',
-              color: '#fff', fontWeight: 700, fontSize: '1rem',
-              cursor: totalPct === 100 ? 'pointer' : 'default',
-              opacity: saving ? 0.6 : 1,
-            }}
-          >
-            {saving ? '저장 중...' : 'Save & Close'}
-          </button>
+          {(() => {
+            const canSave = totalPct === 100 || (isEmpty && existingRecord);
+            const isDelete = isEmpty && existingRecord;
+            return (
+              <button
+                onClick={handleSave}
+                disabled={!canSave || saving}
+                style={{
+                  flex: 1, padding: '14px', borderRadius: '10px', border: 'none',
+                  background: canSave ? (isDelete ? '#e53935' : '#7cb342') : '#ccc',
+                  color: '#fff', fontWeight: 700, fontSize: '1rem',
+                  cursor: canSave ? 'pointer' : 'default',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? '처리 중...' : isDelete ? '기록 삭제' : 'Save & Close'}
+              </button>
+            );
+          })()}
           <button
             onClick={onClose}
             style={{
@@ -1087,6 +1157,71 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
           onDelete={deleteType}
           onClose={() => setShowAddPopup(false)}
         />
+      )}
+
+      {/* 덮어쓰기/삭제 확인 팝업 */}
+      {confirmPopup && (
+        <div
+          onClick={() => setConfirmPopup(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10002,
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: '12px', padding: '20px',
+            width: '85%', maxWidth: '300px',
+          }}>
+            <div style={{
+              fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px',
+              color: confirmPopup.type === 'delete' ? '#e53935' : '#2d3748',
+            }}>
+              {confirmPopup.type === 'delete' ? '기록 삭제' : '기록 덮어쓰기'}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: '#666', marginBottom: '12px' }}>
+              {confirmPopup.type === 'delete'
+                ? `${date} 기록을 삭제합니다. 비밀번호를 입력하세요.`
+                : `${date}에 저장된 데이터가 있습니다. 덮어쓰려면 비밀번호를 입력하세요.`
+              }
+            </div>
+            <input
+              type="password"
+              inputMode="numeric"
+              value={confirmPw}
+              onChange={e => { setConfirmPw(e.target.value); setConfirmPwError(''); }}
+              placeholder="비밀번호"
+              autoFocus
+              style={{
+                width: '100%', padding: '10px', borderRadius: '8px',
+                border: `1px solid ${confirmPwError ? '#e53935' : '#ddd'}`,
+                fontSize: '0.9rem', marginBottom: '4px', boxSizing: 'border-box',
+              }}
+            />
+            {confirmPwError && (
+              <div style={{ fontSize: '0.75rem', color: '#e53935', marginBottom: '8px' }}>{confirmPwError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                onClick={handleConfirmSubmit}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
+                  background: confirmPopup.type === 'delete' ? '#e53935' : '#7cb342',
+                  color: '#fff', fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                {confirmPopup.type === 'delete' ? '삭제' : '덮어쓰기'}
+              </button>
+              <button
+                onClick={() => setConfirmPopup(null)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px',
+                  border: '1px solid #ddd', background: '#fff',
+                  color: '#666', fontWeight: 600, cursor: 'pointer',
+                }}
+              >취소</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

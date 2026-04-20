@@ -276,13 +276,29 @@ export default function GrassMap({ grassRecords = {}, onCellClick }) {
           const treeLbl = treeLabels[treeLabelId] || {};
           const hasActiveTree = !treeLbl.disabled;
 
-          // 우세종 정보
+          // 우세종 정보 (콤마 구분 → 배열)
           const dom = dominantMap[numericId];
-          const dominantName = dom?.name || '';
-          const dominantColor = dominantName ? (colorMap[dominantName] || '#e8f5e9') : '#e8f5e9';
+          const dominantRaw = dom?.name || '';
+          const dominantNames = dominantRaw ? dominantRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+          const isTied = dominantNames.length > 1;
 
-          // 칸에 표시할 이름
-          const displayName = dominantName || (grassLbl.name || '풀');
+          // 배경: 동률이면 그라데이션, 단독이면 단색
+          let cellBg = '#ffffff';
+          if (dominantNames.length === 1) {
+            const c1 = colorMap[dominantNames[0]] || '#e8f5e9';
+            cellBg = `${c1}30`;
+          } else if (isTied) {
+            const stops = dominantNames.map((n, i) => {
+              const col = colorMap[n] || '#e8f5e9';
+              const pct1 = (i / dominantNames.length) * 100;
+              const pct2 = ((i + 1) / dominantNames.length) * 100;
+              return `${col}50 ${pct1}%, ${col}50 ${pct2}%`;
+            }).join(', ');
+            cellBg = `linear-gradient(135deg, ${stops})`;
+          }
+
+          // 표시 이름
+          const displayNames = dominantNames.length > 0 ? dominantNames : [grassLbl.name || '풀'];
 
           if (isDisabled) {
             return (
@@ -313,9 +329,7 @@ export default function GrassMap({ grassRecords = {}, onCellClick }) {
                 justifyContent: "center",
                 cursor: "pointer",
                 outline: "1px solid #ccc",
-                backgroundColor: dominantName
-                  ? `${dominantColor}30`   // 우세종 색 + 투명도
-                  : '#ffffff',
+                background: cellBg,
                 position: "relative",
                 borderRadius: 2,
                 overflow: "hidden",
@@ -338,28 +352,41 @@ export default function GrassMap({ grassRecords = {}, onCellClick }) {
                 />
               )}
 
-              {/* 풀 이름 (위, 크게) */}
-              <span style={{
-                fontSize: Math.max(5, Math.min(8, cellW / (displayName.length * 0.65))),
-                fontFamily: "sans-serif",
-                color: dominantName ? darkenColor(dominantColor) : "#444",
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-                lineHeight: "1.1",
-                zIndex: 1,
-              }}>
-                {displayName}
-              </span>
+              {/* 풀 이름 (줄바꿈으로 여러 개 표시) */}
+              {displayNames.map((dn, i) => {
+                const maxLen = Math.max(...displayNames.map(n => n.length));
+                const baseFontSize = isTied
+                  ? Math.max(3.5, Math.min(6.5, cellW / (maxLen * 0.7)))
+                  : Math.max(5, Math.min(8, cellW / (dn.length * 0.65)));
+                const singleColor = !isTied && dominantNames.length === 1
+                  ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
+                  : "#444";
+                return (
+                  <span key={i} style={{
+                    fontSize: baseFontSize,
+                    fontFamily: "sans-serif",
+                    color: isTied ? "#444" : singleColor,
+                    fontWeight: 700,
+                    whiteSpace: "nowrap",
+                    lineHeight: "1.1",
+                    zIndex: 1,
+                  }}>
+                    {dn}
+                  </span>
+                );
+              })}
 
               {/* 좌표 (아래, 작게) */}
               <span style={{
                 fontSize: 6,
                 fontFamily: "sans-serif",
-                color: dominantName ? darkenColor(dominantColor) : "#999",
+                color: (!isTied && dominantNames.length === 1)
+                  ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
+                  : "#999",
                 whiteSpace: "nowrap",
                 lineHeight: "1",
                 zIndex: 1,
-                opacity: dominantName ? 0.7 : 1,
+                opacity: (!isTied && dominantNames.length === 1) ? 0.7 : 1,
               }}>
                 {numericId}
               </span>
