@@ -540,32 +540,50 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   }, [distribution]);
 
   // ── 차트 데이터 ──
-  const chartData = useMemo(() => {
-    if (history.length === 0) return [];
-    // 모든 풀 종류 수집
-    const allGrasses = new Set();
-    history.forEach(rec => {
-      const dist = typeof rec.distribution === 'string' ? JSON.parse(rec.distribution) : rec.distribution;
-      if (dist) Object.keys(dist).forEach(k => allGrasses.add(k));
-    });
-
-    // 날짜 오름차순으로 차트 데이터
-    return [...history].reverse().map(rec => {
-      const dist = typeof rec.distribution === 'string' ? JSON.parse(rec.distribution) : rec.distribution;
-      const point = { date: rec.date?.slice(5).replace('-', '/') };
-      allGrasses.forEach(g => { point[g] = dist?.[g] || 0; });
-      return point;
-    });
-  }, [history]);
-
   const chartGrasses = useMemo(() => {
     const all = new Set();
     history.forEach(rec => {
       const dist = typeof rec.distribution === 'string' ? JSON.parse(rec.distribution) : rec.distribution;
-      if (dist) Object.keys(dist).forEach(k => all.add(k));
+      if (dist) Object.keys(dist).filter(k => dist[k] > 0).forEach(k => all.add(k));
     });
     return [...all];
   }, [history]);
+
+  const chartData = useMemo(() => {
+    if (history.length === 0) return [];
+    const sorted = [...history].reverse(); // 날짜 오름차순
+
+    // 각 풀의 첫/마지막 등장 인덱스 계산
+    const firstIdx = {};
+    const lastIdx = {};
+    sorted.forEach((rec, i) => {
+      const dist = typeof rec.distribution === 'string' ? JSON.parse(rec.distribution) : rec.distribution;
+      if (dist) {
+        Object.entries(dist).forEach(([g, v]) => {
+          if (v > 0) {
+            if (firstIdx[g] === undefined) firstIdx[g] = i;
+            lastIdx[g] = i;
+          }
+        });
+      }
+    });
+
+    return sorted.map((rec, i) => {
+      const dist = typeof rec.distribution === 'string' ? JSON.parse(rec.distribution) : rec.distribution;
+      const point = { date: rec.date?.slice(5).replace('-', '/') };
+      chartGrasses.forEach(g => {
+        const val = dist?.[g];
+        if (firstIdx[g] === undefined) return; // 한번도 안 나온 풀
+        if (i < firstIdx[g] || i > lastIdx[g]) return; // 등장 전/후: undefined (라인 안 그림)
+        if (val && val > 0) {
+          point[g] = val; // 실제 값
+        } else {
+          point[g] = null; // 갭: null (점선으로 연결)
+        }
+      });
+      return point;
+    });
+  }, [history, chartGrasses]);
 
   const updateValue = (idx, newVal) => {
     setDistribution(prev => prev.map((d, i) => i === idx ? { ...d, value: newVal } : d));
@@ -722,8 +740,37 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
                 <LineChart data={chartData} margin={{ left: -10, right: 5, top: 5, bottom: 0 }}>
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} tickFormatter={v => `${v}%`} width={40} />
-                  <Tooltip formatter={(v) => `${v}%`} />
+                  <Tooltip content={({ payload, label }) => {
+                    if (!payload?.length) return null;
+                    const items = payload.filter(p => !String(p.name).endsWith('_dash') && p.value != null);
+                    if (!items.length) return null;
+                    return (
+                      <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: 6, padding: '6px 10px', fontSize: '0.75rem' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                        {items.map(p => (
+                          <div key={p.name} style={{ color: p.color }}>{p.name}: {p.value}%</div>
+                        ))}
+                      </div>
+                    );
+                  }} />
                   <Legend wrapperStyle={{ fontSize: '0.7rem' }} />
+                  {/* 점선 레이어: 갭 구간 연결 (뒤에 깔림) */}
+                  {chartGrasses.map(g => (
+                    <Line
+                      key={`${g}-dash`}
+                      type="monotone"
+                      dataKey={g}
+                      stroke={colorMap[g] || '#999'}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                      strokeOpacity={0.5}
+                      dot={false}
+                      connectNulls
+                      name={`${g}_dash`}
+                      legendType="none"
+                    />
+                  ))}
+                  {/* 실선 레이어: 실제 데이터 (위에 덮음) */}
                   {chartGrasses.map(g => (
                     <Line
                       key={g}
