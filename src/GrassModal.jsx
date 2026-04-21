@@ -467,12 +467,7 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   const historyOpenRef = React.useRef(false);
 
   useEffect(() => {
-    if (showHistoryDetail) {
-      historyOpenRef.current = true;
-      window.history.pushState({ grassHistory: true }, '');
-    } else {
-      historyOpenRef.current = false;
-    }
+    historyOpenRef.current = showHistoryDetail;
   }, [showHistoryDetail]);
 
   useEffect(() => {
@@ -1087,11 +1082,13 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
         {!loading && history.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
             <button
-              onClick={() => setShowHistoryDetail(true)}
+              onTouchStart={(e) => { e.preventDefault(); window.history.pushState({ grassHistory: true }, ''); setShowHistoryDetail(true); }}
+              onClick={() => { window.history.pushState({ grassHistory: true }, ''); setShowHistoryDetail(true); }}
               style={{
                 width: '100%', padding: '10px', backgroundColor: '#5c6bc0',
                 color: '#fff', border: 'none', borderRadius: '8px',
                 fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer',
+                touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent',
               }}
             >
               히스토리 더보기 ({history.length}건)
