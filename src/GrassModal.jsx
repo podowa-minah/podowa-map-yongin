@@ -771,6 +771,7 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
       <div onClick={e => e.stopPropagation()} style={{
         background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '400px',
         maxHeight: '90vh', overflowY: 'auto', padding: '20px',
+        overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
       }}>
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -1082,7 +1083,6 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
         {!loading && history.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
             <button
-              onTouchStart={(e) => { e.preventDefault(); window.history.pushState({ grassHistory: true }, ''); setShowHistoryDetail(true); }}
               onClick={() => { window.history.pushState({ grassHistory: true }, ''); setShowHistoryDetail(true); }}
               style={{
                 width: '100%', padding: '10px', backgroundColor: '#5c6bc0',
