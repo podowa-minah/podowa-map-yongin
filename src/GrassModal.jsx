@@ -462,12 +462,17 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [confirmPopup, setConfirmPopup] = useState(null); // { type: 'overwrite'|'delete', onConfirm }
 
-  // 사진 프리뷰 + 히스토리 디테일 뒤로가기 (단일 핸들러로 충돌 방지)
+  // 사진 프리뷰 + 히스토리 디테일 뒤로가기 (단일 핸들러, ref로 상태 추적)
   const previewOpenRef = React.useRef(false);
+  const historyOpenRef = React.useRef(false);
 
   useEffect(() => {
-    if (!showHistoryDetail) return;
-    window.history.pushState({ grassHistory: true }, '');
+    if (showHistoryDetail) {
+      historyOpenRef.current = true;
+      window.history.pushState({ grassHistory: true }, '');
+    } else {
+      historyOpenRef.current = false;
+    }
   }, [showHistoryDetail]);
 
   useEffect(() => {
@@ -488,14 +493,15 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
         return;
       }
       // 히스토리 디테일이 열려 있으면 그것만 닫기
-      if (showHistoryDetail) {
+      if (historyOpenRef.current) {
+        historyOpenRef.current = false;
         setShowHistoryDetail(false);
         return;
       }
     };
     window.addEventListener('popstate', handlePop);
     return () => window.removeEventListener('popstate', handlePop);
-  }, [showHistoryDetail]);
+  }, []);
   const [confirmPw, setConfirmPw] = useState('');
   const [confirmPwError, setConfirmPwError] = useState('');
 
@@ -1130,7 +1136,7 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
               return (
                 <div
                   key={rec.id}
-                  onClick={() => { setDate(rec.date); if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }}
+                  onClick={() => { setDate(rec.date); historyOpenRef.current = false; setShowHistoryDetail(false); if (window.history.state?.grassHistory) window.history.back(); }}
                   style={{
                     borderBottom: '1px solid #f0f0f0', padding: '12px 0',
                     cursor: 'pointer',

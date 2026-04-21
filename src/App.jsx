@@ -34,8 +34,9 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       // GrassModal 내부 팝업들이 pushState한 상태면 무시 (각 팝업이 자체 처리)
+      // modal 상태로 되돌아온 경우도 무시 (내부 팝업 닫기로 돌아온 것)
       const s = window.history.state;
-      if (s?.grassPopup || s?.grassHistory || s?.grassPreview) return;
+      if (s?.grassPopup || s?.grassHistory || s?.grassPreview || s?.modal) return;
       if (selectedGrassCell) {
         setSelectedGrassCell(null);
       } else if (selectedTree) {
@@ -465,7 +466,7 @@ export default function App() {
         )}
 
         {selectedGrassCell && (
-          <GrassModal cellId={selectedGrassCell} user={user} onClose={() => { const cellNumId = selectedGrassCell.replace('Grass-', ''); if (window.history.state?.modal) window.history.back(); else setSelectedGrassCell(null); refreshGrassCell(cellNumId); }} onOpenTree={(treeId) => { setSelectedGrassCell(null); setTimeout(() => setSelectedTree(treeId), 100); }} />
+          <GrassModal cellId={selectedGrassCell} user={user} onClose={() => { const cellNumId = selectedGrassCell.replace('Grass-', ''); setSelectedGrassCell(null); refreshGrassCell(cellNumId); }} onOpenTree={(treeId) => { setSelectedGrassCell(null); setTimeout(() => setSelectedTree(treeId), 100); }} />
         )}
 
         {showChangePassword && (
