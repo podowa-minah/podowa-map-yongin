@@ -1103,7 +1103,7 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
       {/* 히스토리 디테일 풀스크린 */}
       {showHistoryDetail && (
         <div
-          onClick={() => { if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }}
+          onClick={(e) => { e.stopPropagation(); if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
             zIndex: 10003, display: 'flex', alignItems: 'center', justifyContent: 'center',
