@@ -457,9 +457,45 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showAddPopup, setShowAddPopup] = useState(false);
-  const [previewImg, setPreviewImg] = useState(null);
+  const [showHistoryDetail, setShowHistoryDetail] = useState(false);
+  const [previewImg, setPreviewImg] = useState(null); // { url, photos } or null
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [confirmPopup, setConfirmPopup] = useState(null); // { type: 'overwrite'|'delete', onConfirm }
+
+  // 사진 프리뷰 + 히스토리 디테일 뒤로가기 (단일 핸들러로 충돌 방지)
+  const previewOpenRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!showHistoryDetail) return;
+    window.history.pushState({ grassHistory: true }, '');
+  }, [showHistoryDetail]);
+
+  useEffect(() => {
+    if (previewImg && !previewOpenRef.current) {
+      previewOpenRef.current = true;
+      window.history.pushState({ grassPreview: true }, '');
+    } else if (!previewImg) {
+      previewOpenRef.current = false;
+    }
+  }, [previewImg]);
+
+  useEffect(() => {
+    const handlePop = () => {
+      // 사진 프리뷰가 열려 있으면 그것만 닫기
+      if (previewOpenRef.current) {
+        previewOpenRef.current = false;
+        setPreviewImg(null);
+        return;
+      }
+      // 히스토리 디테일이 열려 있으면 그것만 닫기
+      if (showHistoryDetail) {
+        setShowHistoryDetail(false);
+        return;
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, [showHistoryDetail]);
   const [confirmPw, setConfirmPw] = useState('');
   const [confirmPwError, setConfirmPwError] = useState('');
 
@@ -1041,110 +1077,170 @@ export default function GrassModal({ cellId, onClose, onOpenTree, user }) {
           </button>
         </div>
 
-        {/* 히스토리 */}
-        <div>
-          <div style={{
-            fontSize: '0.85rem', fontWeight: 700, color: '#555',
-            marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px',
-          }}>
-            {'\uD83D\uDCCB'} 히스토리
+        {/* 히스토리 — 더보기 버튼 */}
+        {!loading && history.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <button
+              onClick={() => setShowHistoryDetail(true)}
+              style={{
+                width: '100%', padding: '10px', backgroundColor: '#5c6bc0',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              히스토리 더보기 ({history.length}건)
+            </button>
           </div>
-
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '16px', color: '#aaa' }}>불러오는 중...</div>
-          ) : history.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '16px', color: '#aaa', fontSize: '0.85rem' }}>
-              기록이 없습니다
-            </div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{
-                width: '100%', fontSize: '0.72rem', borderCollapse: 'collapse',
-              }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid #e0e0e0' }}>
-                    <th style={{ padding: '6px 3px', textAlign: 'left', color: '#888' }}>날짜</th>
-                    <th style={{ padding: '6px 3px', textAlign: 'left', color: '#888' }}>우세종</th>
-                    <th style={{ padding: '6px 3px', textAlign: 'left', color: '#888' }}>분포</th>
-                    <th style={{ padding: '6px 3px', textAlign: 'center', color: '#888' }}>사진</th>
-                    <th style={{ padding: '6px 3px', textAlign: 'left', color: '#888' }}>코멘트</th>
-                    <th style={{ padding: '6px 3px', textAlign: 'left', color: '#888' }}>생산자</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map(rec => {
-                    const dist = typeof rec.distribution === 'string'
-                      ? JSON.parse(rec.distribution)
-                      : rec.distribution;
-                    const distStr = Object.entries(dist || {})
-                      .filter(([, v]) => v > 0)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([n, v]) => `${n} ${v}`)
-                      .join(' ');
-                    const photos = rec.photo_urls || [];
-                    const thumbs = rec.thumbnails || [];
-                    return (
-                      <tr key={rec.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                        <td style={{ padding: '8px 3px', whiteSpace: 'nowrap' }}>
-                          {rec.date?.slice(5).replace('-', '/')}
-                        </td>
-                        <td style={{ padding: '8px 3px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <span style={{
-                              width: 8, height: 8, borderRadius: 2,
-                              backgroundColor: colorMap[rec.dominant_grass] || '#999',
-                              display: 'inline-block', flexShrink: 0,
-                            }} />
-                            {rec.dominant_grass || '-'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 3px', color: '#666' }}>{distStr}</td>
-                        <td style={{ padding: '8px 3px', textAlign: 'center' }}>
-                          {photos.length > 0 ? (
-                            <div style={{ display: 'flex', gap: '2px', justifyContent: 'center' }}>
-                              {photos.slice(0, 2).map((url, i) => (
-                                <ThumbImg
-                                  key={i}
-                                  src={thumbs[i] || url}
-                                  onClick={() => setPreviewImg(url)}
-                                />
-                              ))}
-                              {photos.length > 2 && (
-                                <span style={{ fontSize: '0.65rem', color: '#888', alignSelf: 'center' }}>
-                                  +{photos.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          ) : ''}
-                        </td>
-                        <td style={{ padding: '8px 3px', color: '#666', maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rec.comment || ''}</td>
-                        <td style={{ padding: '8px 3px', color: '#888' }}>{rec.producer || '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* 이미지 프리뷰 */}
-      {previewImg && (
+      {/* 히스토리 디테일 풀스크린 */}
+      {showHistoryDetail && (
         <div
-          onClick={() => setPreviewImg(null)}
+          onClick={() => { if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }}
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
-            zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
+            zIndex: 10003, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '10px',
           }}
         >
-          <img
-            src={previewImg}
-            alt=""
-            style={{ maxWidth: '95%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }}
-          />
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: '16px', width: '100%', maxWidth: '500px',
+            maxHeight: '90vh', overflowY: 'auto', padding: '16px',
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: '12px',
+            }}>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748' }}>
+                히스토리 ({history.length}건)
+              </span>
+              <button onClick={() => { if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }} style={{
+                border: 'none', background: 'none', fontSize: '1.2rem',
+                cursor: 'pointer', color: '#888',
+              }}>&times;</button>
+            </div>
+            {history.map(rec => {
+              const dist = typeof rec.distribution === 'string'
+                ? JSON.parse(rec.distribution) : rec.distribution;
+              const distEntries = Object.entries(dist || {})
+                .filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+              const photos = rec.photo_urls || [];
+              const thumbs = rec.thumbnails || [];
+              return (
+                <div
+                  key={rec.id}
+                  onClick={() => { setDate(rec.date); if (window.history.state?.grassHistory) window.history.back(); else setShowHistoryDetail(false); }}
+                  style={{
+                    borderBottom: '1px solid #f0f0f0', padding: '12px 0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{rec.date}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#888' }}>{rec.producer || ''}</span>
+                  </div>
+                  {/* 우세종 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                    {(rec.dominant_grass || '').split(',').filter(Boolean).map(n => (
+                      <span key={n} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <span style={{
+                          width: 10, height: 10, borderRadius: 3,
+                          backgroundColor: colorMap[n.trim()] || '#999',
+                          display: 'inline-block',
+                        }} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{n.trim()}</span>
+                      </span>
+                    ))}
+                  </div>
+                  {/* 분포 */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                    {distEntries.map(([n, v]) => (
+                      <span key={n} style={{
+                        fontSize: '0.75rem', color: '#555',
+                        background: `${colorMap[n] || '#ddd'}30`, borderRadius: 4, padding: '2px 6px',
+                      }}>
+                        {n} {v}%
+                      </span>
+                    ))}
+                  </div>
+                  {/* 코멘트 */}
+                  {rec.comment && (
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginBottom: '6px' }}>
+                      {rec.comment}
+                    </div>
+                  )}
+                  {/* 사진 전부 표시 */}
+                  {photos.length > 0 && (
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {photos.map((url, i) => (
+                        <ThumbImg
+                          key={i}
+                          src={thumbs[i] || url}
+                          onClick={(e) => { e.stopPropagation(); setPreviewImg({ url, photos }); }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {/* 이미지 프리뷰 (좌우 넘기기) */}
+      {previewImg && (() => {
+        const photos = previewImg.photos || [previewImg.url || previewImg];
+        const currentUrl = previewImg.url || previewImg;
+        const idx = photos.indexOf(currentUrl);
+        const hasPrev = idx > 0;
+        const hasNext = idx < photos.length - 1;
+        const arrowStyle = (side) => ({
+          position: 'absolute', [side]: 12, top: '50%', transform: 'translateY(-50%)',
+          background: 'rgba(255,255,255,0.25)', border: 'none', color: '#fff',
+          fontSize: '2rem', width: 44, height: 44, borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', zIndex: 2,
+        });
+        return (
+          <div
+            onClick={(e) => { e.stopPropagation(); if (window.history.state?.grassPreview) window.history.back(); else { previewOpenRef.current = false; setPreviewImg(null); } }}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+              zIndex: 10010, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {hasPrev && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setPreviewImg({ url: photos[idx - 1], photos }); }}
+                style={arrowStyle('left')}
+              >&#8249;</button>
+            )}
+            <img
+              src={currentUrl}
+              alt=""
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '85%', maxHeight: '85vh', objectFit: 'contain', borderRadius: '8px' }}
+            />
+            {hasNext && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setPreviewImg({ url: photos[idx + 1], photos }); }}
+                style={arrowStyle('right')}
+              >&#8250;</button>
+            )}
+            {/* 페이지 인디케이터 */}
+            {photos.length > 1 && (
+              <div style={{
+                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+                color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem',
+              }}>
+                {idx + 1} / {photos.length}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {showAddPopup && (
         <AddGrassPopup

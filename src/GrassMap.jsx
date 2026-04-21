@@ -17,6 +17,78 @@ function darkenColor(hex, factor = 0.55) {
   return `rgb(${dr},${dg},${db})`;
 }
 
+/** 개별 셀 (React.memo로 불필요한 리렌더 방지) */
+const GrassCell = React.memo(function GrassCell({
+  grassId, numericId, cellW, cellH, isDisabled,
+  hasActiveTree, dominantNames, isTied, cellBg, displayNames,
+  colorMap, onClick,
+}) {
+  if (isDisabled) {
+    return (
+      <div
+        style={{
+          width: cellW, height: cellH,
+          backgroundColor: "#d3d3d3", opacity: 0.5,
+          borderRadius: 2, cursor: "pointer",
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        width: cellW, height: cellH,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        cursor: "pointer", outline: "1px solid #ccc",
+        background: cellBg,
+        position: "relative", borderRadius: 2, overflow: "hidden",
+      }}
+    >
+      {hasActiveTree && (
+        <img
+          src={treeBgSVG} alt="" draggable={false}
+          style={{
+            position: "absolute", width: "100%", height: "100%",
+            top: 0, left: 0, pointerEvents: "none",
+          }}
+        />
+      )}
+      {displayNames.map((dn, i) => {
+        const maxLen = Math.max(...displayNames.map(n => n.length));
+        const baseFontSize = isTied
+          ? Math.max(3.5, Math.min(6.5, cellW / (maxLen * 0.7)))
+          : Math.max(5, Math.min(8, cellW / (dn.length * 0.65)));
+        const singleColor = !isTied && dominantNames.length === 1
+          ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
+          : "#444";
+        return (
+          <span key={i} style={{
+            fontSize: baseFontSize, fontFamily: "sans-serif",
+            color: isTied ? "#444" : singleColor,
+            fontWeight: 700, whiteSpace: "nowrap",
+            lineHeight: "1.1", zIndex: 1,
+          }}>
+            {dn}
+          </span>
+        );
+      })}
+      <span style={{
+        fontSize: 6, fontFamily: "sans-serif",
+        color: (!isTied && dominantNames.length === 1)
+          ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
+          : "#999",
+        whiteSpace: "nowrap", lineHeight: "1", zIndex: 1,
+        opacity: (!isTied && dominantNames.length === 1) ? 0.7 : 1,
+      }}>
+        {numericId}
+      </span>
+    </div>
+  );
+});
+
 export default function GrassMap({ grassRecords = {}, onCellClick }) {
   const rows = 25;
   const cols = 8;
@@ -267,22 +339,19 @@ export default function GrassMap({ grassRecords = {}, onCellClick }) {
           const r = Math.floor(idx / cols);
           const c = idx % cols;
           const grassId = `Grass-${c + 1}-${r + 1}`;
-          const numericId = `${c + 1}-${r + 1}`;
+          const nId = `${c + 1}-${r + 1}`;
           const grassLbl = grassLabels[grassId] || {};
           const isDisabled = grassLbl.disabled === true;
 
-          // 포도나무 활성 여부
           const treeLabelId = `Tree-${c + 1}-${r + 1}`;
           const treeLbl = treeLabels[treeLabelId] || {};
           const hasActiveTree = !treeLbl.disabled;
 
-          // 우세종 정보 (콤마 구분 → 배열)
-          const dom = dominantMap[numericId];
+          const dom = dominantMap[nId];
           const dominantRaw = dom?.name || '';
           const dominantNames = dominantRaw ? dominantRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
           const isTied = dominantNames.length > 1;
 
-          // 배경: 동률이면 그라데이션, 단독이면 단색
           let cellBg = '#ffffff';
           if (dominantNames.length === 1) {
             const c1 = colorMap[dominantNames[0]] || '#e8f5e9';
@@ -297,100 +366,24 @@ export default function GrassMap({ grassRecords = {}, onCellClick }) {
             cellBg = `linear-gradient(135deg, ${stops})`;
           }
 
-          // 표시 이름
           const displayNames = dominantNames.length > 0 ? dominantNames : [grassLbl.name || '풀'];
 
-          if (isDisabled) {
-            return (
-              <div
-                key={grassId}
-                style={{
-                  width: cellW,
-                  height: cellH,
-                  backgroundColor: "#d3d3d3",
-                  opacity: 0.5,
-                  borderRadius: 2,
-                  cursor: "pointer",
-                }}
-              />
-            );
-          }
-
           return (
-            <div
+            <GrassCell
               key={grassId}
+              grassId={grassId}
+              numericId={nId}
+              cellW={cellW}
+              cellH={cellH}
+              isDisabled={isDisabled}
+              hasActiveTree={hasActiveTree}
+              dominantNames={dominantNames}
+              isTied={isTied}
+              cellBg={cellBg}
+              displayNames={displayNames}
+              colorMap={colorMap}
               onClick={() => handleCellClick(grassId)}
-              style={{
-                width: cellW,
-                height: cellH,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                outline: "1px solid #ccc",
-                background: cellBg,
-                position: "relative",
-                borderRadius: 2,
-                overflow: "hidden",
-              }}
-            >
-              {/* 포도나무 있는 칸: 투명 나무 배경 (셀에 가득 차게) */}
-              {hasActiveTree && (
-                <img
-                  src={treeBgSVG}
-                  alt=""
-                  draggable={false}
-                  style={{
-                    position: "absolute",
-                    width: "100%",
-                    height: "100%",
-                    top: 0,
-                    left: 0,
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
-
-              {/* 풀 이름 (줄바꿈으로 여러 개 표시) */}
-              {displayNames.map((dn, i) => {
-                const maxLen = Math.max(...displayNames.map(n => n.length));
-                const baseFontSize = isTied
-                  ? Math.max(3.5, Math.min(6.5, cellW / (maxLen * 0.7)))
-                  : Math.max(5, Math.min(8, cellW / (dn.length * 0.65)));
-                const singleColor = !isTied && dominantNames.length === 1
-                  ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
-                  : "#444";
-                return (
-                  <span key={i} style={{
-                    fontSize: baseFontSize,
-                    fontFamily: "sans-serif",
-                    color: isTied ? "#444" : singleColor,
-                    fontWeight: 700,
-                    whiteSpace: "nowrap",
-                    lineHeight: "1.1",
-                    zIndex: 1,
-                  }}>
-                    {dn}
-                  </span>
-                );
-              })}
-
-              {/* 좌표 (아래, 작게) */}
-              <span style={{
-                fontSize: 6,
-                fontFamily: "sans-serif",
-                color: (!isTied && dominantNames.length === 1)
-                  ? darkenColor(colorMap[dominantNames[0]] || '#e8f5e9')
-                  : "#999",
-                whiteSpace: "nowrap",
-                lineHeight: "1",
-                zIndex: 1,
-                opacity: (!isTied && dominantNames.length === 1) ? 0.7 : 1,
-              }}>
-                {numericId}
-              </span>
-            </div>
+            />
           );
         })}
       </div>

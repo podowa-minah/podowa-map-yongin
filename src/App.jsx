@@ -33,8 +33,9 @@ export default function App() {
   // 안드로이드 뒤로가기 버튼으로 모달 닫기
   useEffect(() => {
     const handlePopState = () => {
-      // AddGrassPopup이 pushState한 grassPopup 상태면 무시 (팝업 자체가 처리)
-      if (window.history.state?.grassPopup) return;
+      // GrassModal 내부 팝업들이 pushState한 상태면 무시 (각 팝업이 자체 처리)
+      const s = window.history.state;
+      if (s?.grassPopup || s?.grassHistory || s?.grassPreview) return;
       if (selectedGrassCell) {
         setSelectedGrassCell(null);
       } else if (selectedTree) {
@@ -97,6 +98,18 @@ export default function App() {
     const grouped = {};
     data.forEach((row) => { (grouped[row.tree_id] ??= []).push(row); });
     setGrassRecords(grouped);
+  };
+
+  // 특정 셀만 리프레시 (전체 reload 방지)
+  const refreshGrassCell = async (treeId) => {
+    const { data, error } = await supabase
+      .from('grass_records')
+      .select('*')
+      .eq('tree_id', treeId)
+      .order('date', { ascending: false })
+      .order('id', { ascending: false });
+    if (error) return;
+    setGrassRecords(prev => ({ ...prev, [treeId]: data || [] }));
   };
 
   useEffect(() => {
@@ -452,7 +465,7 @@ export default function App() {
         )}
 
         {selectedGrassCell && (
-          <GrassModal cellId={selectedGrassCell} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedGrassCell(null); setTimeout(loadGrassRecords, 500); }} onOpenTree={(treeId) => { setSelectedGrassCell(null); setTimeout(() => setSelectedTree(treeId), 100); }} />
+          <GrassModal cellId={selectedGrassCell} user={user} onClose={() => { const cellNumId = selectedGrassCell.replace('Grass-', ''); if (window.history.state?.modal) window.history.back(); else setSelectedGrassCell(null); refreshGrassCell(cellNumId); }} onOpenTree={(treeId) => { setSelectedGrassCell(null); setTimeout(() => setSelectedTree(treeId), 100); }} />
         )}
 
         {showChangePassword && (
