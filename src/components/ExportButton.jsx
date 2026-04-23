@@ -100,7 +100,7 @@ export default function ExportButton() {
 
       // 헤더
       const headers = [
-        'Tree ID', '나무 이름', '날짜', '생육시기', '체크항목',
+        'Tree ID', '나무 이름', '상태', '보관일', '날짜', '생육시기', '체크항목',
         '세력', '균형', '해충', '부분방제', '코멘트', '생산자', '사진', '사진 URL'
       ];
       const headerRow = ws.addRow(headers);
@@ -117,6 +117,8 @@ export default function ExportButton() {
       ws.columns = [
         { width: 8 },   // Tree ID
         { width: 14 },  // 나무 이름
+        { width: 8 },   // 상태
+        { width: 18 },  // 보관일
         { width: 12 },  // 날짜
         { width: 10 },  // 생육시기
         { width: 30 },  // 체크항목
@@ -139,9 +141,18 @@ export default function ExportButton() {
         const imageUrl = row.images && row.images.length > 0 ? row.images[0] : '';
         const thumbUrl = row.thumbnails && row.thumbnails.length > 0 ? row.thumbnails[0] : '';
 
+        // 보관 상태 (백지화된 과거 나무 식별)
+        const isArchived = row.archived_at != null;
+        const status = isArchived ? '예전' : '현재';
+        const archivedAtStr = isArchived
+          ? new Date(row.archived_at).toISOString().slice(0, 19).replace('T', ' ')
+          : '';
+
         const rowData = [
           row.id,
           lbl.name || '',
+          status,
+          archivedAtStr,
           row.date,
           SEASON_NAMES[row.season] || '',
           seasonChecks,
@@ -159,14 +170,25 @@ export default function ExportButton() {
         excelRow.height = 45;
         excelRow.alignment = { vertical: 'middle' };
 
-        // 사진 URL 하이퍼링크
-        if (imageUrl) {
-          const urlCell = excelRow.getCell(13);
-          urlCell.value = { text: '원본 보기', hyperlink: imageUrl };
-          urlCell.font = { color: { argb: 'FF0066CC' }, underline: true };
+        // 보관된 row는 배경 회색 + 글자색 연하게
+        if (isArchived) {
+          excelRow.eachCell({ includeEmpty: true }, (cell) => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } };
+            cell.font = { color: { argb: 'FF888888' } };
+          });
         }
 
-        // 사진 썸네일 삽입 (썸네일 URL 있으면 그걸 사용, 없으면 원본에서 리사이즈)
+        // 사진 URL 하이퍼링크 (컬럼 위치: 2개 추가됨 → 13 → 15)
+        if (imageUrl) {
+          const urlCell = excelRow.getCell(15);
+          urlCell.value = { text: '원본 보기', hyperlink: imageUrl };
+          urlCell.font = {
+            color: { argb: isArchived ? 'FF888888' : 'FF0066CC' },
+            underline: true,
+          };
+        }
+
+        // 사진 썸네일 삽입 (컬럼 위치: 11 → 13)
         if (imageUrl) {
           try {
             const imgBuffer = await fetchImageAsBase64(thumbUrl || imageUrl);
@@ -176,7 +198,7 @@ export default function ExportButton() {
                 extension: 'jpeg',
               });
               ws.addImage(imageId, {
-                tl: { col: 11, row: i + 1 },
+                tl: { col: 13, row: i + 1 },
                 ext: { width: 40, height: 40 },
               });
             }

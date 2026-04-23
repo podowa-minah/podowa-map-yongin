@@ -191,6 +191,37 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   const [sortCol, setSortCol] = useState('date');
   const [sortAsc, setSortAsc] = useState(false); // 디폴트: 최신 먼저 (내림차순)
 
+  // 새로 시작 (백지화) 관련
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archivePassword, setArchivePassword] = useState('');
+  const [archiveError, setArchiveError] = useState('');
+  const [archiveLoading, setArchiveLoading] = useState(false);
+
+  async function handleArchive() {
+    if (archivePassword !== '6687') {
+      setArchiveError('비밀번호가 틀렸습니다');
+      return;
+    }
+    setArchiveLoading(true);
+    setArchiveError('');
+    // 이 나무의 모든 활성 trees row를 archived_at=NOW()로 UPDATE
+    // ⚠️ DELETE 안 함. 기록은 Supabase에 그대로 남음.
+    const { error } = await supabase
+      .from('trees')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', actualTreeId)
+      .is('archived_at', null);
+    setArchiveLoading(false);
+    if (error) {
+      setArchiveError('실행 실패: ' + error.message);
+      return;
+    }
+    // 성공 → 모달 닫고 상위 모달도 닫기
+    setShowArchiveModal(false);
+    setArchivePassword('');
+    onClose();
+  }
+
   function handleSort(col) {
     if (sortCol === col) {
       setSortAsc(!sortAsc);
@@ -230,6 +261,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       .select('*')
       .eq('id', actualTreeId)
       .eq('date', isoDate)
+      .is('archived_at', null)  // 보관된 나무 기록 제외
       .maybeSingle();
 
     if (error) {
@@ -280,6 +312,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         .from('trees')
         .select('*')
         .eq('id', actualTreeId)
+        .is('archived_at', null)  // 보관된 나무 기록 제외
         .order('date');
 
       if (!error && data) {
@@ -458,9 +491,31 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       producer: user?.user_metadata?.nickname || user?.email || '',
     };
 
-    const { error } = await supabase
+    // partial unique index(trees_active_id_date_unique)는 ON CONFLICT에서 인식 안 됨
+    // → 수동으로 active row 있는지 확인 후 INSERT or UPDATE
+    const { data: existing, error: checkError } = await supabase
       .from('trees')
-      .upsert(row, { onConflict: ['id', 'date'] });
+      .select('row_id')
+      .eq('id', actualTreeId)
+      .eq('date', isoDate)
+      .is('archived_at', null)
+      .maybeSingle();
+
+    if (checkError) { console.error(checkError); return; }
+
+    let error;
+    if (existing) {
+      // active row가 있으면 UPDATE
+      ({ error } = await supabase
+        .from('trees')
+        .update(row)
+        .eq('row_id', existing.row_id));
+    } else {
+      // 없으면 INSERT (archived row 있어도 공존 가능 — partial unique index 덕분)
+      ({ error } = await supabase
+        .from('trees')
+        .insert(row));
+    }
 
     if (error) console.error(error);
     onClose();
@@ -489,7 +544,18 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             display: 'flex', alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: '1.4rem', fontWeight: 600, flex: 1 }}>{displayName}</span>
+          <span
+            onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
+            style={{
+              fontSize: '1.4rem', fontWeight: 600, flex: 1,
+              textDecoration: 'underline', textDecorationColor: '#a0aec0',
+              textDecorationStyle: 'dotted', textUnderlineOffset: '4px',
+              cursor: 'pointer',
+            }}
+            title="클릭: 이 나무 새로 시작"
+          >
+            {displayName}
+          </span>
           {onOpenGrass && (
             <img
               src={grasslink}
@@ -901,6 +967,82 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             alt="원본 이미지"
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }}
           />
+        </div>
+      )}
+
+      {/* 새로 시작 (백지화) 확인 팝업 */}
+      {showArchiveModal && (
+        <div
+          onClick={() => !archiveLoading && setShowArchiveModal(false)}
+          style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 3000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', padding: '1.5rem', borderRadius: '12px',
+              maxWidth: '360px', width: '90%',
+            }}
+          >
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem', color: '#dc2626' }}>
+              🆕 {displayName} 새로 시작
+            </h3>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.9rem', color: '#4b5563', lineHeight: '1.4' }}>
+              이 나무의 모든 작업 기록을 <b>앱에서 숨깁니다</b>.<br />
+              기록 자체는 삭제되지 않고 엑셀 내보내기에 "예전" 표시로 남습니다.<br />
+              <br />
+              정말 새로 시작하시겠습니까?
+            </p>
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={archivePassword}
+              onChange={(e) => { setArchivePassword(e.target.value); setArchiveError(''); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleArchive(); }}
+              autoFocus
+              disabled={archiveLoading}
+              style={{
+                width: '100%', boxSizing: 'border-box', padding: '0.6rem',
+                fontSize: '1rem', border: '1px solid #d1d5db', borderRadius: '6px',
+                marginBottom: '0.5rem',
+              }}
+            />
+            {archiveError && (
+              <div style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                {archiveError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                onClick={() => setShowArchiveModal(false)}
+                disabled={archiveLoading}
+                style={{
+                  flex: 1, padding: '0.6rem', border: '1px solid #d1d5db',
+                  backgroundColor: 'white', color: '#4b5563',
+                  borderRadius: '6px', cursor: archiveLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleArchive}
+                disabled={archiveLoading || !archivePassword}
+                style={{
+                  flex: 1, padding: '0.6rem', border: 'none',
+                  backgroundColor: archivePassword ? '#dc2626' : '#fca5a5',
+                  color: 'white', borderRadius: '6px',
+                  cursor: (archiveLoading || !archivePassword) ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem', fontWeight: 600,
+                }}
+              >
+                {archiveLoading ? '처리 중...' : '새로 시작'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

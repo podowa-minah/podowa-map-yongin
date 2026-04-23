@@ -77,6 +77,7 @@ export default function App() {
     const { data, error } = await supabase
       .from('trees')
       .select('*')
+      .is('archived_at', null)  // 보관된 나무 제외 (백지화된 과거 기록)
       .order('date', { ascending: false });
 
     if (error) { console.error('Error fetching trees:', error); return; }
@@ -127,6 +128,12 @@ export default function App() {
                 if (copy[old.id]) {
                   copy[old.id] = copy[old.id].filter((r) => r.date !== old.date);
                   if (copy[old.id].length === 0) delete copy[old.id];
+                }
+              } else if (row.archived_at) {
+                // 보관된 row: UI에서 제외 (백지화 동작)
+                if (copy[row.id]) {
+                  copy[row.id] = copy[row.id].filter((r) => r.date !== row.date);
+                  if (copy[row.id].length === 0) delete copy[row.id];
                 }
               } else {
                 // 같은 id+date 기존 데이터 제거 후 새 데이터 추가
@@ -325,9 +332,10 @@ export default function App() {
   useEffect(() => {
     if (!user || dataLoading || Object.keys(treeData).length === 0) return;
 
+    const DATA_START = '2026-04-09';
+
     async function saveMissingSummaries() {
       const today = getKSTToday();
-      const DATA_START = '2026-04-09';
       // 시작일부터 어제까지 모든 날짜
       const dates = [];
       let d = DATA_START;
@@ -347,6 +355,8 @@ export default function App() {
 
       for (const d of missing) {
         const stats = computeStatsForDate(treeData, labels, d);
+        // ignoreDuplicates: true → INSERT ON CONFLICT DO NOTHING
+        // 기존 row는 절대 덮어쓰지 않음 (existing fetch가 실패해도 안전)
         await supabase.from('daily_summaries').upsert({
           date: d,
           completed: stats.completed,
@@ -355,7 +365,7 @@ export default function App() {
           kind_dots: stats.kind_dots,
           fake_dots: stats.fake_dots,
           workers: stats.workers,
-        });
+        }, { ignoreDuplicates: true });
       }
     }
 
@@ -396,7 +406,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.1.0</span>
+                <span className="version">v1.1.3</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
