@@ -3,10 +3,53 @@ import React, { useState } from 'react';
 import MiniMap from './MiniMap';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 
-export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasUnseen = false, hasRecent = false }) {
-  const [collapsed, setCollapsed] = useState(false);
+const COLLAPSED_STORAGE_KEY = 'bottom_bar_collapsed_until';
 
-  // 빨간 점 뱃지 (24시간 이내 공지 있으면)
+// 다음 "한국 시간 04:00" 의 UTC ISO 문자열 반환
+function getNextKSTResetISO() {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const nowKST = new Date(Date.now() + KST_OFFSET_MS);
+  const y = nowKST.getUTCFullYear();
+  const m = nowKST.getUTCMonth();
+  const d = nowKST.getUTCDate();
+  const h = nowKST.getUTCHours();
+  // 이미 오늘 KST 04:00을 지났으면 내일 04:00이 리셋 시각
+  const targetDate = h >= 4 ? d + 1 : d;
+  const targetUTCms = Date.UTC(y, m, targetDate, 4, 0, 0) - KST_OFFSET_MS;
+  return new Date(targetUTCms).toISOString();
+}
+
+function readInitialCollapsed() {
+  try {
+    const expiry = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    if (!expiry) return false;
+    if (new Date(expiry).getTime() > Date.now()) return true;
+    // 만료된 값은 청소
+    localStorage.removeItem(COLLAPSED_STORAGE_KEY);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasRecent = false }) {
+  const [collapsed, setCollapsed] = useState(readInitialCollapsed);
+
+  const handleCollapse = () => {
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, getNextKSTResetISO());
+    } catch {}
+    setCollapsed(true);
+  };
+
+  const handleExpand = () => {
+    try {
+      localStorage.removeItem(COLLAPSED_STORAGE_KEY);
+    } catch {}
+    setCollapsed(false);
+  };
+
+  // 빨간 점 뱃지 ("다 확인했어요" 누르기 전까지 표시)
   const redDot = hasRecent ? (
     <span style={{
       display: 'inline-block',
@@ -19,10 +62,10 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
     }} />
   ) : null;
 
-  // 메가폰 농부 크기: 미확인 새 공지 → 크게 + 흔들림
+  // 메가폰 농부 크기: "다 확인했어요" 누르기 전까지 → 크게 + 흔들림
   const farmerSizeExpanded = 70;
   const farmerSizeNormal = 45;
-  const farmerSizeCollapsed = hasUnseen ? 40 : 28;
+  const farmerSizeCollapsed = hasRecent ? 60 : 40;
 
   // 접힌 상태
   if (collapsed) {
@@ -47,7 +90,7 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
           }
         `}</style>
         <div
-          onClick={() => setCollapsed(false)}
+          onClick={handleExpand}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -65,10 +108,10 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
               style={{
                 width: farmerSizeCollapsed,
                 height: farmerSizeCollapsed,
-                animation: hasUnseen ? 'shake 0.8s ease-in-out infinite' : 'none',
+                animation: hasRecent ? 'shake 0.8s ease-in-out infinite' : 'none',
               }}
             />
-            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: hasUnseen ? '1rem' : '0.85rem', color: hasUnseen ? '#d97706' : '#666', fontWeight: hasUnseen ? 700 : 400 }}>
+            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: hasRecent ? '1rem' : '0.85rem', color: hasRecent ? '#d97706' : '#666', fontWeight: hasRecent ? 700 : 400 }}>
               농부님 주목!
             </span>
             {redDot}
@@ -102,7 +145,7 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
 
       {/* 손잡이 탭 — 누르면 접기 */}
       <div
-        onClick={() => setCollapsed(true)}
+        onClick={handleCollapse}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -130,7 +173,7 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
       }}>
         {/* 미니맵 */}
         <div
-          onClick={() => setCollapsed(true)}
+          onClick={handleCollapse}
           style={{
             flexShrink: 0,
             padding: '4px',
@@ -173,9 +216,9 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
               position: 'relative',
               display: 'inline-block',
               fontFamily: "'Poor Story', cursive",
-              fontSize: hasUnseen ? '1.1rem' : '0.95rem',
-              color: hasUnseen ? '#d97706' : '#666',
-              fontWeight: hasUnseen ? 700 : 400,
+              fontSize: hasRecent ? '1.1rem' : '0.95rem',
+              color: hasRecent ? '#d97706' : '#666',
+              fontWeight: hasRecent ? 700 : 400,
             }}>
               <img
                 src={farmerAnnounce}
@@ -185,10 +228,10 @@ export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems
                   right: '100%',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  width: hasUnseen ? farmerSizeExpanded : farmerSizeNormal,
-                  height: hasUnseen ? farmerSizeExpanded : farmerSizeNormal,
+                  width: hasRecent ? farmerSizeExpanded : farmerSizeNormal,
+                  height: hasRecent ? farmerSizeExpanded : farmerSizeNormal,
                   marginRight: '2px',
-                  animation: hasUnseen ? 'shake 0.8s ease-in-out infinite' : 'none',
+                  animation: hasRecent ? 'shake 0.8s ease-in-out infinite' : 'none',
                   transition: 'width 0.3s, height 0.3s',
                 }}
               />

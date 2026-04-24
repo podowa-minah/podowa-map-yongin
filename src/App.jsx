@@ -57,7 +57,6 @@ export default function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const [viewportInfo, setViewportInfo] = useState(null);
-  const [lastSeenAt, setLastSeenAt] = useState(() => new Date().toISOString());
   const [dismissedAt, setDismissedAt] = useState('1970-01-01T00:00:00.000Z');
   const { labels } = useLabels();
   useEffect(() => {
@@ -406,7 +405,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.1.3</span>
+                <span className="version">v1.1.5</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -463,11 +462,10 @@ export default function App() {
         </main>
 
         <BottomBar
-          onAnnouncementClick={() => { setLastSeenAt(new Date().toISOString()); setShowAnnouncements(true); }}
+          onAnnouncementClick={() => setShowAnnouncements(true)}
           litTreeIds={litTreeIds}
           pinnedItems={latestAnnouncement}
           viewportInfo={viewportInfo}
-          hasUnseen={prefetchedAnnouncements?.some(a => a.created_at > lastSeenAt) || false}
           hasRecent={prefetchedAnnouncements?.some(a => a.created_at > dismissedAt) || false}
         />
 
