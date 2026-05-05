@@ -344,27 +344,42 @@ export default function App() {
       }
       if (dates.length === 0) return;
 
+      // row 있어도 plan만 있는 (stats=null) 케이스가 있으니 stats 채워줘야 함
+      // row 있고 stats도 있으면 skip (덮어쓰지 않음)
+      // row 없으면 insert
+      // → plan/excuse/boast/authors는 절대 건드리지 않음
       const { data: existing } = await supabase
         .from('daily_summaries')
-        .select('date')
+        .select('date, total')
         .gte('date', DATA_START);
 
-      const existingDates = new Set((existing || []).map(r => r.date));
-      const missing = dates.filter(d => !existingDates.has(d));
+      const existingMap = new Map((existing || []).map(r => [r.date, r]));
 
-      for (const d of missing) {
+      for (const d of dates) {
+        const existingRow = existingMap.get(d);
+        // 이미 stats 채워진 row는 건드리지 않음
+        if (existingRow && existingRow.total != null) continue;
+
         const stats = computeStatsForDate(treeData, labels, d);
-        // ignoreDuplicates: true → INSERT ON CONFLICT DO NOTHING
-        // 기존 row는 절대 덮어쓰지 않음 (existing fetch가 실패해도 안전)
-        await supabase.from('daily_summaries').upsert({
-          date: d,
+        const payload = {
           completed: stats.completed,
           total: stats.total,
           green_dots: stats.green_dots,
           kind_dots: stats.kind_dots,
           fake_dots: stats.fake_dots,
           workers: stats.workers,
-        }, { ignoreDuplicates: true });
+        };
+
+        if (existingRow) {
+          // plan만 적힌 row → stats만 update, plan/authors는 보존
+          await supabase.from('daily_summaries')
+            .update(payload)
+            .eq('date', d);
+        } else {
+          // 신규 row
+          await supabase.from('daily_summaries')
+            .insert({ date: d, ...payload });
+        }
       }
     }
 
@@ -405,7 +420,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.1.6</span>
+                <span className="version">v1.1.8</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>

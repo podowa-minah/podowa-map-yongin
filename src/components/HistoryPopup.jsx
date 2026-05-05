@@ -4,6 +4,7 @@ import { getKSTToday, offsetDate } from '../utils/dailyStats';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import farmerCrySVG from '../assets/icons/farmer_cry.svg';
 import farmerProudSVG from '../assets/icons/farmer_proud.svg';
+import farmerCuriousSVG from '../assets/icons/farmer_curious.svg';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
@@ -12,30 +13,50 @@ const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
 const PIN_EDIT = '1234';
 const PIN_DELETE = '6687';
 
-// NoteSlot은 부모의 CSS grid 안에서 사용됨. 라벨은 row1/col1, 펼친 영역은 row2/col1~-1.
-function NoteSlot({ date, type, value, author, onSave, currentAuthor }) {
+// NoteSlot은 부모의 CSS grid 안에서 사용됨.
+// labelArea/expandedArea props로 grid 위치를 외부에서 지정.
+// fallbackValue/fallbackAuthor: value가 비어있을 때 표시·편집 초기값으로 쓰임 (예: 변/자랑에 plan을 fallback)
+function NoteSlot({
+  date, type, value, author, onSave, currentAuthor,
+  fallbackValue, fallbackAuthor,
+  labelArea = { gridRow: 1, gridColumn: 1 },
+  expandedArea = { gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' },
+}) {
+  const displayValue = value ?? fallbackValue ?? null;
+  const displayAuthor = author ?? fallbackAuthor ?? null;
+  const initialDraft = value || fallbackValue || '';
+
   const [mode, setMode] = useState('view'); // view | write | editPin | deletePin | edit
-  const [draft, setDraft] = useState(value || '');
+  const [draft, setDraft] = useState(initialDraft);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [busy, setBusy] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
-  const symbol = type === 'excuse' ? '辯' : '♫';
-  const isEmpty = !value;
+  const symbol = type === 'excuse' ? '辯' : type === 'boast' ? '♫' : '?';
+  const isEmpty = !displayValue;
   const expanded = mode !== 'view' || showActions;
-  // 입력값 있을 때 라벨 색깔: 변(辯) → 노랑(프로그레스바와 동일), 음표(♫) → 초록
-  const filledColor = type === 'excuse' ? '#f5b942' : '#10b981';
+  // 색깔: 변→노랑, 자랑→초록, plan→하늘
+  const filledColor =
+    type === 'excuse' ? '#f5b942' :
+    type === 'boast' ? '#10b981' :
+    '#7DD3FC';
   // 버블박스 색깔
-  const bubbleBg = type === 'excuse' ? '#fef9ef' : '#ecfdf5';
+  const bubbleBg =
+    type === 'excuse' ? '#fef9ef' :
+    type === 'boast' ? '#ecfdf5' :
+    '#f0f9ff';
   const bubbleBorder = filledColor;
   // 농부 아이콘
-  const farmerIcon = type === 'excuse' ? farmerCrySVG : farmerProudSVG;
-  const authorField = `${type}_author`; // excuse_author | boast_author
+  const farmerIcon =
+    type === 'excuse' ? farmerCrySVG :
+    type === 'boast' ? farmerProudSVG :
+    farmerCuriousSVG;
+  const authorField = `${type}_author`; // excuse_author | boast_author | plan_author
 
   const reset = () => {
     setMode('view');
-    setDraft(value || '');
+    setDraft(value || fallbackValue || '');
     setPin('');
     setPinError('');
     setBusy(false);
@@ -58,7 +79,7 @@ function NoteSlot({ date, type, value, author, onSave, currentAuthor }) {
       return;
     }
     if (mode === 'editPin') {
-      setDraft(value || '');
+      setDraft(value || fallbackValue || '');
       setMode('edit');
       setPin('');
       setPinError('');
@@ -184,15 +205,17 @@ function NoteSlot({ date, type, value, author, onSave, currentAuthor }) {
       </div>
     );
   } else if (showActions) {
-    // mode === 'view' && showActions: 농부 아이콘 + 버블박스 본문 + [수정] [삭제] [닫기]
+    // mode === 'view' && showActions: (농부 아이콘 +) 버블박스 본문 + [수정] [삭제] [닫기]
     expandedContent = (
       <div>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-          <img
-            src={farmerIcon}
-            alt=""
-            style={{ width: 36, height: 36, flexShrink: 0 }}
-          />
+          {farmerIcon && (
+            <img
+              src={farmerIcon}
+              alt=""
+              style={{ width: 36, height: 36, flexShrink: 0 }}
+            />
+          )}
           {/* 버블박스 */}
           <div style={{
             position: 'relative',
@@ -205,30 +228,33 @@ function NoteSlot({ date, type, value, author, onSave, currentAuthor }) {
             lineHeight: 1.4,
             wordBreak: 'break-word',
           }}>
-            {/* 꼬리: 테두리 */}
-            <div style={{
-              position: 'absolute', left: -7, top: 10,
-              width: 0, height: 0,
-              borderTop: '6px solid transparent',
-              borderRight: `7px solid ${bubbleBorder}`,
-              borderBottom: '6px solid transparent',
-            }} />
-            {/* 꼬리: 배경 (테두리 위에 살짝 겹치게) */}
-            <div style={{
-              position: 'absolute', left: -5, top: 11,
-              width: 0, height: 0,
-              borderTop: '5px solid transparent',
-              borderRight: `6px solid ${bubbleBg}`,
-              borderBottom: '5px solid transparent',
-            }} />
-            {author && (
-              <span style={{ fontWeight: 700, color: filledColor }}>{author}</span>
+            {/* 꼬리는 농부 아이콘이 있을 때만 */}
+            {farmerIcon && (
+              <>
+                <div style={{
+                  position: 'absolute', left: -7, top: 10,
+                  width: 0, height: 0,
+                  borderTop: '6px solid transparent',
+                  borderRight: `7px solid ${bubbleBorder}`,
+                  borderBottom: '6px solid transparent',
+                }} />
+                <div style={{
+                  position: 'absolute', left: -5, top: 11,
+                  width: 0, height: 0,
+                  borderTop: '5px solid transparent',
+                  borderRight: `6px solid ${bubbleBg}`,
+                  borderBottom: '5px solid transparent',
+                }} />
+              </>
             )}
-            {author ? `: ${value}` : value}
+            {displayAuthor && (
+              <span style={{ fontWeight: 700, color: filledColor }}>{displayAuthor}</span>
+            )}
+            {displayAuthor ? `: ${displayValue}` : displayValue}
           </div>
         </div>
-        {/* 액션 버튼 — 버블 아래 (아이콘 폭만큼 들여쓰기) */}
-        <div style={{ display: 'flex', gap: '6px', marginTop: '6px', paddingLeft: '44px' }}>
+        {/* 액션 버튼 — 버블 아래 (아이콘 있으면 들여쓰기) */}
+        <div style={{ display: 'flex', gap: '6px', marginTop: '6px', paddingLeft: farmerIcon ? '44px' : 0 }}>
           <button
             onClick={() => { setShowActions(false); setMode('editPin'); }}
             style={{
@@ -260,13 +286,13 @@ function NoteSlot({ date, type, value, author, onSave, currentAuthor }) {
 
   return (
     <>
-      {/* 라벨: grid row1 / col1 (슬롯 영역) */}
-      <div style={{ gridRow: 1, gridColumn: 1, minWidth: 0 }}>
+      {/* 라벨: 부모 grid의 지정 위치 */}
+      <div style={{ ...labelArea, minWidth: 0 }}>
         {label}
       </div>
-      {/* 펼친 영역: grid row2 / col 전체 (워커 밑) */}
+      {/* 펼친 영역: 부모 grid의 지정 위치 (보통 row2 / col 전체) */}
       {expanded && expandedContent && (
-        <div style={{ gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' }}>
+        <div style={expandedArea}>
           {expandedContent}
         </div>
       )}
@@ -306,12 +332,37 @@ function MiniBar({ pct, incomplete }) {
   );
 }
 
-function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, workers, isTomorrow, isToday, excuse, boast, excuseAuthor, boastAuthor, onSaveNote, currentAuthor }) {
+function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, workers, isTomorrow, isToday, excuse, boast, excuseAuthor, boastAuthor, plan, planAuthor, onSaveNote, currentAuthor }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
   const isIncomplete = !isTomorrow && !isToday && !isEmpty && pct < 100;
   const isComplete = !isTomorrow && !isToday && !isEmpty && pct >= 100;
-  const showNoteSlot = (isIncomplete || isComplete) && onSaveNote;
+
+  // 슬롯 종류 결정:
+  //   과거 미완료 → 변(辯)  (plan은 fallback)
+  //   과거 완료 → 자랑(♫)  (plan은 fallback)
+  //   그 외(오늘/내일/빈 일자) → plan(?) — 단독, fallback 없음
+  let slotType, slotValue, slotAuthor, slotFallbackValue, slotFallbackAuthor;
+  if (isIncomplete) {
+    slotType = 'excuse';
+    slotValue = excuse;
+    slotAuthor = excuseAuthor;
+    slotFallbackValue = plan;
+    slotFallbackAuthor = planAuthor;
+  } else if (isComplete) {
+    slotType = 'boast';
+    slotValue = boast;
+    slotAuthor = boastAuthor;
+    slotFallbackValue = plan;
+    slotFallbackAuthor = planAuthor;
+  } else {
+    slotType = 'plan';
+    slotValue = plan;
+    slotAuthor = planAuthor;
+    slotFallbackValue = null;
+    slotFallbackAuthor = null;
+  }
+  const showNoteSlot = !!onSaveNote;
 
   return (
     <div style={{
@@ -388,11 +439,12 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
           minHeight: '16px',
         }}>
           {showNoteSlot && (
-            isComplete ? (
-              <NoteSlot date={date} type="boast" value={boast} author={boastAuthor} onSave={onSaveNote} currentAuthor={currentAuthor} />
-            ) : (
-              <NoteSlot date={date} type="excuse" value={excuse} author={excuseAuthor} onSave={onSaveNote} currentAuthor={currentAuthor} />
-            )
+            <NoteSlot
+              date={date} type={slotType}
+              value={slotValue} author={slotAuthor}
+              fallbackValue={slotFallbackValue} fallbackAuthor={slotFallbackAuthor}
+              onSave={onSaveNote} currentAuthor={currentAuthor}
+            />
           )}
           {workers && workers.length > 0 && (
             <div style={{
@@ -414,6 +466,43 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
   );
 }
 
+// 미래 plan row (모레~+6일) — 프로그레스바/워커/점들 없음, 날짜 + plan 슬롯만
+function PlanRow({ date, label, plan, planAuthor, onSaveNote, currentAuthor }) {
+  return (
+    <div style={{
+      padding: '10px 0',
+      borderBottom: '1px solid #f0f0f0',
+      marginLeft: '-12px', marginRight: '-12px',
+      paddingLeft: '12px', paddingRight: '12px',
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '80px 1fr',
+        columnGap: '8px',
+        alignItems: 'center',
+      }}>
+        <span style={{
+          gridRow: 1, gridColumn: 1,
+          fontSize: '0.85rem', fontWeight: 700,
+          color: '#0EA5E9',
+        }}>
+          ☁️ {label}
+        </span>
+        <NoteSlot
+          date={date}
+          type="plan"
+          value={plan}
+          author={planAuthor}
+          onSave={onSaveNote}
+          currentAuthor={currentAuthor}
+          labelArea={{ gridRow: 1, gridColumn: 2 }}
+          expandedArea={{ gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' }}
+        />
+      </div>
+    </div>
+  );
+}
+
 const PAGE_SIZE = 30;
 
 export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries, authorName }) {
@@ -423,9 +512,15 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
   const [hasMore, setHasMore] = useState(
     prefetchedSummaries ? prefetchedSummaries.length >= PAGE_SIZE : false
   );
+  // 구름 토글: 미래 7일(모레~+6일) plan 표시
+  const [showFuture, setShowFuture] = useState(false);
+  const [futureRows, setFutureRows] = useState([]);
+  const [futureLoaded, setFutureLoaded] = useState(false);
 
   const today = getKSTToday();
   const tomorrowDate = offsetDate(today, 1);
+  // 미래 일자 7일 (모레~+6일)
+  const futureDates = Array.from({ length: 7 }, (_, i) => offsetDate(today, 2 + i));
 
   // prefetch 없을 때만 Supabase fetch
   useEffect(() => {
@@ -446,17 +541,39 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
     fetchSummaries();
   }, [prefetchedSummaries]);
 
-  // 농부의 변/자랑 저장 핸들러 — fields = { excuse: '...', excuse_author: '...' } 또는 모두 null로 삭제
+  // 미래 plan fetch (토글 ON 시 1회)
+  useEffect(() => {
+    if (!showFuture || futureLoaded) return;
+    async function fetchFuture() {
+      const start = futureDates[0];
+      const end = futureDates[futureDates.length - 1];
+      const { data } = await supabase
+        .from('daily_summaries')
+        .select('date, plan, plan_author')
+        .gte('date', start)
+        .lte('date', end);
+      if (data) setFutureRows(data);
+      setFutureLoaded(true);
+    }
+    fetchFuture();
+  }, [showFuture, futureLoaded]);
+
+  // 농부의 변/자랑/plan 저장 핸들러 — fields = { excuse: '...', excuse_author: '...' } 또는 모두 null로 삭제
+  // 미래 일자라 row가 없을 수 있어서 upsert로 처리
   const handleSaveNote = async (date, fields) => {
     const { error } = await supabase
       .from('daily_summaries')
-      .update(fields)
-      .eq('date', date);
+      .upsert({ date, ...fields }, { onConflict: 'date' });
     if (error) {
       alert('저장 실패: ' + error.message);
       return false;
     }
     setSummaries(prev => prev.map(s => s.date === date ? { ...s, ...fields } : s));
+    setFutureRows(prev => {
+      const exists = prev.some(r => r.date === date);
+      if (exists) return prev.map(r => r.date === date ? { ...r, ...fields } : r);
+      return [...prev, { date, ...fields }];
+    });
     return true;
   };
 
@@ -506,8 +623,27 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginBottom: '12px',
         }}>
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748' }}>
-            📋 작업 히스토리
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748' }}>
+              📋 작업 히스토리
+            </span>
+            <button
+              onClick={() => setShowFuture(s => !s)}
+              title={showFuture ? '미래 일주일 닫기' : '미래 일주일 보기'}
+              style={{
+                border: 'none', background: 'none',
+                cursor: 'pointer',
+                padding: '0 4px', lineHeight: 1,
+                opacity: showFuture ? 1 : 0.5,
+                filter: showFuture ? 'none' : 'grayscale(0.5)',
+                transition: 'opacity 0.2s, filter 0.2s',
+                display: 'inline-flex', alignItems: 'center',
+              }}
+            >
+              <span style={{ fontSize: '0.85rem', marginRight: '-3px' }}>☁️</span>
+              <span style={{ fontSize: '1.5rem' }}>☁️</span>
+              <span style={{ fontSize: '0.85rem', marginLeft: '-3px' }}>☁️</span>
+            </button>
           </span>
           <button
             onClick={onClose}
@@ -526,29 +662,61 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
           </div>
         ) : (
           <>
-            {/* 내일 예상 */}
-            {tomorrowTotal > 0 && (
-              <DayRow
-                label={formatDate(tomorrowDate)}
-                completed={0}
-                total={tomorrowTotal}
-                isTomorrow
-              />
-            )}
+            {/* 미래 7일 (모레~+6일) — 토글 ON 시, 가장 먼 미래가 위 */}
+            {showFuture && [...futureDates].reverse().map(d => {
+              const row = futureRows.find(r => r.date === d);
+              return (
+                <PlanRow
+                  key={d}
+                  date={d}
+                  label={formatDate(d)}
+                  plan={row?.plan}
+                  planAuthor={row?.plan_author}
+                  onSaveNote={handleSaveNote}
+                  currentAuthor={authorName}
+                />
+              );
+            })}
+
+            {/* 내일 — total=0이어도 plan 슬롯 보이게 항상 표시 */}
+            {(() => {
+              const tomorrowRow = summaries.find(s => s.date === tomorrowDate) || {};
+              return (
+                <DayRow
+                  date={tomorrowDate}
+                  label={formatDate(tomorrowDate)}
+                  completed={0}
+                  total={tomorrowTotal || 0}
+                  isTomorrow
+                  plan={tomorrowRow.plan}
+                  planAuthor={tomorrowRow.plan_author}
+                  onSaveNote={handleSaveNote}
+                  currentAuthor={authorName}
+                />
+              );
+            })()}
 
             {/* 오늘 (실시간, App.jsx에서 계산된 props) */}
-            {todayStats && (
-              <DayRow
-                label={formatDate(today)}
-                completed={todayStats.completed}
-                total={todayStats.total}
-                greenDots={todayStats.green_dots}
-                kindDots={todayStats.green_dots - todayStats.completed}
-                fakeDots={todayStats.fake_dots}
-                workers={todayStats.workers}
-                isToday
-              />
-            )}
+            {todayStats && (() => {
+              const todayRow = summaries.find(s => s.date === today) || {};
+              return (
+                <DayRow
+                  date={today}
+                  label={formatDate(today)}
+                  completed={todayStats.completed}
+                  total={todayStats.total}
+                  greenDots={todayStats.green_dots}
+                  kindDots={todayStats.green_dots - todayStats.completed}
+                  fakeDots={todayStats.fake_dots}
+                  workers={todayStats.workers}
+                  isToday
+                  plan={todayRow.plan}
+                  planAuthor={todayRow.plan_author}
+                  onSaveNote={handleSaveNote}
+                  currentAuthor={authorName}
+                />
+              );
+            })()}
 
             {/* 과거 (Supabase) */}
             {summaries
@@ -568,6 +736,8 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   boast={s.boast}
                   excuseAuthor={s.excuse_author}
                   boastAuthor={s.boast_author}
+                  plan={s.plan}
+                  planAuthor={s.plan_author}
                   onSaveNote={handleSaveNote}
                   currentAuthor={authorName}
                 />
