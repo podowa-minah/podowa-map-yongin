@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- 자랑의 별 (배경) -->
+  <text x="0.5" y="5" font-size="3.5" fill="#FFD700">★</text>
+  <text x="19" y="22.5" font-size="3" fill="#FFD700">★</text>
+  <!-- 밀짚모자 -->
+  <rect x="4" y="0" width="16" height="2.5" rx="1" fill="#D4A44C"/>
+  <rect x="2" y="2.5" width="20" height="1.8" rx="1" fill="#C49435"/>
+  <rect x="6" y="2.5" width="12" height="5" rx="2" fill="#D4A44C"/>
+  <!-- 머리카락 -->
+  <rect x="7" y="7" width="10" height="2.5" rx="1" fill="#8B5E3C"/>
+  <rect x="5" y="8.5" width="3" height="6" rx="1" fill="#8B5E3C"/>
+  <rect x="16" y="8.5" width="3" height="6" rx="1" fill="#8B5E3C"/>
+  <!-- 얼굴 -->
+  <rect x="7" y="8.5" width="10" height="8.5" rx="3" fill="#FDDCB5"/>
+  <!-- 눈썹 (자신감 - 살짝 올라간) -->
+  <line x1="8.8" y1="11" x2="10.8" y2="10.4" stroke="#3B2F2F" stroke-width="0.8" stroke-linecap="round"/>
+  <line x1="13.2" y1="10.4" x2="15.2" y2="11" stroke="#3B2F2F" stroke-width="0.8" stroke-linecap="round"/>
+  <!-- 눈 (당당한 똘망똘망 눈) -->
+  <circle cx="10" cy="12.5" r="0.95" fill="#3B2F2F"/>
+  <circle cx="14" cy="12.5" r="0.95" fill="#3B2F2F"/>
+  <circle cx="10.3" cy="12.2" r="0.3" fill="#fff"/>
+  <circle cx="14.3" cy="12.2" r="0.3" fill="#fff"/>
+  <!-- 볼 홍조 (자랑스러움) -->
+  <circle cx="8.8" cy="14.5" r="1.3" fill="#FFCDB2" opacity="0.6"/>
+  <circle cx="15.2" cy="14.5" r="1.3" fill="#FFCDB2" opacity="0.6"/>
+  <!-- 입 (자랑스러운 ︶ 미소) -->
+  <path d="M10 15.6 Q12 17 14 15.6" stroke="#3B2F2F" fill="none" stroke-width="0.9" stroke-linecap="round"/>
+  <!-- 몸통 - 체크셔츠 (가슴 폄) -->
+  <rect x="5.5" y="17" width="13" height="6" rx="1" fill="#E05555"/>
+  <line x1="9" y1="17" x2="9" y2="23" stroke="#fff" stroke-width="0.5" opacity="0.4"/>
+  <line x1="12" y1="17" x2="12" y2="23" stroke="#fff" stroke-width="0.5" opacity="0.4"/>
+  <line x1="15" y1="17" x2="15" y2="23" stroke="#fff" stroke-width="0.5" opacity="0.4"/>
+  <!-- 멜빵 -->
+  <rect x="8" y="18" width="2" height="5" rx="0.5" fill="#4A6FA5"/>
+  <rect x="14" y="18" width="2" height="5" rx="0.5" fill="#4A6FA5"/>
+  <!-- 메달 (가슴팍) -->
+  <circle cx="12" cy="20" r="1.3" fill="#FFD700" stroke="#C49435" stroke-width="0.3"/>
+  <text x="11.1" y="20.7" font-size="1.6" fill="#C49435" font-weight="bold">★</text>
+</svg>

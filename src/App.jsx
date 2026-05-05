@@ -405,7 +405,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.1.5</span>
+                <span className="version">v1.1.6</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
@@ -507,6 +507,7 @@ export default function App() {
             todayStats={{ completed, total, green_dots: greenDots, fake_dots: fakeDoneCount, workers: todayWorkers }}
             tomorrowTotal={tomorrowTotal}
             prefetchedSummaries={historySummaries}
+            authorName={authorName}
           />
         )}
       </div>
