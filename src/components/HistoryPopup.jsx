@@ -9,7 +9,7 @@ import farmerCuriousSVG from '../assets/icons/farmer_curious.svg';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
 
-// 농부의 변(辯) / 자랑(♫) 비밀번호 — 클라이언트 사이드 가벼운 게이트(보안 X)
+// 농부의 변(辯) / 긍지 비밀번호 — 클라이언트 사이드 가벼운 게이트(보안 X)
 const PIN_EDIT = '1234';
 const PIN_DELETE = '6687';
 
@@ -33,7 +33,7 @@ function NoteSlot({
   const [busy, setBusy] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
-  const symbol = type === 'excuse' ? '辯' : type === 'boast' ? '♫' : '?';
+  const symbol = type === 'excuse' ? '辯' : type === 'boast' ? '긍지' : '?';
   const isEmpty = !displayValue;
   const expanded = mode !== 'view' || showActions;
   // 색깔: 변→노랑, 자랑→초록, plan→하늘
@@ -340,7 +340,7 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
 
   // 슬롯 종류 결정:
   //   과거 미완료 → 변(辯)  (plan은 fallback)
-  //   과거 완료 → 자랑(♫)  (plan은 fallback)
+  //   과거 완료 → 긍지  (plan은 fallback)
   //   그 외(오늘/내일/빈 일자) → plan(?) — 단독, fallback 없음
   let slotType, slotValue, slotAuthor, slotFallbackValue, slotFallbackAuthor;
   if (isIncomplete) {
