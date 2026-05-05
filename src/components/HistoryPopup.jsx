@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
@@ -9,94 +9,142 @@ import farmerCuriousSVG from '../assets/icons/farmer_curious.svg';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const DATA_START_DATE = '2026-04-09'; // 데이터 시작일
 
-// 농부의 변(辯) / 긍지 비밀번호 — 클라이언트 사이드 가벼운 게이트(보안 X)
+// 농부의 변(辯) / 긍지 / ? 비밀번호 — 클라이언트 사이드 가벼운 게이트(보안 X)
 const PIN_EDIT = '1234';
 const PIN_DELETE = '6687';
 
-// NoteSlot은 부모의 CSS grid 안에서 사용됨.
-// labelArea/expandedArea props로 grid 위치를 외부에서 지정.
-// fallbackValue/fallbackAuthor: value가 비어있을 때 표시·편집 초기값으로 쓰임 (예: 변/자랑에 plan을 fallback)
+// 댓글 시간을 상대 시간으로
+function relativeTime(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const sec = Math.max(0, ms / 1000);
+  if (sec < 60) return '방금';
+  if (sec < 3600) return `${Math.floor(sec / 60)}분 전`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}시간 전`;
+  if (sec < 86400 * 7) return `${Math.floor(sec / 86400)}일 전`;
+  if (sec < 86400 * 30) return `${Math.floor(sec / 86400 / 7)}주 전`;
+  if (sec < 86400 * 365) return `${Math.floor(sec / 86400 / 30)}개월 전`;
+  return `${Math.floor(sec / 86400 / 365)}년 전`;
+}
+
+// 일자별 댓글 슬롯 — 다중 댓글 지원.
+// slotType은 부모가 그날 stats 기반으로 결정 ('excuse'|'boast'|'plan').
+// 댓글 자체엔 type 정보 없음 (통합 모델). 라벨/색상/아이콘은 slotType에 따라 자동.
 function NoteSlot({
-  date, type, value, author, onSave, currentAuthor,
-  fallbackValue, fallbackAuthor,
+  date,
+  slotType,
+  notes,
+  onCreate,
+  onUpdate,
+  onDelete,
+  currentAuthor,
   labelArea = { gridRow: 1, gridColumn: 1 },
   expandedArea = { gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' },
 }) {
-  const displayValue = value ?? fallbackValue ?? null;
-  const displayAuthor = author ?? fallbackAuthor ?? null;
-  const initialDraft = value || fallbackValue || '';
-
-  const [mode, setMode] = useState('view'); // view | write | editPin | deletePin | edit
-  const [draft, setDraft] = useState(initialDraft);
+  const [expanded, setExpanded] = useState(false);
+  const [composeDraft, setComposeDraft] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [pinAction, setPinAction] = useState(null); // { type: 'edit'|'delete', noteId }
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [showActions, setShowActions] = useState(false);
 
-  const symbol = type === 'excuse' ? '辯' : type === 'boast' ? '긍지' : '?';
-  const isEmpty = !displayValue;
-  const expanded = mode !== 'view' || showActions;
-  // 색깔: 변→노랑, 자랑→초록, plan→하늘
+  const symbol = slotType === 'excuse' ? '辯' : slotType === 'boast' ? '긍지' : '?';
   const filledColor =
-    type === 'excuse' ? '#f5b942' :
-    type === 'boast' ? '#10b981' :
+    slotType === 'excuse' ? '#f5b942' :
+    slotType === 'boast' ? '#10b981' :
     '#7DD3FC';
-  // 버블박스 색깔
   const bubbleBg =
-    type === 'excuse' ? '#fef9ef' :
-    type === 'boast' ? '#ecfdf5' :
+    slotType === 'excuse' ? '#fef9ef' :
+    slotType === 'boast' ? '#ecfdf5' :
     '#f0f9ff';
   const bubbleBorder = filledColor;
-  // 농부 아이콘
   const farmerIcon =
-    type === 'excuse' ? farmerCrySVG :
-    type === 'boast' ? farmerProudSVG :
+    slotType === 'excuse' ? farmerCrySVG :
+    slotType === 'boast' ? farmerProudSVG :
     farmerCuriousSVG;
-  const authorField = `${type}_author`; // excuse_author | boast_author | plan_author
 
-  const reset = () => {
-    setMode('view');
-    setDraft(value || fallbackValue || '');
+  const sortedNotes = useMemo(() => {
+    return [...(notes || [])].sort((a, b) => {
+      const ac = a.created_at || '';
+      const bc = b.created_at || '';
+      return ac.localeCompare(bc);
+    });
+  }, [notes]);
+  const isEmpty = sortedNotes.length === 0;
+
+  const closeAll = () => {
+    setExpanded(false);
+    setComposeDraft('');
+    setEditingId(null);
+    setEditDraft('');
+    setPinAction(null);
     setPin('');
     setPinError('');
     setBusy(false);
-    setShowActions(false);
   };
 
-  const submitWrite = async () => {
-    const text = draft.trim();
-    if (!text) { reset(); return; }
+  const submitCompose = async () => {
+    const text = composeDraft.trim();
+    if (!text) return;
     setBusy(true);
-    // 작성/수정 시 author도 함께 업데이트 (마지막 수정자)
-    const ok = await onSave(date, { [type]: text, [authorField]: currentAuthor || null });
-    if (ok) reset(); else setBusy(false);
+    const ok = await onCreate(date, text);
+    setBusy(false);
+    if (ok) setComposeDraft('');
+  };
+
+  const submitEdit = async () => {
+    const text = editDraft.trim();
+    if (!text || editingId == null) return;
+    setBusy(true);
+    const ok = await onUpdate(editingId, text);
+    setBusy(false);
+    if (ok) {
+      setEditingId(null);
+      setEditDraft('');
+    }
   };
 
   const submitPin = async () => {
-    const required = mode === 'editPin' ? PIN_EDIT : PIN_DELETE;
+    if (!pinAction) return;
+    const required = pinAction.type === 'edit' ? PIN_EDIT : PIN_DELETE;
     if (pin !== required) {
       setPinError('비밀번호가 틀렸어요');
       return;
     }
-    if (mode === 'editPin') {
-      setDraft(value || fallbackValue || '');
-      setMode('edit');
+    if (pinAction.type === 'edit') {
+      const note = sortedNotes.find(n => n.id === pinAction.noteId);
+      setEditingId(pinAction.noteId);
+      setEditDraft(note?.content || '');
+      setPinAction(null);
       setPin('');
       setPinError('');
       return;
     }
-    // deletePin: 본문 + author 모두 NULL
     setBusy(true);
-    const ok = await onSave(date, { [type]: null, [authorField]: null });
-    if (ok) reset(); else setBusy(false);
+    const ok = await onDelete(pinAction.noteId);
+    setBusy(false);
+    if (ok) {
+      setPinAction(null);
+      setPin('');
+      setPinError('');
+    }
   };
 
-  // 라벨 (slot 영역, row1/col1)
+  const cancelPin = () => {
+    setPinAction(null);
+    setPin('');
+    setPinError('');
+  };
+
+  // 라벨
   const label = isEmpty ? (
     <button
-      onClick={() => { setDraft(''); setMode('write'); }}
+      onClick={() => setExpanded(e => !e)}
       style={{
-        background: 'none', border: 'none', color: '#a0aec0',
+        background: 'none', border: 'none',
+        color: '#a0aec0',
         fontSize: '0.72rem', cursor: 'pointer', padding: 0,
         fontFamily: 'inherit', lineHeight: 1.3,
       }}
@@ -105,180 +153,187 @@ function NoteSlot({
     </button>
   ) : (
     <span
-      onClick={() => setShowActions(s => !s)}
+      onClick={() => setExpanded(e => !e)}
       style={{
         fontSize: '0.72rem', color: filledColor, fontWeight: 700,
         cursor: 'pointer', lineHeight: 1.3,
       }}
     >
-      농부의 {symbol}
+      농부의 {symbol} · {sortedNotes.length}
     </span>
   );
 
-  // 펼친 영역 (워커 밑, row2/col1~-1)
-  let expandedContent = null;
-  if (mode === 'write' || mode === 'edit') {
-    expandedContent = (
-      <div>
-        <textarea
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          autoFocus
-          rows={2}
-          placeholder={`농부의 ${symbol}...`}
-          style={{
-            width: '100%', fontSize: '0.78rem', padding: '6px 8px',
-            border: '1px solid #cbd5e1', borderRadius: '6px',
-            fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
-          }}
-        />
-        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-          <button
-            onClick={submitWrite}
-            disabled={busy}
+  // 댓글 한 개 렌더
+  const renderNoteItem = (note) => {
+    const isThisEditing = editingId === note.id;
+    const isPinForThis = pinAction?.noteId === note.id;
+
+    if (isThisEditing) {
+      return (
+        <div key={note.id} style={{ marginBottom: '10px' }}>
+          <textarea
+            value={editDraft}
+            onChange={e => setEditDraft(e.target.value)}
+            autoFocus
+            rows={2}
             style={{
-              fontSize: '0.72rem', padding: '4px 10px',
-              border: '1px solid #10b981', background: '#10b981',
+              width: '100%', fontSize: '0.78rem', padding: '6px 8px',
+              border: '1px solid #cbd5e1', borderRadius: '6px',
+              fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+            <button onClick={submitEdit} disabled={busy} style={{
+              fontSize: '0.7rem', padding: '4px 10px',
+              border: `1px solid ${filledColor}`, background: filledColor,
               color: '#fff', borderRadius: '4px',
               cursor: busy ? 'wait' : 'pointer',
-            }}
-          >저장</button>
-          <button
-            onClick={reset}
-            disabled={busy}
-            style={{
-              fontSize: '0.72rem', padding: '4px 10px',
+            }}>저장</button>
+            <button onClick={() => { setEditingId(null); setEditDraft(''); }} disabled={busy} style={{
+              fontSize: '0.7rem', padding: '4px 10px',
               border: '1px solid #cbd5e1', background: '#fff',
               color: '#718096', borderRadius: '4px',
               cursor: busy ? 'wait' : 'pointer',
-            }}
-          >취소</button>
+            }}>취소</button>
+          </div>
         </div>
-      </div>
-    );
-  } else if (mode === 'editPin' || mode === 'deletePin') {
-    const action = mode === 'editPin' ? '수정' : '삭제';
-    expandedContent = (
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap',
-      }}>
-        <span style={{ fontSize: '0.72rem', color: '#718096' }}>
-          {action} 비번:
-        </span>
-        <input
-          type="password"
-          value={pin}
-          onChange={e => { setPin(e.target.value); setPinError(''); }}
-          onKeyDown={e => { if (e.key === 'Enter') submitPin(); }}
-          autoFocus
-          inputMode="numeric"
-          maxLength={6}
-          style={{
-            width: '70px', fontSize: '0.78rem', padding: '3px 6px',
-            border: '1px solid #cbd5e1', borderRadius: '4px',
-            fontFamily: 'inherit',
-          }}
-        />
-        <button
-          onClick={submitPin}
-          disabled={busy}
-          style={{
-            fontSize: '0.72rem', padding: '3px 8px',
-            border: '1px solid #cbd5e1', background: '#fff',
-            borderRadius: '4px', cursor: busy ? 'wait' : 'pointer',
-          }}
-        >확인</button>
-        <button
-          onClick={reset}
-          disabled={busy}
-          style={{
-            fontSize: '0.72rem', padding: '3px 8px',
-            border: 'none', background: 'none',
-            color: '#a0aec0', cursor: busy ? 'wait' : 'pointer',
-          }}
-        >취소</button>
-        {pinError && (
-          <span style={{ fontSize: '0.7rem', color: '#ef4444' }}>
-            {pinError}
-          </span>
-        )}
-      </div>
-    );
-  } else if (showActions) {
-    // mode === 'view' && showActions: (농부 아이콘 +) 버블박스 본문 + [수정] [삭제] [닫기]
-    expandedContent = (
-      <div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-          {farmerIcon && (
-            <img
-              src={farmerIcon}
-              alt=""
-              style={{ width: 36, height: 36, flexShrink: 0 }}
-            />
-          )}
-          {/* 버블박스 */}
+      );
+    }
+
+    return (
+      <div key={note.id} style={{ marginBottom: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+          <img src={farmerIcon} alt="" style={{ width: 28, height: 28, flexShrink: 0 }} />
           <div style={{
             position: 'relative',
             background: bubbleBg,
             border: `1.5px solid ${bubbleBorder}`,
-            borderRadius: '12px',
-            padding: '6px 10px',
+            borderRadius: '10px',
+            padding: '5px 8px',
             fontSize: '0.78rem', color: '#4a5568',
             flex: 1, minWidth: 0,
             lineHeight: 1.4,
             wordBreak: 'break-word',
           }}>
-            {/* 꼬리는 농부 아이콘이 있을 때만 */}
-            {farmerIcon && (
-              <>
-                <div style={{
-                  position: 'absolute', left: -7, top: 10,
-                  width: 0, height: 0,
-                  borderTop: '6px solid transparent',
-                  borderRight: `7px solid ${bubbleBorder}`,
-                  borderBottom: '6px solid transparent',
-                }} />
-                <div style={{
-                  position: 'absolute', left: -5, top: 11,
-                  width: 0, height: 0,
-                  borderTop: '5px solid transparent',
-                  borderRight: `6px solid ${bubbleBg}`,
-                  borderBottom: '5px solid transparent',
-                }} />
-              </>
+            {/* 꼬리 */}
+            <div style={{
+              position: 'absolute', left: -7, top: 8,
+              width: 0, height: 0,
+              borderTop: '5px solid transparent',
+              borderRight: `7px solid ${bubbleBorder}`,
+              borderBottom: '5px solid transparent',
+            }} />
+            <div style={{
+              position: 'absolute', left: -5, top: 9,
+              width: 0, height: 0,
+              borderTop: '4px solid transparent',
+              borderRight: `6px solid ${bubbleBg}`,
+              borderBottom: '4px solid transparent',
+            }} />
+            {note.author && (
+              <span style={{ fontWeight: 700, color: filledColor }}>{note.author}</span>
             )}
-            {displayAuthor && (
-              <span style={{ fontWeight: 700, color: filledColor }}>{displayAuthor}</span>
-            )}
-            {displayAuthor ? `: ${displayValue}` : displayValue}
+            {note.author ? `: ${note.content}` : note.content}
           </div>
         </div>
-        {/* 액션 버튼 — 버블 아래 (아이콘 있으면 들여쓰기) */}
-        <div style={{ display: 'flex', gap: '6px', marginTop: '6px', paddingLeft: farmerIcon ? '44px' : 0 }}>
-          <button
-            onClick={() => { setShowActions(false); setMode('editPin'); }}
-            style={{
-              fontSize: '0.7rem', padding: '2px 8px',
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          marginTop: '2px', paddingLeft: '34px',
+          fontSize: '0.65rem', color: '#a0aec0',
+        }}>
+          <span>{relativeTime(note.created_at)}</span>
+          {!isPinForThis && (
+            <>
+              <button onClick={() => { setPinAction({ type: 'edit', noteId: note.id }); setPin(''); setPinError(''); }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.75rem', color: '#718096', padding: '0 2px', lineHeight: 1,
+                }}>✎</button>
+              <button onClick={() => { setPinAction({ type: 'delete', noteId: note.id }); setPin(''); setPinError(''); }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: '0.75rem', color: '#718096', padding: '0 2px', lineHeight: 1,
+                }}>🗑</button>
+            </>
+          )}
+        </div>
+        {isPinForThis && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap',
+            marginTop: '4px', paddingLeft: '34px',
+          }}>
+            <span style={{ fontSize: '0.68rem', color: '#718096' }}>
+              {pinAction.type === 'edit' ? '수정' : '삭제'} 비번:
+            </span>
+            <input
+              type="password"
+              value={pin}
+              onChange={e => { setPin(e.target.value); setPinError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') submitPin(); }}
+              autoFocus
+              inputMode="numeric"
+              maxLength={6}
+              style={{
+                width: '60px', fontSize: '0.72rem', padding: '2px 5px',
+                border: '1px solid #cbd5e1', borderRadius: '4px',
+                fontFamily: 'inherit',
+              }}
+            />
+            <button onClick={submitPin} disabled={busy} style={{
+              fontSize: '0.68rem', padding: '2px 6px',
               border: '1px solid #cbd5e1', background: '#fff',
-              color: '#4a5568', borderRadius: '4px', cursor: 'pointer',
-            }}
-          >수정</button>
-          <button
-            onClick={() => { setShowActions(false); setMode('deletePin'); }}
+              borderRadius: '4px', cursor: busy ? 'wait' : 'pointer',
+            }}>확인</button>
+            <button onClick={cancelPin} disabled={busy} style={{
+              fontSize: '0.68rem', padding: '2px 6px',
+              border: 'none', background: 'none',
+              color: '#a0aec0', cursor: busy ? 'wait' : 'pointer',
+            }}>취소</button>
+            {pinError && (
+              <span style={{ fontSize: '0.65rem', color: '#ef4444' }}>
+                {pinError}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 펼친 영역
+  let expandedContent = null;
+  if (expanded) {
+    expandedContent = (
+      <div>
+        {sortedNotes.map(renderNoteItem)}
+        {/* 새 댓글 작성 */}
+        <div>
+          <textarea
+            value={composeDraft}
+            onChange={e => setComposeDraft(e.target.value)}
+            placeholder={`농부의 ${symbol}...`}
+            rows={2}
             style={{
-              fontSize: '0.7rem', padding: '2px 8px',
-              border: '1px solid #fecaca', background: '#fff',
-              color: '#dc2626', borderRadius: '4px', cursor: 'pointer',
+              width: '100%', fontSize: '0.78rem', padding: '6px 8px',
+              border: '1px solid #cbd5e1', borderRadius: '6px',
+              fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box',
             }}
-          >삭제</button>
-          <button
-            onClick={() => setShowActions(false)}
-            style={{
-              fontSize: '0.7rem', padding: '2px 6px',
+          />
+          <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+            <button onClick={submitCompose} disabled={busy || !composeDraft.trim()} style={{
+              fontSize: '0.7rem', padding: '4px 10px',
+              border: `1px solid ${composeDraft.trim() ? filledColor : '#cbd5e1'}`,
+              background: composeDraft.trim() ? filledColor : '#fff',
+              color: composeDraft.trim() ? '#fff' : '#cbd5e1',
+              borderRadius: '4px',
+              cursor: busy || !composeDraft.trim() ? 'not-allowed' : 'pointer',
+            }}>댓글 달기</button>
+            <button onClick={closeAll} style={{
+              fontSize: '0.7rem', padding: '4px 10px',
               border: 'none', background: 'none',
               color: '#a0aec0', cursor: 'pointer',
-            }}
-          >닫기</button>
+            }}>닫기</button>
+          </div>
         </div>
       </div>
     );
@@ -286,11 +341,9 @@ function NoteSlot({
 
   return (
     <>
-      {/* 라벨: 부모 grid의 지정 위치 */}
       <div style={{ ...labelArea, minWidth: 0 }}>
         {label}
       </div>
-      {/* 펼친 영역: 부모 grid의 지정 위치 (보통 row2 / col 전체) */}
       {expanded && expandedContent && (
         <div style={expandedArea}>
           {expandedContent}
@@ -332,37 +385,27 @@ function MiniBar({ pct, incomplete }) {
   );
 }
 
-function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, workers, isTomorrow, isToday, excuse, boast, excuseAuthor, boastAuthor, plan, planAuthor, onSaveNote, currentAuthor }) {
+function DayRow({
+  date, label, completed, total, greenDots, kindDots, fakeDots, workers,
+  isTomorrow, isToday,
+  notes, onCreate, onUpdate, onDelete, currentAuthor,
+}) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
   const isIncomplete = !isTomorrow && !isToday && !isEmpty && pct < 100;
   const isComplete = !isTomorrow && !isToday && !isEmpty && pct >= 100;
 
-  // 슬롯 종류 결정:
-  //   과거 미완료 → 변(辯)  (plan은 fallback)
-  //   과거 완료 → 긍지  (plan은 fallback)
-  //   그 외(오늘/내일/빈 일자) → plan(?) — 단독, fallback 없음
-  let slotType, slotValue, slotAuthor, slotFallbackValue, slotFallbackAuthor;
-  if (isIncomplete) {
-    slotType = 'excuse';
-    slotValue = excuse;
-    slotAuthor = excuseAuthor;
-    slotFallbackValue = plan;
-    slotFallbackAuthor = planAuthor;
-  } else if (isComplete) {
-    slotType = 'boast';
-    slotValue = boast;
-    slotAuthor = boastAuthor;
-    slotFallbackValue = plan;
-    slotFallbackAuthor = planAuthor;
-  } else {
-    slotType = 'plan';
-    slotValue = plan;
-    slotAuthor = planAuthor;
-    slotFallbackValue = null;
-    slotFallbackAuthor = null;
-  }
-  const showNoteSlot = !!onSaveNote;
+  // 슬롯 종류는 그날 stats 기준:
+  //   과거 미완료 → 변(辯)
+  //   과거 완료 → 긍지
+  //   그 외(오늘/내일/빈 일자) → ?
+  let slotType;
+  if (isIncomplete) slotType = 'excuse';
+  else if (isComplete) slotType = 'boast';
+  else slotType = 'plan';
+
+  const showSlot = !!onCreate;
+  const hasWorkers = workers && workers.length > 0;
 
   return (
     <div style={{
@@ -373,10 +416,10 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
       paddingLeft: '12px', paddingRight: '12px',
       borderRadius: isIncomplete ? '8px' : 0,
     }}>
-      {/* 첫째 줄: 날짜 + 바 + 퍼센트 + 분자/분모 + 초록점 */}
+      {/* 첫째 줄 */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '8px',
-        marginBottom: (showNoteSlot || (workers && workers.length > 0)) ? '4px' : 0,
+        marginBottom: (showSlot || hasWorkers) ? '4px' : 0,
       }}>
         <span style={{
           fontSize: '0.85rem', fontWeight: 700,
@@ -429,8 +472,8 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
         )}
       </div>
 
-      {/* 둘째 줄: 슬롯 라벨(col1) + 워커(col2) | 슬롯 펼침 영역은 row2 col 전체 (워커 밑) */}
-      {(showNoteSlot || (workers && workers.length > 0)) && (
+      {/* 둘째 줄: 슬롯 라벨(col1) + 워커(col2), 펼친 영역은 row2 col 전체 */}
+      {(showSlot || hasWorkers) && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: '80px 1fr',
@@ -438,15 +481,18 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
           alignItems: 'center',
           minHeight: '16px',
         }}>
-          {showNoteSlot && (
+          {showSlot && (
             <NoteSlot
-              date={date} type={slotType}
-              value={slotValue} author={slotAuthor}
-              fallbackValue={slotFallbackValue} fallbackAuthor={slotFallbackAuthor}
-              onSave={onSaveNote} currentAuthor={currentAuthor}
+              date={date}
+              slotType={slotType}
+              notes={notes}
+              onCreate={onCreate}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              currentAuthor={currentAuthor}
             />
           )}
-          {workers && workers.length > 0 && (
+          {hasWorkers && (
             <div style={{
               gridRow: 1, gridColumn: 2,
               fontSize: '0.72rem', color: '#a0aec0',
@@ -461,13 +507,12 @@ function DayRow({ date, label, completed, total, greenDots, kindDots, fakeDots, 
           )}
         </div>
       )}
-
     </div>
   );
 }
 
-// 미래 plan row (모레~+6일) — 프로그레스바/워커/점들 없음, 날짜 + plan 슬롯만
-function PlanRow({ date, label, plan, planAuthor, onSaveNote, currentAuthor }) {
+// 미래 plan row (모레~+6일) — 프로그레스바/워커/점들 없음, 날짜 + ? 슬롯만
+function PlanRow({ date, label, notes, onCreate, onUpdate, onDelete, currentAuthor }) {
   return (
     <div style={{
       padding: '10px 0',
@@ -490,10 +535,11 @@ function PlanRow({ date, label, plan, planAuthor, onSaveNote, currentAuthor }) {
         </span>
         <NoteSlot
           date={date}
-          type="plan"
-          value={plan}
-          author={planAuthor}
-          onSave={onSaveNote}
+          slotType="plan"
+          notes={notes}
+          onCreate={onCreate}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
           currentAuthor={currentAuthor}
           labelArea={{ gridRow: 1, gridColumn: 2 }}
           expandedArea={{ gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' }}
@@ -512,17 +558,29 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
   const [hasMore, setHasMore] = useState(
     prefetchedSummaries ? prefetchedSummaries.length >= PAGE_SIZE : false
   );
-  // 구름 토글: 미래 7일(모레~+6일) plan 표시
+  // 모든 댓글 (daily_notes)
+  const [allNotes, setAllNotes] = useState([]);
+  // 구름 토글: 미래 7일(모레~+6일)
   const [showFuture, setShowFuture] = useState(false);
-  const [futureRows, setFutureRows] = useState([]);
-  const [futureLoaded, setFutureLoaded] = useState(false);
 
   const today = getKSTToday();
   const tomorrowDate = offsetDate(today, 1);
   // 미래 일자 7일 (모레~+6일)
   const futureDates = Array.from({ length: 7 }, (_, i) => offsetDate(today, 2 + i));
 
-  // prefetch 없을 때만 Supabase fetch
+  // 일자별 댓글 인덱스
+  const notesByDate = useMemo(() => {
+    const map = new Map();
+    for (const n of allNotes) {
+      const d = typeof n.date === 'string' ? n.date : String(n.date);
+      const arr = map.get(d) || [];
+      arr.push(n);
+      map.set(d, arr);
+    }
+    return map;
+  }, [allNotes]);
+
+  // prefetched 없을 때 stats fetch
   useEffect(() => {
     if (prefetchedSummaries) return;
     async function fetchSummaries() {
@@ -541,39 +599,60 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
     fetchSummaries();
   }, [prefetchedSummaries]);
 
-  // 미래 plan fetch (토글 ON 시 1회)
+  // 모든 댓글 fetch (마운트 시)
   useEffect(() => {
-    if (!showFuture || futureLoaded) return;
-    async function fetchFuture() {
-      const start = futureDates[0];
-      const end = futureDates[futureDates.length - 1];
-      const { data } = await supabase
-        .from('daily_summaries')
-        .select('date, plan, plan_author')
-        .gte('date', start)
-        .lte('date', end);
-      if (data) setFutureRows(data);
-      setFutureLoaded(true);
+    async function fetchNotes() {
+      const { data, error } = await supabase
+        .from('daily_notes')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (!error && data) setAllNotes(data);
     }
-    fetchFuture();
-  }, [showFuture, futureLoaded]);
+    fetchNotes();
+  }, []);
 
-  // 농부의 변/자랑/plan 저장 핸들러 — fields = { excuse: '...', excuse_author: '...' } 또는 모두 null로 삭제
-  // 미래 일자라 row가 없을 수 있어서 upsert로 처리
-  const handleSaveNote = async (date, fields) => {
-    const { error } = await supabase
-      .from('daily_summaries')
-      .upsert({ date, ...fields }, { onConflict: 'date' });
+  // 댓글 작성
+  const handleCreateNote = async (date, content) => {
+    const { data, error } = await supabase
+      .from('daily_notes')
+      .insert({ date, author: authorName || null, content })
+      .select()
+      .single();
     if (error) {
       alert('저장 실패: ' + error.message);
       return false;
     }
-    setSummaries(prev => prev.map(s => s.date === date ? { ...s, ...fields } : s));
-    setFutureRows(prev => {
-      const exists = prev.some(r => r.date === date);
-      if (exists) return prev.map(r => r.date === date ? { ...r, ...fields } : r);
-      return [...prev, { date, ...fields }];
-    });
+    if (data) setAllNotes(prev => [...prev, data]);
+    return true;
+  };
+
+  // 댓글 수정 (작성자도 마지막 수정자로 갱신)
+  const handleUpdateNote = async (id, content) => {
+    const { data, error } = await supabase
+      .from('daily_notes')
+      .update({ content, author: authorName || null })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) {
+      alert('수정 실패: ' + error.message);
+      return false;
+    }
+    if (data) setAllNotes(prev => prev.map(n => n.id === id ? data : n));
+    return true;
+  };
+
+  // 댓글 삭제
+  const handleDeleteNote = async (id) => {
+    const { error } = await supabase
+      .from('daily_notes')
+      .delete()
+      .eq('id', id);
+    if (error) {
+      alert('삭제 실패: ' + error.message);
+      return false;
+    }
+    setAllNotes(prev => prev.filter(n => n.id !== id));
     return true;
   };
 
@@ -663,60 +742,52 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
         ) : (
           <>
             {/* 미래 7일 (모레~+6일) — 토글 ON 시, 가장 먼 미래가 위 */}
-            {showFuture && [...futureDates].reverse().map(d => {
-              const row = futureRows.find(r => r.date === d);
-              return (
-                <PlanRow
-                  key={d}
-                  date={d}
-                  label={formatDate(d)}
-                  plan={row?.plan}
-                  planAuthor={row?.plan_author}
-                  onSaveNote={handleSaveNote}
-                  currentAuthor={authorName}
-                />
-              );
-            })}
+            {showFuture && [...futureDates].reverse().map(d => (
+              <PlanRow
+                key={d}
+                date={d}
+                label={formatDate(d)}
+                notes={notesByDate.get(d) || []}
+                onCreate={handleCreateNote}
+                onUpdate={handleUpdateNote}
+                onDelete={handleDeleteNote}
+                currentAuthor={authorName}
+              />
+            ))}
 
-            {/* 내일 — total=0이어도 plan 슬롯 보이게 항상 표시 */}
-            {(() => {
-              const tomorrowRow = summaries.find(s => s.date === tomorrowDate) || {};
-              return (
-                <DayRow
-                  date={tomorrowDate}
-                  label={formatDate(tomorrowDate)}
-                  completed={0}
-                  total={tomorrowTotal || 0}
-                  isTomorrow
-                  plan={tomorrowRow.plan}
-                  planAuthor={tomorrowRow.plan_author}
-                  onSaveNote={handleSaveNote}
-                  currentAuthor={authorName}
-                />
-              );
-            })()}
+            {/* 내일 — total=0이어도 슬롯 보이게 항상 표시 */}
+            <DayRow
+              date={tomorrowDate}
+              label={formatDate(tomorrowDate)}
+              completed={0}
+              total={tomorrowTotal || 0}
+              isTomorrow
+              notes={notesByDate.get(tomorrowDate) || []}
+              onCreate={handleCreateNote}
+              onUpdate={handleUpdateNote}
+              onDelete={handleDeleteNote}
+              currentAuthor={authorName}
+            />
 
-            {/* 오늘 (실시간, App.jsx에서 계산된 props) */}
-            {todayStats && (() => {
-              const todayRow = summaries.find(s => s.date === today) || {};
-              return (
-                <DayRow
-                  date={today}
-                  label={formatDate(today)}
-                  completed={todayStats.completed}
-                  total={todayStats.total}
-                  greenDots={todayStats.green_dots}
-                  kindDots={todayStats.green_dots - todayStats.completed}
-                  fakeDots={todayStats.fake_dots}
-                  workers={todayStats.workers}
-                  isToday
-                  plan={todayRow.plan}
-                  planAuthor={todayRow.plan_author}
-                  onSaveNote={handleSaveNote}
-                  currentAuthor={authorName}
-                />
-              );
-            })()}
+            {/* 오늘 */}
+            {todayStats && (
+              <DayRow
+                date={today}
+                label={formatDate(today)}
+                completed={todayStats.completed}
+                total={todayStats.total}
+                greenDots={todayStats.green_dots}
+                kindDots={todayStats.green_dots - todayStats.completed}
+                fakeDots={todayStats.fake_dots}
+                workers={todayStats.workers}
+                isToday
+                notes={notesByDate.get(today) || []}
+                onCreate={handleCreateNote}
+                onUpdate={handleUpdateNote}
+                onDelete={handleDeleteNote}
+                currentAuthor={authorName}
+              />
+            )}
 
             {/* 과거 (Supabase) */}
             {summaries
@@ -732,13 +803,10 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   kindDots={s.kind_dots}
                   fakeDots={s.fake_dots}
                   workers={typeof s.workers === 'string' ? JSON.parse(s.workers) : s.workers}
-                  excuse={s.excuse}
-                  boast={s.boast}
-                  excuseAuthor={s.excuse_author}
-                  boastAuthor={s.boast_author}
-                  plan={s.plan}
-                  planAuthor={s.plan_author}
-                  onSaveNote={handleSaveNote}
+                  notes={notesByDate.get(s.date) || []}
+                  onCreate={handleCreateNote}
+                  onUpdate={handleUpdateNote}
+                  onDelete={handleDeleteNote}
                   currentAuthor={authorName}
                 />
               ))
