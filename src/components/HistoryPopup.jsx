@@ -392,16 +392,17 @@ function DayRow({
 }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
-  const isIncomplete = !isTomorrow && !isToday && !isEmpty && pct < 100;
-  const isComplete = !isTomorrow && !isToday && !isEmpty && pct >= 100;
+  const isPast = !isTomorrow && !isToday;
+  const isIncomplete = isPast && !isEmpty && pct != null && pct < 100;
+  const isComplete = isPast && !isEmpty && pct != null && pct >= 100;
 
-  // 슬롯 종류는 그날 stats 기준:
+  // 슬롯 종류:
+  //   과거 100% → 긍지
   //   과거 미완료 → 변(辯)
-  //   과거 완료 → 긍지
   //   그 외(오늘/내일/빈 일자) → ?
   let slotType;
-  if (isIncomplete) slotType = 'excuse';
-  else if (isComplete) slotType = 'boast';
+  if (isComplete) slotType = 'boast';
+  else if (isIncomplete) slotType = 'excuse';
   else slotType = 'plan';
 
   const showSlot = !!onCreate;

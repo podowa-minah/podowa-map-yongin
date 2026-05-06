@@ -420,7 +420,7 @@ export default function App() {
             <div className="header-title">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <h1>Podowa</h1>
-                <span className="version">v1.1.10</span>
+                <span className="version">v1.1.15</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
