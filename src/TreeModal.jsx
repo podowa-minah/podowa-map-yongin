@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine, ComposedChart, Area } from 'recharts';
 import grasslink from './assets/icons/grass.svg';
 import SaveCelebration from './components/SaveCelebration';
 
@@ -620,16 +620,43 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             height: 240,
           }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <ComposedChart
                 data={history}
                 margin={{ top: 10, right: 20 }}
               >
+                <defs>
+                  <linearGradient id="grad-power" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#66bb6a" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#66bb6a" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-balance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-bugs" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#e57373" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#e57373" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid vertical={false} horizontal={false} />
                 {[0, 1, 2, 3, 4, 5].map((y) => (
                   <ReferenceLine key={y} y={y} stroke="#ede4d3" strokeDasharray="3 3" ifOverflow="extendDomain" />
                 ))}
-                <XAxis dataKey="date" tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }} axisLine />
-                <YAxis domain={[0, 5]} ticks={[0, 1, 2, 3, 4, 5]} tickFormatter={(v) => (v === 0 ? '0/NA' : v)} axisLine />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }}
+                  axisLine={{ stroke: '#e5e0d0' }}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                />
+                <YAxis
+                  domain={[0, 5]}
+                  ticks={[0, 1, 2, 3, 4, 5]}
+                  tickFormatter={(v) => (v === 0 ? '0/NA' : v)}
+                  axisLine={{ stroke: '#e5e0d0' }}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                />
                 <Tooltip
                   cursor={false}
                   content={({ active, payload, label }) => {
@@ -688,12 +715,35 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                <Line type="basis" dataKey="bugsJ" stroke="#e57373" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={4} fill="#e57373" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="balanceJ" stroke="#7c3aed" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={4} fill="#7c3aed" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="powerJ" stroke="#66bb6a" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={4} fill="#66bb6a" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={4} fill="#66bb6a" /> : null} isAnimationActive={false} legendType="none" />
-                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={4} fill="#7c3aed" /> : null} isAnimationActive={false} legendType="none" />
-              </LineChart>
+                {/* 메인 3개: Area로 변경 (선 + 그라데이션 채우기) */}
+                <Area
+                  type="basis" dataKey="bugsJ"
+                  stroke="#e57373" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-bugs)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={5} fill="#e57373" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                <Area
+                  type="basis" dataKey="balanceJ"
+                  stroke="#7c3aed" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-balance)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                <Area
+                  type="basis" dataKey="powerJ"
+                  stroke="#66bb6a" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-power)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                {/* NA 표시 점만 (선 없음) */}
+                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
