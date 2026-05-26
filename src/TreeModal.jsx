@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine, ComposedChart, Area } from 'recharts';
 import grasslink from './assets/icons/grass.svg';
 import SaveCelebration from './components/SaveCelebration';
 
@@ -371,10 +371,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
     padding: '1rem 1.5rem',
     margin: '0.3rem',
     fontSize: '1.2rem',
-    border: active ? '2px solid blue' : '2px solid #ccc',
-    borderRadius: '0.5rem',
-    backgroundColor: active ? '#e0f0ff' : '#fff',
+    border: active ? '3px solid #16a34a' : '2px solid #e2e8f0',
+    borderRadius: '0.7rem',
+    backgroundColor: active ? '#16a34a' : '#fff',
+    color: active ? '#ffffff' : '#1f2937',
+    fontWeight: active ? 700 : 400,
+    boxShadow: active ? '0 4px 0 rgba(20, 83, 45, 0.5)' : 'none',
     cursor: 'pointer',
+    transition: 'all 0.1s ease',
   });
 
   function handleCheckboxChange(season, optionKey, checked) {
@@ -555,15 +559,30 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       <SaveCelebration show={showSaveCelebration} />
       <div
         style={{
-          position: 'relative', backgroundColor: 'white', padding: '0 1rem 1rem', borderRadius: '0.5rem',
-          maxWidth: '700px', width: '90%', maxHeight: '90vh', overflowY: 'auto', zIndex: 1000,
+          position: 'relative',
+          background: 'linear-gradient(180deg, #faf7f0 0%, #f3ede0 100%)',
+          padding: '0 0.8rem 1rem',
+          borderRadius: '1.5rem',
+          maxWidth: '720px', width: '92%', maxHeight: '92vh', overflowY: 'auto', zIndex: 1000,
+          boxShadow: '0 30px 80px rgba(91, 33, 182, 0.18), 0 8px 24px rgba(0,0,0,0.12)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
         }}
       >
+        {/* 상단 액센트 바 — 단색 포도 보라 */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 11,
+          height: '6px',
+          backgroundColor: '#7c3aed',
+          borderRadius: '1.5rem 1.5rem 0 0',
+          margin: '0 -0.8rem',
+        }} />
+
         {/* Sticky header */}
         <div
           style={{
-            position: 'sticky', top: 0, zIndex: 10, padding: '1rem 1rem',
-            backdropFilter: 'blur(6px)', backgroundColor: 'rgba(255,255,255,0.8)',
+            position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
+            backdropFilter: 'blur(10px)',
+            background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
             display: 'flex', alignItems: 'center',
           }}
         >
@@ -589,35 +608,77 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           )}
         </div>
 
-        {/* Chart */}
+        {/* Chart 카드 */}
         {history.length > 0 && (
-          <div style={{ height: 220, marginBottom: 16 }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '1.2rem',
+            padding: '0.8rem 0.6rem 0.6rem',
+            marginBottom: '0.7rem',
+            boxShadow: '0 4px 0 rgba(0,0,0,0.06)',
+            border: '2px solid #f0ebe0',
+            height: 240,
+          }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <ComposedChart
                 data={history}
                 margin={{ top: 10, right: 20 }}
               >
+                <defs>
+                  <linearGradient id="grad-power" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#66bb6a" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#66bb6a" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-balance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-bugs" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#e57373" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#e57373" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid vertical={false} horizontal={false} />
                 {[0, 1, 2, 3, 4, 5].map((y) => (
-                  <ReferenceLine key={y} y={y} stroke="#ccc" strokeDasharray="3 3" ifOverflow="extendDomain" />
+                  <ReferenceLine key={y} y={y} stroke="#ede4d3" strokeDasharray="3 3" ifOverflow="extendDomain" />
                 ))}
-                <XAxis dataKey="date" tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }} axisLine />
-                <YAxis domain={[0, 5]} ticks={[0, 1, 2, 3, 4, 5]} tickFormatter={(v) => (v === 0 ? '0/NA' : v)} axisLine />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }}
+                  axisLine={{ stroke: '#e5e0d0' }}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                />
+                <YAxis
+                  domain={[0, 5]}
+                  ticks={[0, 1, 2, 3, 4, 5]}
+                  tickFormatter={(v) => (v === 0 ? '0/NA' : v)}
+                  axisLine={{ stroke: '#e5e0d0' }}
+                  tickLine={false}
+                  tick={{ fill: '#9ca3af', fontSize: 11 }}
+                />
                 <Tooltip
                   cursor={false}
                   content={({ active, payload, label }) => {
                     if (!active || !payload || payload.length === 0) return null;
-                    const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#5c8db8', balanceNA: '#5c8db8', bugsJ: '#e57373' };
+                    const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#7c3aed', balanceNA: '#7c3aed', bugsJ: '#e57373' };
                     const nameMap = { powerJ: '세력', powerNA: '세력', balanceJ: '균형', balanceNA: '균형', bugsJ: '해충' };
                     const order = ['powerJ', 'powerNA', 'balanceJ', 'balanceNA', 'bugsJ'];
                     const items = payload
                       .filter(p => p.value != null)
                       .sort((a, b) => order.indexOf(a.dataKey) - order.indexOf(b.dataKey));
                     return (
-                      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 3 }}>{label}</div>
+                      <div style={{
+                        background: 'linear-gradient(135deg, #fffaf0 0%, #fff5e6 100%)',
+                        border: '2px solid #fde68a',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        boxShadow: '0 4px 12px rgba(251, 191, 36, 0.18)',
+                      }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: '#78350f' }}>{label}</div>
                         {items.map(p => (
-                          <div key={p.dataKey} style={{ color: colorMap[p.dataKey] }}>
+                          <div key={p.dataKey} style={{ color: colorMap[p.dataKey], fontWeight: 600 }}>
                             {nameMap[p.dataKey]} : {p.dataKey.endsWith('NA') ? '판단불가' : Math.round(p.value)}
                           </div>
                         ))}
@@ -631,7 +692,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     <div style={{ display: 'flex', gap: 18 }}>
                       {[
                         { color: '#66bb6a', label: '세력' },
-                        { color: '#5c8db8', label: '균형' },
+                        { color: '#7c3aed', label: '균형' },
                         { color: '#e57373', label: '해충' },
                       ].map(({ color, label }) => (
                         <span key={label} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
@@ -654,78 +715,190 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                <Line type="basis" dataKey="bugsJ" stroke="#e57373" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={3} fill="#e57373" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="balanceJ" stroke="#5c8db8" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="powerJ" stroke="#66bb6a" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} legendType="none" />
-                <Line dataKey="balanceNA" stroke="#5c8db8" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} legendType="none" />
-              </LineChart>
+                {/* 메인 3개: Area로 변경 (선 + 그라데이션 채우기) */}
+                <Area
+                  type="basis" dataKey="bugsJ"
+                  stroke="#e57373" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-bugs)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={5} fill="#e57373" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                <Area
+                  type="basis" dataKey="balanceJ"
+                  stroke="#7c3aed" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-balance)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                <Area
+                  type="basis" dataKey="powerJ"
+                  stroke="#66bb6a" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
+                  fill="url(#grad-power)"
+                  activeDot={false}
+                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null}
+                  isAnimationActive={false} connectNulls={true}
+                />
+                {/* NA 표시 점만 (선 없음) */}
+                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* 차트 직후: 최근 2회 기록 미리보기 (시간상 가장 최신 2개, 생육시기 무관) */}
+        {/* 차트 직후: 최근 2회 기록 — 농부 일기장 느낌, 가로 2단 (좁으면 자동 1단) */}
         {history.length > 0 && (
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '0.7rem',
+            marginBottom: '1rem',
+          }}>
             {[...history]
               .sort((a, b) => new Date(b.date) - new Date(a.date))
               .slice(0, 2)
               .map((row, idx) => {
                 const checked = getCheckedOptionLabels(row);
                 const hasImages = row.images && row.images.length > 0;
+                const producerInitial = row.producer ? row.producer.charAt(0) : '';
                 return (
                   <div
                     key={`recent-${idx}`}
                     style={{
-                      border: '1px solid #ddd',
-                      borderRadius: '0.5rem',
-                      padding: '0.75rem',
-                      marginBottom: '0.5rem',
-                      backgroundColor: '#fafafa',
+                      background: 'linear-gradient(135deg, #fffaf0 0%, #fff5e6 100%)',
+                      border: '2px solid #fde68a',
+                      borderRadius: '1rem',
+                      padding: '0.85rem 1rem',
+                      boxShadow: '0 2px 8px rgba(251, 191, 36, 0.12), 0 1px 3px rgba(0,0,0,0.04)',
                     }}
                   >
-                    {/* 헤더: 날짜, 생육시기, 생산자, 부분방제 */}
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <span style={{ fontWeight: 'bold' }}>{row.date}</span>
-                      <span style={{ color: '#666' }}>{SEASON_NAMES[row.season] || ''}</span>
-                      {row.producer && (
-                        <span style={{ color: '#666' }}>· {row.producer}</span>
+                    {/* 헤더: 날짜 칩 + 생육시기 칩 + 작업자 아바타 + 부분방제 배지 */}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.55rem' }}>
+                      {/* 날짜 칩 (햇살 노랑) */}
+                      <span style={{
+                        backgroundColor: '#fbbf24',
+                        color: '#78350f',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '0.5rem',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        boxShadow: '0 1px 0 rgba(146, 64, 14, 0.2)',
+                      }}>
+                        {row.date}
+                      </span>
+                      {/* 생육시기 칩 (잎 초록) */}
+                      {row.season && (
+                        <span style={{
+                          backgroundColor: '#bef264',
+                          color: '#365314',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '0.5rem',
+                          fontWeight: 600,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 1px 0 rgba(54, 83, 20, 0.2)',
+                        }}>
+                          {SEASON_NAMES[row.season]}
+                        </span>
                       )}
+                      {/* 부분방제 배지 */}
                       {row.partial_treatment && (
-                        <span style={{ color: '#0077cc' }}>· 부분방제 ✔</span>
+                        <span style={{
+                          backgroundColor: '#fecaca',
+                          color: '#991b1b',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.5rem',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                        }}>
+                          부분방제
+                        </span>
+                      )}
+                      {/* 작업자 아바타 (오른쪽 끝) */}
+                      {row.producer && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                          marginLeft: 'auto',
+                          color: '#6b7280',
+                          fontSize: '0.9rem',
+                        }}>
+                          <span style={{
+                            width: '26px', height: '26px',
+                            background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)',
+                            borderRadius: '50%',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            boxShadow: '0 1px 3px rgba(168, 85, 247, 0.4)',
+                          }}>
+                            {producerInitial}
+                          </span>
+                          {row.producer}
+                        </span>
                       )}
                     </div>
 
-                    {/* 한일 */}
+                    {/* 한일 — 깔끔한 흰 미니박스 */}
                     {checked && (
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>한일:</strong> {checked}
+                      <div style={{
+                        marginBottom: '0.4rem',
+                        padding: '0.5rem 0.7rem',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #fef3c7',
+                      }}>
+                        <span style={{ color: '#92400e', fontWeight: 700, marginRight: '0.4rem' }}>한일</span>
+                        <span style={{ color: '#374151' }}>{checked}</span>
                       </div>
                     )}
 
-                    {/* 코멘트 (강조) */}
+                    {/* 코멘트 — 따뜻한 양피지, 인용 느낌 */}
                     {row.comments && (
                       <div style={{
-                        marginBottom: '0.3rem',
-                        padding: '0.4rem 0.6rem',
-                        backgroundColor: '#fff8e1',
-                        borderLeft: '3px solid #f59e0b',
-                        borderRadius: '0.25rem',
+                        marginBottom: '0.4rem',
+                        padding: '0.5rem 0.7rem',
+                        backgroundColor: '#fef3c7',
+                        borderLeft: '4px solid #f59e0b',
+                        borderRadius: '0.4rem',
                       }}>
-                        <strong>코멘트:</strong> {row.comments}
+                        <div style={{ color: '#92400e', fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.15rem' }}>
+                          💬 코멘트
+                        </div>
+                        <div style={{ color: '#451a03', fontStyle: 'italic' }}>
+                          "{row.comments}"
+                        </div>
                       </div>
                     )}
 
-                    {/* 사진 */}
+                    {/* 사진 — 폴라로이드 64px */}
                     {hasImages && (
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '0.5rem' }}>
                         {row.images.map((img, imgIdx) => (
-                          <ThumbImg
+                          <div
                             key={imgIdx}
-                            src={row.thumbnails?.[imgIdx] || img}
-                            fullSrc={img}
-                            onPreview={(url) => setPreviewImg(url)}
-                          />
+                            onClick={() => setPreviewImg(img)}
+                            style={{
+                              width: '64px', height: '64px',
+                              borderRadius: '0.5rem',
+                              overflow: 'hidden',
+                              border: '3px solid #ffffff',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                              cursor: 'zoom-in',
+                              backgroundColor: '#f3f4f6',
+                            }}
+                          >
+                            <img
+                              src={row.thumbnails?.[imgIdx] || img}
+                              alt="기록 사진"
+                              loading="lazy"
+                              decoding="async"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          </div>
                         ))}
                       </div>
                     )}
@@ -735,26 +908,52 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 1. Date */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>날짜:</label>
-          <input
-            type="date"
-            value={parseDateForSupabase(treeData.date)}
-            onChange={(e) => handleDateChange(e.target.value)}  // ✅ 날짜 변경 시 데이터 로드
-            style={{ marginLeft: '0.5rem', padding: '0.5rem', fontSize: '1rem' }}
-          />
-        </div>
+        {/* 오늘 작업 카드 (날짜 + 생육시기) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1.2rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
+        }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#7c3aed',
+            backgroundColor: '#f3e8ff',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
+            오늘 작업
+          </div>
 
-        {/* 2. Season */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>생육시기:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {SEASONS.map((s) => (
-              <button key={s} onClick={() => handleChange('season', treeData.season === String(s) ? '' : String(s))} style={buttonStyle(treeData.season === String(s))}>
-                {SEASON_NAMES[s] || `Season ${s}`}
-              </button>
-            ))}
+          {/* 1. Date */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>날짜</label>
+            <input
+              type="date"
+              value={parseDateForSupabase(treeData.date)}
+              onChange={(e) => handleDateChange(e.target.value)}
+              style={{
+                marginLeft: '0.5rem', padding: '0.5rem 0.7rem', fontSize: '1rem',
+                border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                backgroundColor: '#fafaf7',
+              }}
+            />
+          </div>
+
+          {/* 2. Season */}
+          <div>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>생육시기</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {SEASONS.map((s) => (
+                <button key={s} onClick={() => handleChange('season', treeData.season === String(s) ? '' : String(s))} style={buttonStyle(treeData.season === String(s))}>
+                  {SEASON_NAMES[s] || `Season ${s}`}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -774,7 +973,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     type="checkbox"
                     checked={treeData.season_data[currentSeason]?.[optionKey] || false}
                     onChange={(e) => handleCheckboxChange(currentSeason, optionKey, e.target.checked)}
-                    style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem' }}
+                    style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem', accentColor: '#16a34a' }}
                   />
                   {labelText}
                 </label>
@@ -810,7 +1009,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                             checked={currentScore === score}
                             onClick={() => { if (currentScore === score) handleLikertChange(7, q, ''); }}
                             onChange={() => handleLikertChange(7, q, score)}
-                            style={{ width: '1.5rem', height: '1.5rem' }}
+                            style={{ width: '1.5rem', height: '1.5rem', accentColor: '#16a34a' }}
                           />
                         </td>
                       ))}
@@ -822,50 +1021,71 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 4. Power */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>나무의 세력:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {POWER_OPTIONS.map((p) => (
-              <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
-            ))}
+        {/* 평가 카드 (세력 + 균형 + 해충 + 부분방제 한 묶음) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1.2rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
+        }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#16a34a',
+            backgroundColor: '#dcfce7',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
+            평가
           </div>
-        </div>
 
-        {/* 5. Balance */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>나무의 균형도:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {BALANCE_OPTIONS.map((b) => (
-              <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
-            ))}
+          {/* 4. Power */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 세력</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {POWER_OPTIONS.map((p) => (
+                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 6. Bugs */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>해충관리:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {BUG_OPTIONS.map((num) => (
-              <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
-            ))}
+          {/* 5. Balance */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 균형도</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {BALANCE_OPTIONS.map((b) => (
+                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 6.5 부분방제 */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>부분방제:</label>
+          {/* 6. Bugs */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {BUG_OPTIONS.map((num) => (
+                <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 6.5 부분방제 */}
+          <div>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>부분방제</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
             <button
               onClick={() => handleChange('partial_treatment', true)}
               style={{
                 padding: '0.7rem 1.5rem',
                 fontSize: '1.1rem',
-                border: treeData.partial_treatment === true ? '2px solid #e91e63' : '2px solid #ccc',
+                border: treeData.partial_treatment === true ? '3px solid #dc2626' : '2px solid #ccc',
                 borderRadius: '0.5rem',
-                backgroundColor: treeData.partial_treatment === true ? '#fce4ec' : '#fff',
-                color: treeData.partial_treatment === true ? '#e91e63' : '#333',
-                fontWeight: treeData.partial_treatment === true ? 'bold' : 'normal',
+                backgroundColor: treeData.partial_treatment === true ? '#dc2626' : '#fff',
+                color: treeData.partial_treatment === true ? '#fff' : '#333',
+                fontWeight: treeData.partial_treatment === true ? 700 : 400,
                 cursor: 'pointer',
               }}
             >
@@ -876,9 +1096,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               style={{
                 padding: '0.7rem 1.5rem',
                 fontSize: '1.1rem',
-                border: treeData.partial_treatment === false ? '2px solid blue' : '2px solid #ccc',
+                border: treeData.partial_treatment === false ? '3px solid #6b7280' : '2px solid #ccc',
                 borderRadius: '0.5rem',
-                backgroundColor: treeData.partial_treatment === false ? '#e0f0ff' : '#fff',
+                backgroundColor: treeData.partial_treatment === false ? '#6b7280' : '#fff',
+                color: treeData.partial_treatment === false ? '#fff' : '#374151',
+                fontWeight: treeData.partial_treatment === false ? 700 : 400,
                 cursor: 'pointer',
               }}
             >
@@ -886,18 +1108,42 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             </button>
           </div>
         </div>
+        </div>
+        {/* / 평가 카드 끝 */}
+
+        {/* 메모 카드 (사진 + 코멘트 한 묶음) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1.2rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
+        }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#d97706',
+            backgroundColor: '#fef3c7',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
+            기록
+          </div>
 
         {/* 7. Images */}
         <div style={{ marginBottom: '0.5rem' }}>
-          <label>사진 ({treeData.images.length}/5):</label>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>사진기록 ({treeData.images.length}/5)</label>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#2196f3',
-              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#16a34a',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.7rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '1.2rem',
+              fontSize: '1.2rem', fontWeight: 600,
+              boxShadow: (treeData.images.length >= 5 || uploading) ? 'none' : '0 4px 0 rgba(20, 83, 45, 0.5)',
             }}>
               📷 촬영
               <input
@@ -913,10 +1159,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             {/* 🖼 갤러리에서 선택 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#607d8b',
-              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#f97316',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.7rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '1.2rem',
+              fontSize: '1.2rem', fontWeight: 600,
+              boxShadow: (treeData.images.length >= 5 || uploading) ? 'none' : '0 4px 0 rgba(154, 52, 18, 0.5)',
             }}>
               🖼 갤러리
               <input
@@ -949,14 +1196,21 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         {treeData.images.length >= 5 && <p style={{ color: 'red' }}>Max 5 images reached</p>}
 
         {/* 8. Comments */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Comments:</label>
+        <div>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>농부진단</label>
           <textarea
             value={treeData.comments}
             onChange={(e) => handleChange('comments', e.target.value)}
-            style={{ display: 'block', width: '100%', height: '60px' }}
+            style={{
+              display: 'block', width: '100%', height: '60px', marginTop: '0.3rem',
+              padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+              fontFamily: 'inherit', fontSize: '1rem', resize: 'vertical',
+              backgroundColor: '#fafaf7',
+            }}
           />
         </div>
+        </div>
+        {/* / 메모 카드 끝 */}
 
         {/* 더보기 */}
         <div style={{ marginBottom: '0.5rem' }}>
@@ -1040,19 +1294,54 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </PinchZoomWrapper>
         )}
 
-        {/* SAVE & CANCEL */}
-        <button
-          onClick={saveChanges}
-          style={{ backgroundColor: 'blue', color: 'white', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
-        >
-          Save & Close
-        </button>
-        <button
-          onClick={onClose}
-          style={{ marginLeft: '0.5rem', backgroundColor: '#ccc', color: 'black', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
-        >
-          Cancel
-        </button>
+        {/* SAVE & CANCEL — LEGO 단색 */}
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
+          <button
+            onClick={saveChanges}
+            style={{
+              flex: 1,
+              backgroundColor: '#facc15',
+              color: '#1f2937',
+              padding: '1rem 1.5rem',
+              border: '3px solid #ca8a04',
+              borderRadius: '0.9rem',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              fontWeight: 700,
+              boxShadow: '0 6px 0 rgba(133, 77, 14, 0.5)',
+              transition: 'transform 0.08s ease, box-shadow 0.08s ease',
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(3px)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(133, 77, 14, 0.5)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(133, 77, 14, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(133, 77, 14, 0.5)';
+            }}
+          >
+            저장하기
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#6b7280',
+              padding: '1rem 1.5rem',
+              border: '2px solid #d1d5db',
+              borderRadius: '0.9rem',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              fontWeight: 600,
+            }}
+          >
+            취소
+          </button>
+        </div>
       </div>
 
       {/* 사진 원본 팝업 */}
