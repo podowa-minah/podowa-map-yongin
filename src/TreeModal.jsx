@@ -697,9 +697,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 차트 직후: 최근 2회 기록 — 농부 일기장 느낌 */}
+        {/* 차트 직후: 최근 2회 기록 — 농부 일기장 느낌, 가로 2단 (좁으면 자동 1단) */}
         {history.length > 0 && (
-          <div style={{ marginBottom: '1rem' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '0.7rem',
+            marginBottom: '1rem',
+          }}>
             {[...history]
               .sort((a, b) => new Date(b.date) - new Date(a.date))
               .slice(0, 2)
@@ -715,7 +720,6 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                       border: '2px solid #fde68a',
                       borderRadius: '1rem',
                       padding: '0.85rem 1rem',
-                      marginBottom: '0.7rem',
                       boxShadow: '0 2px 8px rgba(251, 191, 36, 0.12), 0 1px 3px rgba(0,0,0,0.04)',
                     }}
                   >
@@ -918,7 +922,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     type="checkbox"
                     checked={treeData.season_data[currentSeason]?.[optionKey] || false}
                     onChange={(e) => handleCheckboxChange(currentSeason, optionKey, e.target.checked)}
-                    style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem' }}
+                    style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem', accentColor: '#16a34a' }}
                   />
                   {labelText}
                 </label>
@@ -954,7 +958,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                             checked={currentScore === score}
                             onClick={() => { if (currentScore === score) handleLikertChange(7, q, ''); }}
                             onChange={() => handleLikertChange(7, q, score)}
-                            style={{ width: '1.5rem', height: '1.5rem' }}
+                            style={{ width: '1.5rem', height: '1.5rem', accentColor: '#16a34a' }}
                           />
                         </td>
                       ))}
