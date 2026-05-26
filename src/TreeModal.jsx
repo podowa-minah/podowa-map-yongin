@@ -371,14 +371,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
     padding: '1rem 1.5rem',
     margin: '0.3rem',
     fontSize: '1.2rem',
-    border: active ? '2px solid #7c3aed' : '2px solid #e2e8f0',
+    border: active ? '3px solid #16a34a' : '2px solid #e2e8f0',
     borderRadius: '0.7rem',
-    backgroundColor: active ? '#f3e8ff' : '#fff',
-    color: active ? '#5b21b6' : '#1f2937',
-    fontWeight: active ? 600 : 400,
-    boxShadow: active ? '0 2px 6px rgba(124, 58, 237, 0.18)' : 'none',
+    backgroundColor: active ? '#16a34a' : '#fff',
+    color: active ? '#ffffff' : '#1f2937',
+    fontWeight: active ? 700 : 400,
+    boxShadow: active ? '0 4px 0 rgba(20, 83, 45, 0.5)' : 'none',
     cursor: 'pointer',
-    transition: 'all 0.15s ease',
+    transition: 'all 0.1s ease',
   });
 
   function handleCheckboxChange(season, optionKey, checked) {
@@ -568,14 +568,20 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           border: '1px solid rgba(124, 58, 237, 0.08)',
         }}
       >
-        {/* 상단 액센트 바 (포도 그라데이션) */}
+        {/* 상단 액센트 바 — LEGO 블록 4색 단색 */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 11,
-          height: '6px',
-          background: 'linear-gradient(90deg, #7c3aed 0%, #a855f7 50%, #22c55e 100%)',
+          display: 'flex',
+          height: '8px',
           borderRadius: '1.5rem 1.5rem 0 0',
           margin: '0 -0.8rem',
-        }} />
+          overflow: 'hidden',
+        }}>
+          <div style={{ flex: 1, backgroundColor: '#dc2626' }} />
+          <div style={{ flex: 1, backgroundColor: '#facc15' }} />
+          <div style={{ flex: 1, backgroundColor: '#16a34a' }} />
+          <div style={{ flex: 1, backgroundColor: '#7c3aed' }} />
+        </div>
 
         {/* Sticky header */}
         <div
@@ -615,8 +621,8 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             borderRadius: '1.2rem',
             padding: '0.8rem 0.6rem 0.6rem',
             marginBottom: '0.7rem',
-            boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
-            border: '1px solid rgba(124, 58, 237, 0.08)',
+            boxShadow: '0 4px 0 rgba(0,0,0,0.06)',
+            border: '2px solid #f0ebe0',
             height: 240,
           }}>
             <ResponsiveContainer width="100%" height="100%">
@@ -935,11 +941,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               style={{
                 padding: '0.7rem 1.5rem',
                 fontSize: '1.1rem',
-                border: treeData.partial_treatment === true ? '2px solid #e91e63' : '2px solid #ccc',
+                border: treeData.partial_treatment === true ? '3px solid #dc2626' : '2px solid #ccc',
                 borderRadius: '0.5rem',
-                backgroundColor: treeData.partial_treatment === true ? '#fce4ec' : '#fff',
-                color: treeData.partial_treatment === true ? '#e91e63' : '#333',
-                fontWeight: treeData.partial_treatment === true ? 'bold' : 'normal',
+                backgroundColor: treeData.partial_treatment === true ? '#dc2626' : '#fff',
+                color: treeData.partial_treatment === true ? '#fff' : '#333',
+                fontWeight: treeData.partial_treatment === true ? 700 : 400,
                 cursor: 'pointer',
               }}
             >
@@ -950,9 +956,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               style={{
                 padding: '0.7rem 1.5rem',
                 fontSize: '1.1rem',
-                border: treeData.partial_treatment === false ? '2px solid blue' : '2px solid #ccc',
+                border: treeData.partial_treatment === false ? '3px solid #6b7280' : '2px solid #ccc',
                 borderRadius: '0.5rem',
-                backgroundColor: treeData.partial_treatment === false ? '#e0f0ff' : '#fff',
+                backgroundColor: treeData.partial_treatment === false ? '#6b7280' : '#fff',
+                color: treeData.partial_treatment === false ? '#fff' : '#374151',
+                fontWeight: treeData.partial_treatment === false ? 700 : 400,
                 cursor: 'pointer',
               }}
             >
@@ -991,10 +999,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#2196f3',
-              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#16a34a',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.7rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '1.2rem',
+              fontSize: '1.2rem', fontWeight: 600,
+              boxShadow: (treeData.images.length >= 5 || uploading) ? 'none' : '0 4px 0 rgba(20, 83, 45, 0.5)',
             }}>
               📷 촬영
               <input
@@ -1010,10 +1019,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             {/* 🖼 갤러리에서 선택 */}
             <label style={{
               display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#607d8b',
-              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.5rem',
+              backgroundColor: (treeData.images.length >= 5 || uploading) ? '#ccc' : '#f97316',
+              color: 'white', padding: '1rem 1.5rem', borderRadius: '0.7rem',
               cursor: (treeData.images.length >= 5 || uploading) ? 'not-allowed' : 'pointer',
-              fontSize: '1.2rem',
+              fontSize: '1.2rem', fontWeight: 600,
+              boxShadow: (treeData.images.length >= 5 || uploading) ? 'none' : '0 4px 0 rgba(154, 52, 18, 0.5)',
             }}>
               🖼 갤러리
               <input
@@ -1144,28 +1154,37 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </PinchZoomWrapper>
         )}
 
-        {/* SAVE & CANCEL */}
+        {/* SAVE & CANCEL — LEGO 단색 */}
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
           <button
             onClick={saveChanges}
             style={{
               flex: 1,
-              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-              color: 'white',
+              backgroundColor: '#facc15',
+              color: '#1f2937',
               padding: '1rem 1.5rem',
-              border: 'none',
+              border: '3px solid #ca8a04',
               borderRadius: '0.9rem',
               cursor: 'pointer',
               fontSize: '1.2rem',
-              fontWeight: 600,
-              boxShadow: '0 6px 18px rgba(124, 58, 237, 0.35)',
-              transition: 'transform 0.1s ease, box-shadow 0.15s ease',
+              fontWeight: 700,
+              boxShadow: '0 6px 0 rgba(133, 77, 14, 0.5)',
+              transition: 'transform 0.08s ease, box-shadow 0.08s ease',
             }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.transform = 'translateY(3px)';
+              e.currentTarget.style.boxShadow = '0 3px 0 rgba(133, 77, 14, 0.5)';
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(133, 77, 14, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 6px 0 rgba(133, 77, 14, 0.5)';
+            }}
           >
-            💾 저장하기
+            저장하기
           </button>
           <button
             onClick={onClose}
@@ -1173,11 +1192,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               backgroundColor: '#ffffff',
               color: '#6b7280',
               padding: '1rem 1.5rem',
-              border: '1px solid #e5e7eb',
+              border: '2px solid #d1d5db',
               borderRadius: '0.9rem',
               cursor: 'pointer',
               fontSize: '1.2rem',
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             취소
