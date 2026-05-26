@@ -1072,12 +1072,12 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             letterSpacing: '0.04em',
             marginBottom: '0.6rem',
           }}>
-            농부의 진단
+            기록
           </div>
 
         {/* 7. Images */}
         <div style={{ marginBottom: '0.5rem' }}>
-          <label style={{ color: '#4b5563', fontWeight: 500 }}>사진 ({treeData.images.length}/5)</label>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>사진기록 ({treeData.images.length}/5)</label>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
@@ -1140,7 +1140,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
         {/* 8. Comments */}
         <div>
-          <label style={{ color: '#4b5563', fontWeight: 500 }}>코멘트</label>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>농부진단</label>
           <textarea
             value={treeData.comments}
             onChange={(e) => handleChange('comments', e.target.value)}
