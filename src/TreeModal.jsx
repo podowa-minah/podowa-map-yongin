@@ -559,18 +559,31 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       <SaveCelebration show={showSaveCelebration} />
       <div
         style={{
-          position: 'relative', backgroundColor: '#fdfcf9', padding: '0 1rem 1rem', borderRadius: '1rem',
-          maxWidth: '700px', width: '90%', maxHeight: '90vh', overflowY: 'auto', zIndex: 1000,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          position: 'relative',
+          background: 'linear-gradient(180deg, #faf7f0 0%, #f3ede0 100%)',
+          padding: '0 0.8rem 1rem',
+          borderRadius: '1.5rem',
+          maxWidth: '720px', width: '92%', maxHeight: '92vh', overflowY: 'auto', zIndex: 1000,
+          boxShadow: '0 30px 80px rgba(91, 33, 182, 0.18), 0 8px 24px rgba(0,0,0,0.12)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
         }}
       >
+        {/* 상단 액센트 바 (포도 그라데이션) */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 11,
+          height: '6px',
+          background: 'linear-gradient(90deg, #7c3aed 0%, #a855f7 50%, #22c55e 100%)',
+          borderRadius: '1.5rem 1.5rem 0 0',
+          margin: '0 -0.8rem',
+        }} />
+
         {/* Sticky header */}
         <div
           style={{
-            position: 'sticky', top: 0, zIndex: 10, padding: '1rem 1rem',
-            backdropFilter: 'blur(8px)', backgroundColor: 'rgba(253,252,249,0.85)',
+            position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
+            backdropFilter: 'blur(10px)',
+            background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
             display: 'flex', alignItems: 'center',
-            borderBottom: '1px solid #f0ebe0',
           }}
         >
           <span
@@ -595,9 +608,17 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           )}
         </div>
 
-        {/* Chart */}
+        {/* Chart 카드 */}
         {history.length > 0 && (
-          <div style={{ height: 220, marginBottom: 16 }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '1.2rem',
+            padding: '0.8rem 0.6rem 0.6rem',
+            marginBottom: '0.7rem',
+            boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(124, 58, 237, 0.08)',
+            height: 240,
+          }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={history}
@@ -741,26 +762,52 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 1. Date */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>날짜:</label>
-          <input
-            type="date"
-            value={parseDateForSupabase(treeData.date)}
-            onChange={(e) => handleDateChange(e.target.value)}  // ✅ 날짜 변경 시 데이터 로드
-            style={{ marginLeft: '0.5rem', padding: '0.5rem', fontSize: '1rem' }}
-          />
-        </div>
+        {/* 오늘 작업 카드 (날짜 + 생육시기) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1.2rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
+        }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#7c3aed',
+            backgroundColor: '#f3e8ff',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
+            오늘 작업
+          </div>
 
-        {/* 2. Season */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>생육시기:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {SEASONS.map((s) => (
-              <button key={s} onClick={() => handleChange('season', treeData.season === String(s) ? '' : String(s))} style={buttonStyle(treeData.season === String(s))}>
-                {SEASON_NAMES[s] || `Season ${s}`}
-              </button>
-            ))}
+          {/* 1. Date */}
+          <div style={{ marginBottom: '0.5rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>날짜</label>
+            <input
+              type="date"
+              value={parseDateForSupabase(treeData.date)}
+              onChange={(e) => handleDateChange(e.target.value)}
+              style={{
+                marginLeft: '0.5rem', padding: '0.5rem 0.7rem', fontSize: '1rem',
+                border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+                backgroundColor: '#fafaf7',
+              }}
+            />
+          </div>
+
+          {/* 2. Season */}
+          <div>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>생육시기</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {SEASONS.map((s) => (
+                <button key={s} onClick={() => handleChange('season', treeData.season === String(s) ? '' : String(s))} style={buttonStyle(treeData.season === String(s))}>
+                  {SEASON_NAMES[s] || `Season ${s}`}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -831,13 +878,21 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         {/* 평가 카드 (세력 + 균형 + 해충 + 부분방제 한 묶음) */}
         <div style={{
           backgroundColor: '#ffffff',
-          borderRadius: '1rem',
+          borderRadius: '1.2rem',
           padding: '0.9rem 1rem',
           marginBottom: '0.7rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)',
-          border: '1px solid #f3eee2',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
         }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#16a34a',
+            backgroundColor: '#dcfce7',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
             평가
           </div>
 
@@ -911,13 +966,21 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         {/* 메모 카드 (사진 + 코멘트 한 묶음) */}
         <div style={{
           backgroundColor: '#ffffff',
-          borderRadius: '1rem',
+          borderRadius: '1.2rem',
           padding: '0.9rem 1rem',
           marginBottom: '0.7rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)',
-          border: '1px solid #f3eee2',
+          boxShadow: '0 4px 14px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04)',
+          border: '1px solid rgba(124, 58, 237, 0.08)',
         }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+          <div style={{
+            display: 'inline-block',
+            fontSize: '0.78rem', fontWeight: 700, color: '#d97706',
+            backgroundColor: '#fef3c7',
+            padding: '0.25rem 0.6rem',
+            borderRadius: '999px',
+            letterSpacing: '0.04em',
+            marginBottom: '0.6rem',
+          }}>
             메모
           </div>
 
@@ -1082,18 +1145,44 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         )}
 
         {/* SAVE & CANCEL */}
-        <button
-          onClick={saveChanges}
-          style={{ backgroundColor: 'blue', color: 'white', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
-        >
-          Save & Close
-        </button>
-        <button
-          onClick={onClose}
-          style={{ marginLeft: '0.5rem', backgroundColor: '#ccc', color: 'black', padding: '1rem 1.5rem', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' }}
-        >
-          Cancel
-        </button>
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
+          <button
+            onClick={saveChanges}
+            style={{
+              flex: 1,
+              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+              color: 'white',
+              padding: '1rem 1.5rem',
+              border: 'none',
+              borderRadius: '0.9rem',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              boxShadow: '0 6px 18px rgba(124, 58, 237, 0.35)',
+              transition: 'transform 0.1s ease, box-shadow 0.15s ease',
+            }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(1px)'; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            💾 저장하기
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#6b7280',
+              padding: '1rem 1.5rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.9rem',
+              cursor: 'pointer',
+              fontSize: '1.2rem',
+              fontWeight: 500,
+            }}
+          >
+            취소
+          </button>
+        </div>
       </div>
 
       {/* 사진 원본 팝업 */}
