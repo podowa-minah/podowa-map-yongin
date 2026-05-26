@@ -6,6 +6,7 @@ import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine, ComposedChart, Area } from 'recharts';
 import grasslink from './assets/icons/grass.svg';
 import SaveCelebration from './components/SaveCelebration';
+import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -984,8 +985,27 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
         {/* 3. Season-specific items */}
         {treeData.season && currentSeason >= 1 && currentSeason <= 6 && (
-          <div style={{ border: '1px solid #ccc', padding: '0.5rem', marginBottom: '1rem' }}>
-            <h3 style={{ whiteSpace: 'pre-wrap' }}>
+          <div style={{
+            border: '1px solid #e8dfc9',
+            backgroundColor: '#fffdf7',
+            padding: '0.7rem 0.7rem 0.6rem',
+            marginBottom: '1rem',
+            borderRadius: '0.7rem',
+            position: 'relative',
+          }}>
+            {/* 농부가 이번 시기 할 일 알려주는 캐릭터 */}
+            <img
+              src={farmerAnnounceSVG}
+              alt="농부"
+              style={{
+                position: 'absolute',
+                top: '-12px', right: '8px',
+                width: '52px', height: 'auto',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.12))',
+                pointerEvents: 'none',
+              }}
+            />
+            <h3 style={{ whiteSpace: 'pre-wrap', paddingRight: '56px' }}>
               {SEASON_NAMES[currentSeason] || `Season ${currentSeason}`}:{' '}
               {SEASON_INSTRUCTIONS[currentSeason] || 'Choose All That Apply'}
             </h3>
