@@ -190,6 +190,13 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   const lbl = labels[treeId] || {};
   const displayName = lbl.name ? `${actualTreeId} ${lbl.name}` : actualTreeId;
 
+  // todayMMDDYYYY ("MM/DD/YYYY") → ISO "YYYY-MM-DD"
+  const todayISOForStage = (() => {
+    if (!todayMMDDYYYY) return null;
+    const [m, d, y] = todayMMDDYYYY.split('/');
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  })();
+
   const [treeData, setTreeData] = useState(() => ({
     date: todayMMDDYYYY,
     season: '',
@@ -603,35 +610,73 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         }} />
 
         {/* Sticky header */}
-        <div
-          style={{
-            position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
-            backdropFilter: 'blur(10px)',
-            background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
-            display: 'flex', alignItems: 'center',
-          }}
-        >
-          <span
-            onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
-            style={{
-              fontSize: '1.4rem', fontWeight: 600, flex: 1,
-              textDecoration: 'underline', textDecorationColor: '#a0aec0',
-              textDecorationStyle: 'dotted', textUnderlineOffset: '4px',
-              cursor: 'pointer',
-            }}
-            title="클릭: 이 나무 새로 시작"
-          >
-            {displayName}
-          </span>
-          {onOpenGrass && (
-            <img
-              src={grasslink}
-              alt="풀 모달"
-              onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
-              style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7 }}
-            />
-          )}
-        </div>
+        {(() => {
+          const bloomIso = getBloomDateFromHistory(history);
+          const tl = getStageTimelineFromBloom(bloomIso);
+          const cur = getCurrentStageFromBloom(bloomIso, todayISOForStage);
+          const hoverDetail = bloomIso ? [
+            `🌸 만개일: ${bloomIso}`,
+            cur ? `현재: ${cur.num}.${cur.name} (만개 +${cur.daysFromBloom}일째${cur.daysToEnd !== null ? `, ${cur.daysToEnd}일 남음` : ''})` : null,
+            '',
+            ...tl.stages.map(s => `${s.num}.${s.name}: ${s.start} ~ ${s.end}`),
+            '',
+            `🌾 수확 마감: ${tl.harvestEstimate} (만개 +119일)`,
+          ].filter(Boolean).join('\n') : null;
+          return (
+            <div
+              style={{
+                position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
+                backdropFilter: 'blur(10px)',
+                background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+              }}
+            >
+              <span
+                onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
+                style={{
+                  fontSize: '1.4rem', fontWeight: 600,
+                  textDecoration: 'underline', textDecorationColor: '#a0aec0',
+                  textDecorationStyle: 'dotted', textUnderlineOffset: '4px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+                title="클릭: 이 나무 새로 시작"
+              >
+                {displayName}
+              </span>
+              {bloomIso && (
+                <span
+                  title={hoverDetail}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    padding: '0.2rem 0.55rem',
+                    backgroundColor: '#fce7f3',
+                    border: '1px solid #f9a8d4',
+                    borderRadius: '999px',
+                    fontSize: '0.78rem',
+                    color: '#9d174d',
+                    fontWeight: 600,
+                    cursor: 'help',
+                    flex: 1, minWidth: 0,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}
+                >
+                  🌸 {shortDate(bloomIso)} · 🌾 {shortDate(tl.harvestEstimate)}
+                  {cur && <span style={{ color: '#a16207', marginLeft: '0.25rem' }}>· {cur.num}.{cur.name}</span>}
+                </span>
+              )}
+              {!bloomIso && <span style={{ flex: 1 }} />}
+              {onOpenGrass && (
+                <img
+                  src={grasslink}
+                  alt="풀 모달"
+                  onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
+                  style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0 }}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Chart 카드 — 가장자리까지 확장 */}
         {history.length > 0 && (
@@ -934,61 +979,6 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               })}
           </div>
         )}
-
-        {/* 만개일 → 자동 시기 타임라인 카드 (만개** 체크된 적 있을 때만) */}
-        {(() => {
-          const bloomIso = getBloomDateFromHistory(history);
-          if (!bloomIso) return null;
-          const tl = getStageTimelineFromBloom(bloomIso);
-          const cur = getCurrentStageFromBloom(bloomIso, todayMMDDYYYY ? todayMMDDYYYY.split('/').map(p => p.padStart(2, '0')).reverse().join('-').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3') : null);
-          // todayMMDDYYYY는 "MM/DD/YYYY" 형식 → ISO "YYYY-MM-DD" 변환
-          const today = todayMMDDYYYY ? (() => {
-            const [m, d, y] = todayMMDDYYYY.split('/');
-            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-          })() : null;
-          const curStage = getCurrentStageFromBloom(bloomIso, today);
-          return (
-            <div style={{
-              background: 'linear-gradient(135deg, #fce7f3 0%, #fef3c7 100%)',
-              border: '2px solid #f9a8d4',
-              borderRadius: '0.9rem',
-              padding: '0.8rem 1rem',
-              marginBottom: '0.7rem',
-              boxShadow: '0 2px 8px rgba(244, 114, 182, 0.12)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>🌸</span>
-                <strong style={{ color: '#9d174d' }}>만개일</strong>
-                <span style={{ fontWeight: 700, color: '#831843' }}>{bloomIso}</span>
-                <span style={{ color: '#9d174d', fontSize: '0.85rem' }}>({shortDate(bloomIso)})</span>
-              </div>
-
-              {curStage && (
-                <div style={{ color: '#7c2d12', marginBottom: '0.35rem' }}>
-                  <strong>현재:</strong> {curStage.num}.{curStage.name}
-                  {curStage.daysFromBloom >= 0 && (
-                    <span style={{ color: '#a16207', marginLeft: '0.4rem' }}>
-                      (만개 +{curStage.daysFromBloom}일째{curStage.daysToEnd !== null ? `, ${curStage.daysToEnd}일 남음` : ''})
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.25rem 0.6rem', fontSize: '0.82rem', color: '#78350f', marginTop: '0.3rem' }}>
-                {tl.stages.map(s => (
-                  <div key={s.num}>
-                    <strong>{s.num}.{s.name}</strong> {shortDate(s.start)}~{shortDate(s.end)}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginTop: '0.5rem', padding: '0.4rem 0.6rem', backgroundColor: '#fef9c3', borderLeft: '3px solid #ca8a04', borderRadius: '0.3rem' }}>
-                🌾 <strong>수확 마감 예정</strong>: {tl.harvestEstimate}
-                <span style={{ color: '#a16207', marginLeft: '0.4rem' }}>(만개 +119일)</span>
-              </div>
-            </div>
-          );
-        })()}
 
         {/* 오늘 작업 카드 (날짜 + 생육시기) */}
         <div style={{
