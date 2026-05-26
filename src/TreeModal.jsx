@@ -568,20 +568,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           border: '1px solid rgba(124, 58, 237, 0.08)',
         }}
       >
-        {/* 상단 액센트 바 — LEGO 블록 4색 단색 */}
+        {/* 상단 액센트 바 — 단색 포도 보라 */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 11,
-          display: 'flex',
-          height: '8px',
+          height: '6px',
+          backgroundColor: '#7c3aed',
           borderRadius: '1.5rem 1.5rem 0 0',
           margin: '0 -0.8rem',
-          overflow: 'hidden',
-        }}>
-          <div style={{ flex: 1, backgroundColor: '#dc2626' }} />
-          <div style={{ flex: 1, backgroundColor: '#facc15' }} />
-          <div style={{ flex: 1, backgroundColor: '#16a34a' }} />
-          <div style={{ flex: 1, backgroundColor: '#7c3aed' }} />
-        </div>
+        }} />
 
         {/* Sticky header */}
         <div
@@ -1078,7 +1072,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             letterSpacing: '0.04em',
             marginBottom: '0.6rem',
           }}>
-            메모
+            농부의 진단
           </div>
 
         {/* 7. Images */}
