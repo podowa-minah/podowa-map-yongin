@@ -991,21 +991,8 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             padding: '0.7rem 0.7rem 0.6rem',
             marginBottom: '1rem',
             borderRadius: '0.7rem',
-            position: 'relative',
           }}>
-            {/* 농부가 이번 시기 할 일 알려주는 캐릭터 */}
-            <img
-              src={farmerAnnounceSVG}
-              alt="농부"
-              style={{
-                position: 'absolute',
-                top: '-12px', right: '8px',
-                width: '52px', height: 'auto',
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.12))',
-                pointerEvents: 'none',
-              }}
-            />
-            <h3 style={{ whiteSpace: 'pre-wrap', paddingRight: '56px' }}>
+            <h3 style={{ whiteSpace: 'pre-wrap' }}>
               {SEASON_NAMES[currentSeason] || `Season ${currentSeason}`}:{' '}
               {SEASON_INSTRUCTIONS[currentSeason] || 'Choose All That Apply'}
             </h3>
@@ -1274,7 +1261,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
         {/* 8. Comments */}
         <div>
-          <label style={{ color: '#4b5563', fontWeight: 500 }}>농부진단</label>
+          <label style={{ color: '#4b5563', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+            <img
+              src={farmerAnnounceSVG}
+              alt="농부"
+              style={{ width: '36px', height: 'auto', verticalAlign: 'middle' }}
+            />
+            농부진단
+          </label>
           <textarea
             value={treeData.comments}
             onChange={(e) => handleChange('comments', e.target.value)}
