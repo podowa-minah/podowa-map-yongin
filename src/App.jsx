@@ -431,7 +431,7 @@ export default function App() {
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, paddingBottom: '14px' }}>
               {viewMode === 'farm' ? (
                 <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); setViewMode('grass'); }} />
               ) : (
