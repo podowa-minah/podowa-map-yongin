@@ -625,49 +625,53 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                 position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
                 backdropFilter: 'blur(10px)',
                 background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
-                display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
+                display: 'flex', flexDirection: 'column', gap: '0.4rem',
               }}
             >
-              <span
-                onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
-                style={{
-                  fontSize: '1.4rem', fontWeight: 600,
-                  textDecoration: 'underline', textDecorationColor: '#a0aec0',
-                  textDecorationStyle: 'dotted', textUnderlineOffset: '4px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-                title="클릭: 이 나무 새로 시작"
-              >
-                {displayName}
-              </span>
+              {/* Row 1: 나무 이름 + 잎 아이콘 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span
+                  onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
+                  style={{
+                    fontSize: '1.4rem', fontWeight: 600, flex: 1, minWidth: 0,
+                    textDecoration: 'underline', textDecorationColor: '#a0aec0',
+                    textDecorationStyle: 'dotted', textUnderlineOffset: '4px',
+                    cursor: 'pointer',
+                  }}
+                  title="클릭: 이 나무 새로 시작"
+                >
+                  {displayName}
+                </span>
+                {onOpenGrass && (
+                  <img
+                    src={grasslink}
+                    alt="풀 모달"
+                    onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
+                    style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0 }}
+                  />
+                )}
+              </div>
+
+              {/* Row 2: 만개 칩 (자기 줄, 안 잘림) */}
               {bloomIso && (
                 <span
                   onClick={() => setShowBloomDetail(true)}
                   style={{
+                    alignSelf: 'flex-start',
                     display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                    padding: '0.25rem 0.6rem',
+                    padding: '0.25rem 0.7rem',
                     backgroundColor: '#fce7f3',
                     border: '1px solid #f9a8d4',
                     borderRadius: '999px',
-                    fontSize: '0.78rem',
+                    fontSize: '0.82rem',
                     color: '#9d174d',
                     fontWeight: 600,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)} ⓘ
+                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)} {cur ? `· ${cur.num}.${cur.name.split(' ')[0].replace('마무리','')}` : ''} ⓘ
                 </span>
-              )}
-              {!bloomIso && <span style={{ flex: 1 }} />}
-              {onOpenGrass && (
-                <img
-                  src={grasslink}
-                  alt="풀 모달"
-                  onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
-                  style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0, marginLeft: 'auto' }}
-                />
               )}
 
               {/* 만개 디테일 팝업 (portal로 body에) */}
