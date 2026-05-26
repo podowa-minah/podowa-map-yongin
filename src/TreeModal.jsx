@@ -371,10 +371,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
     padding: '1rem 1.5rem',
     margin: '0.3rem',
     fontSize: '1.2rem',
-    border: active ? '2px solid blue' : '2px solid #ccc',
-    borderRadius: '0.5rem',
-    backgroundColor: active ? '#e0f0ff' : '#fff',
+    border: active ? '2px solid #7c3aed' : '2px solid #e2e8f0',
+    borderRadius: '0.7rem',
+    backgroundColor: active ? '#f3e8ff' : '#fff',
+    color: active ? '#5b21b6' : '#1f2937',
+    fontWeight: active ? 600 : 400,
+    boxShadow: active ? '0 2px 6px rgba(124, 58, 237, 0.18)' : 'none',
     cursor: 'pointer',
+    transition: 'all 0.15s ease',
   });
 
   function handleCheckboxChange(season, optionKey, checked) {
@@ -555,16 +559,18 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       <SaveCelebration show={showSaveCelebration} />
       <div
         style={{
-          position: 'relative', backgroundColor: 'white', padding: '0 1rem 1rem', borderRadius: '0.5rem',
+          position: 'relative', backgroundColor: '#fdfcf9', padding: '0 1rem 1rem', borderRadius: '1rem',
           maxWidth: '700px', width: '90%', maxHeight: '90vh', overflowY: 'auto', zIndex: 1000,
+          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         }}
       >
         {/* Sticky header */}
         <div
           style={{
             position: 'sticky', top: 0, zIndex: 10, padding: '1rem 1rem',
-            backdropFilter: 'blur(6px)', backgroundColor: 'rgba(255,255,255,0.8)',
+            backdropFilter: 'blur(8px)', backgroundColor: 'rgba(253,252,249,0.85)',
             display: 'flex', alignItems: 'center',
+            borderBottom: '1px solid #f0ebe0',
           }}
         >
           <span
@@ -822,39 +828,52 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 4. Power */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>나무의 세력:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {POWER_OPTIONS.map((p) => (
-              <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
-            ))}
+        {/* 평가 카드 (세력 + 균형 + 해충 + 부분방제 한 묶음) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)',
+          border: '1px solid #f3eee2',
+        }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+            평가
           </div>
-        </div>
 
-        {/* 5. Balance */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>나무의 균형도:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {BALANCE_OPTIONS.map((b) => (
-              <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
-            ))}
+          {/* 4. Power */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 세력</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {POWER_OPTIONS.map((p) => (
+                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 6. Bugs */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>해충관리:</label>
-          <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-            {BUG_OPTIONS.map((num) => (
-              <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
-            ))}
+          {/* 5. Balance */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 균형도</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {BALANCE_OPTIONS.map((b) => (
+                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 6.5 부분방제 */}
-        <div style={{ marginBottom: '0.5rem' }}>
-          <label>부분방제:</label>
+          {/* 6. Bugs */}
+          <div style={{ marginBottom: '0.3rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
+              {BUG_OPTIONS.map((num) => (
+                <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 6.5 부분방제 */}
+          <div>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>부분방제</label>
           <div style={{ marginLeft: '0.5rem', display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
             <button
               onClick={() => handleChange('partial_treatment', true)}
@@ -886,10 +905,25 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             </button>
           </div>
         </div>
+        </div>
+        {/* / 평가 카드 끝 */}
+
+        {/* 메모 카드 (사진 + 코멘트 한 묶음) */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '1rem',
+          padding: '0.9rem 1rem',
+          marginBottom: '0.7rem',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03)',
+          border: '1px solid #f3eee2',
+        }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+            메모
+          </div>
 
         {/* 7. Images */}
         <div style={{ marginBottom: '0.5rem' }}>
-          <label>사진 ({treeData.images.length}/5):</label>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>사진 ({treeData.images.length}/5)</label>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
@@ -949,14 +983,21 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         {treeData.images.length >= 5 && <p style={{ color: 'red' }}>Max 5 images reached</p>}
 
         {/* 8. Comments */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Comments:</label>
+        <div>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>코멘트</label>
           <textarea
             value={treeData.comments}
             onChange={(e) => handleChange('comments', e.target.value)}
-            style={{ display: 'block', width: '100%', height: '60px' }}
+            style={{
+              display: 'block', width: '100%', height: '60px', marginTop: '0.3rem',
+              padding: '0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
+              fontFamily: 'inherit', fontSize: '1rem', resize: 'vertical',
+              backgroundColor: '#fafaf7',
+            }}
           />
         </div>
+        </div>
+        {/* / 메모 카드 끝 */}
 
         {/* 더보기 */}
         <div style={{ marginBottom: '0.5rem' }}>
