@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts';
 import grasslink from './assets/icons/grass.svg';
+import SaveCelebration from './components/SaveCelebration';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -418,6 +419,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   }
 
   const [uploading, setUploading] = useState(false);
+  const [showSaveCelebration, setShowSaveCelebration] = useState(false);
 
   async function handleImageUploadDirect(file) {
     if (!file || treeData.images.length >= 5) return;
@@ -528,8 +530,17 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         .insert(row));
     }
 
-    if (error) console.error(error);
-    onClose();
+    if (error) {
+      console.error(error);
+      onClose();
+      return;
+    }
+
+    // 저장 성공 → 농부 축하 애니메이션 띄우고 잠시 후 모달 닫기
+    setShowSaveCelebration(true);
+    setTimeout(() => {
+      onClose();
+    }, 1400);
   }
 
   const currentSeason = Number(treeData.season);
@@ -541,6 +552,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999,
       }}
     >
+      <SaveCelebration show={showSaveCelebration} />
       <div
         style={{
           position: 'relative', backgroundColor: 'white', padding: '0 1rem 1rem', borderRadius: '0.5rem',
