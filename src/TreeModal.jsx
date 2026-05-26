@@ -614,13 +614,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           const bloomIso = getBloomDateFromHistory(history);
           const tl = getStageTimelineFromBloom(bloomIso);
           const cur = getCurrentStageFromBloom(bloomIso, todayISOForStage);
+          const harvestStage = tl?.stages.find(s => s.num === 7);
           const hoverDetail = bloomIso ? [
             `🌸 만개일: ${bloomIso}`,
             cur ? `현재: ${cur.num}.${cur.name} (만개 +${cur.daysFromBloom}일째${cur.daysToEnd !== null ? `, ${cur.daysToEnd}일 남음` : ''})` : null,
             '',
             ...tl.stages.map(s => `${s.num}.${s.name}: ${s.start} ~ ${s.end}`),
             '',
-            `🍇 수확 가능: ${tl.stages[3].start} ~ ${tl.harvestEstimate}`,
+            `🍇 수확 가능: ${harvestStage.start} ~ ${harvestStage.end}`,
             `   (성숙 완료 후 40일 안에 수확)`,
           ].filter(Boolean).join('\n') : null;
           return (
@@ -662,7 +663,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}
                 >
-                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(tl.stages[3].start)}~{shortDate(tl.harvestEstimate)}
+                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)}
                   {cur && <span style={{ color: '#a16207', marginLeft: '0.25rem' }}>· {cur.num}.{cur.name}</span>}
                 </span>
               )}

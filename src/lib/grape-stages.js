@@ -13,14 +13,22 @@
 
 const BLOOM_OPTION_KEY = 'option6';  // 개화기 6번째 옵션 = 만개
 
+// 시기 타이밍 — 강해원 (2005, 영광포도원) 텍스트북 + minari 시트 통합
+//   만개 = 개화 정점 (꽃 활짝 핀 시점) = Day 0
+//   개화기는 만개 후 14일까지 계속 (꽃 마무리)
+//   그 후 14일 = 착과기 = 1차비대기
+//   그 후 25일 = 경핵기
+//   그 후 40일 = 성숙기 (2차비대기)
+//   그 후 40일 안에 = 수확기
 export const STAGE_FROM_BLOOM = [
-  { num: 4, name: '착과기',  startDay: 0,   endDay: 14,  durationDays: 14 },
-  { num: 5, name: '경핵기',  startDay: 14,  endDay: 39,  durationDays: 25 },
-  { num: 6, name: '성숙기',  startDay: 39,  endDay: 79,  durationDays: 40 },
-  { num: 7, name: '수확기',  startDay: 79,  endDay: 119, durationDays: 40 },
+  { num: 3, name: '개화기 마무리',        startDay: 0,   endDay: 14,  durationDays: 14 },
+  { num: 4, name: '착과기 (1차비대기)',   startDay: 14,  endDay: 28,  durationDays: 14 },
+  { num: 5, name: '경핵기',              startDay: 28,  endDay: 53,  durationDays: 25 },
+  { num: 6, name: '성숙기 (2차비대기)',   startDay: 53,  endDay: 93,  durationDays: 40 },
+  { num: 7, name: '수확기',              startDay: 93,  endDay: 133, durationDays: 40 },
 ];
 
-export const HARVEST_DEADLINE_DAYS = 119;
+export const HARVEST_DEADLINE_DAYS = 133;
 
 // "YYYY-MM-DD" + n일 → "YYYY-MM-DD" (TZ 영향 없게 UTC로만 계산)
 function addDaysISO(isoDate, days) {
