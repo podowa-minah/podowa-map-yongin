@@ -1,6 +1,7 @@
 // @ts-nocheck
 // src/TreeModal.jsx
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine, ComposedChart, Area } from 'recharts';
@@ -456,6 +457,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
   const [uploading, setUploading] = useState(false);
   const [showSaveCelebration, setShowSaveCelebration] = useState(false);
+  const [showBloomDetail, setShowBloomDetail] = useState(false);
 
   async function handleImageUploadDirect(file) {
     if (!file || treeData.images.length >= 5) return;
@@ -615,22 +617,15 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           const tl = getStageTimelineFromBloom(bloomIso);
           const cur = getCurrentStageFromBloom(bloomIso, todayISOForStage);
           const harvestStage = tl?.stages.find(s => s.num === 7);
-          const hoverDetail = bloomIso ? [
-            `🌸 만개일: ${bloomIso}`,
-            cur ? `현재: ${cur.num}.${cur.name} (만개 +${cur.daysFromBloom}일째${cur.daysToEnd !== null ? `, ${cur.daysToEnd}일 남음` : ''})` : null,
-            '',
-            ...tl.stages.map(s => `${s.num}.${s.name}: ${s.start} ~ ${s.end}`),
-            '',
-            `🍇 수확 가능: ${harvestStage.start} ~ ${harvestStage.end}`,
-            `   (성숙 완료 후 40일 안에 수확)`,
-          ].filter(Boolean).join('\n') : null;
+          // 칩에 표시할 짧은 시기 이름 (괄호/마무리 제거)
+          const shortStage = cur ? `${cur.num}.${cur.name.split(' ')[0].replace('마무리', '')}` : '';
           return (
             <div
               style={{
                 position: 'sticky', top: '6px', zIndex: 10, padding: '1.1rem 0.5rem 1rem',
                 backdropFilter: 'blur(10px)',
                 background: 'linear-gradient(180deg, rgba(250,247,240,0.96) 0%, rgba(250,247,240,0.85) 100%)',
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
               }}
             >
               <span
@@ -648,23 +643,23 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               </span>
               {bloomIso && (
                 <span
-                  title={hoverDetail}
+                  onClick={() => setShowBloomDetail(true)}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                    padding: '0.2rem 0.55rem',
+                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                    padding: '0.25rem 0.6rem',
                     backgroundColor: '#fce7f3',
                     border: '1px solid #f9a8d4',
                     borderRadius: '999px',
                     fontSize: '0.78rem',
                     color: '#9d174d',
                     fontWeight: 600,
-                    cursor: 'help',
-                    flex: 1, minWidth: 0,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    cursor: 'pointer',
                   }}
+                  title="탭하면 자세히"
                 >
                   🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)}
-                  {cur && <span style={{ color: '#a16207', marginLeft: '0.25rem' }}>· {cur.num}.{cur.name}</span>}
+                  {cur && <span style={{ color: '#a16207', marginLeft: '0.15rem' }}>· {shortStage}</span>}
+                  <span style={{ opacity: 0.5, marginLeft: '0.15rem', fontSize: '0.7rem' }}>ⓘ</span>
                 </span>
               )}
               {!bloomIso && <span style={{ flex: 1 }} />}
@@ -673,8 +668,96 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                   src={grasslink}
                   alt="풀 모달"
                   onClick={() => onOpenGrass(`Grass-${actualTreeId}`)}
-                  style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0 }}
+                  style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0, marginLeft: 'auto' }}
                 />
+              )}
+
+              {/* 만개 디테일 팝업 (portal로 body에) */}
+              {showBloomDetail && bloomIso && ReactDOM.createPortal(
+                <div
+                  onClick={() => setShowBloomDetail(false)}
+                  style={{
+                    position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)',
+                    overflow: 'auto', padding: '2rem 1rem', boxSizing: 'border-box',
+                    zIndex: 10000,
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: 'linear-gradient(135deg, #fce7f3 0%, #fef3c7 100%)',
+                      border: '3px solid #f9a8d4',
+                      borderRadius: '1.2rem',
+                      padding: '1.2rem',
+                      maxWidth: '480px',
+                      margin: '0 auto',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.7rem' }}>
+                      <span style={{ fontSize: '1.4rem' }}>🌸</span>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#9d174d' }}>
+                        {displayName} 시기 타임라인
+                      </h3>
+                      <button
+                        onClick={() => setShowBloomDetail(false)}
+                        style={{
+                          marginLeft: 'auto', background: 'transparent', border: 'none',
+                          fontSize: '1.3rem', cursor: 'pointer', color: '#9d174d',
+                        }}
+                      >×</button>
+                    </div>
+
+                    <div style={{ backgroundColor: 'rgba(255,255,255,0.6)', padding: '0.6rem 0.8rem', borderRadius: '0.6rem', marginBottom: '0.7rem' }}>
+                      <div style={{ marginBottom: '0.3rem' }}>
+                        <strong>🌸 만개일:</strong> {bloomIso}
+                      </div>
+                      {cur && (
+                        <div style={{ color: '#7c2d12' }}>
+                          <strong>현재:</strong> {cur.num}.{cur.name}
+                          <span style={{ color: '#a16207', marginLeft: '0.4rem', fontSize: '0.9rem' }}>
+                            (만개 +{cur.daysFromBloom}일{cur.daysToEnd !== null ? `, ${cur.daysToEnd}일 남음` : ''})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.7rem' }}>
+                      {tl.stages.map(s => (
+                        <div
+                          key={s.num}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.4rem 0.6rem',
+                            backgroundColor: cur && cur.num === s.num ? '#fef9c3' : 'rgba(255,255,255,0.5)',
+                            border: cur && cur.num === s.num ? '2px solid #ca8a04' : '1px solid #fce7f3',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.88rem',
+                            color: '#78350f',
+                          }}
+                        >
+                          <strong style={{ minWidth: '2.5rem' }}>{s.num}.{s.name.split(' ')[0]}</strong>
+                          <span style={{ flex: 1 }}>{s.start} ~ {s.end}</span>
+                          <span style={{ color: '#a16207', fontSize: '0.75rem' }}>{s.durationDays}일</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{
+                      padding: '0.6rem 0.8rem',
+                      backgroundColor: '#fef9c3',
+                      borderLeft: '4px solid #ca8a04',
+                      borderRadius: '0.4rem',
+                      color: '#78350f',
+                    }}>
+                      🍇 <strong>수확 가능</strong>: {harvestStage.start} ~ {harvestStage.end}
+                      <div style={{ fontSize: '0.8rem', color: '#a16207', marginTop: '0.2rem' }}>
+                        성숙 완료 후 40일 안에 수확
+                      </div>
+                    </div>
+                  </div>
+                </div>,
+                document.body
               )}
             </div>
           );
