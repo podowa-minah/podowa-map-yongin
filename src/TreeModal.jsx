@@ -654,12 +654,10 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     color: '#9d174d',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                   }}
-                  title="탭하면 자세히"
                 >
-                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)}
-                  {cur && <span style={{ color: '#a16207', marginLeft: '0.15rem' }}>· {shortStage}</span>}
-                  <span style={{ opacity: 0.5, marginLeft: '0.15rem', fontSize: '0.7rem' }}>ⓘ</span>
+                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(harvestStage.start)}~{shortDate(harvestStage.end)} ⓘ
                 </span>
               )}
               {!bloomIso && <span style={{ flex: 1 }} />}
