@@ -163,6 +163,16 @@ const SEASON_NAMES = {
   7: '수확기',
 };
 
+// row.season_data에서 체크된 항목 라벨만 뽑아 콤마로 이어붙임
+function getCheckedOptionLabels(row) {
+  if (!row?.season) return '';
+  const labels = SEASON_OPTION_LABELS[row.season] || [];
+  const state = row.season_data?.[row.season] || {};
+  return labels
+    .filter((_, i) => state[`option${i + 1}`])
+    .join(', ');
+}
+
 // ---------- MAIN COMPONENT ---------- //
 const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   const todayMMDDYYYY = getTodayMMDDYYYY();
@@ -319,6 +329,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
         const formattedData = data.map(d => ({
           date: d.date,
           season: d.season,
+          season_data: d.season_data || {},
           power: d.power,
           balance: d.balance,
           bugs: d.bugs,
@@ -641,6 +652,77 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
+        {/* 차트 직후: 최근 2회 기록 미리보기 (시간상 가장 최신 2개, 생육시기 무관) */}
+        {history.length > 0 && (
+          <div style={{ marginBottom: '1rem' }}>
+            {[...history]
+              .sort((a, b) => new Date(b.date) - new Date(a.date))
+              .slice(0, 2)
+              .map((row, idx) => {
+                const checked = getCheckedOptionLabels(row);
+                const hasImages = row.images && row.images.length > 0;
+                return (
+                  <div
+                    key={`recent-${idx}`}
+                    style={{
+                      border: '1px solid #ddd',
+                      borderRadius: '0.5rem',
+                      padding: '0.75rem',
+                      marginBottom: '0.5rem',
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    {/* 헤더: 날짜, 생육시기, 생산자, 부분방제 */}
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <span style={{ fontWeight: 'bold' }}>{row.date}</span>
+                      <span style={{ color: '#666' }}>{SEASON_NAMES[row.season] || ''}</span>
+                      {row.producer && (
+                        <span style={{ color: '#666' }}>· {row.producer}</span>
+                      )}
+                      {row.partial_treatment && (
+                        <span style={{ color: '#0077cc' }}>· 부분방제 ✔</span>
+                      )}
+                    </div>
+
+                    {/* 한일 */}
+                    {checked && (
+                      <div style={{ marginBottom: '0.25rem' }}>
+                        <strong>한일:</strong> {checked}
+                      </div>
+                    )}
+
+                    {/* 코멘트 (강조) */}
+                    {row.comments && (
+                      <div style={{
+                        marginBottom: '0.3rem',
+                        padding: '0.4rem 0.6rem',
+                        backgroundColor: '#fff8e1',
+                        borderLeft: '3px solid #f59e0b',
+                        borderRadius: '0.25rem',
+                      }}>
+                        <strong>코멘트:</strong> {row.comments}
+                      </div>
+                    )}
+
+                    {/* 사진 */}
+                    {hasImages && (
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                        {row.images.map((img, imgIdx) => (
+                          <ThumbImg
+                            key={imgIdx}
+                            src={row.thumbnails?.[imgIdx] || img}
+                            fullSrc={img}
+                            onPreview={(url) => setPreviewImg(url)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
         {/* 1. Date */}
         <div style={{ marginBottom: '0.5rem' }}>
           <label>날짜:</label>
@@ -880,22 +962,23 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f3f3f3' }}>
                   {[
-                    ['date', '날짜'],
-                    ['season', '생육시기'],
-                    ['power', '세력'],
-                    ['balance', '균형'],
-                    ['bugs', '해충'],
-                    ['partial_treatment', '부분방제'],
-                    ['comments', '코멘트'],
-                    ['images', '사진'],
-                    ['producer', '생산자'],
-                  ].map(([key, label]) => (
+                    ['date', '날짜', true],
+                    ['season', '생육시기', true],
+                    ['power', '세력', true],
+                    ['balance', '균형', true],
+                    ['bugs', '해충', true],
+                    ['partial_treatment', '부분방제', true],
+                    ['comments', '코멘트', true],
+                    ['done_tasks', '한일', false],
+                    ['images', '사진', true],
+                    ['producer', '생산자', true],
+                  ].map(([key, label, sortable]) => (
                     <th
                       key={key}
-                      style={{ ...cellStyle, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                      onClick={() => handleSort(key)}
+                      style={{ ...cellStyle, cursor: sortable ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}
+                      onClick={sortable ? () => handleSort(key) : undefined}
                     >
-                      {label}{sortCol === key ? (sortAsc ? ' ▲' : ' ▼') : ''}
+                      {label}{sortable && sortCol === key ? (sortAsc ? ' ▲' : ' ▼') : ''}
                     </th>
                   ))}
                 </tr>
@@ -914,7 +997,15 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     <td style={cellStyle}>{row.balance}</td>
                     <td style={cellStyle}>{row.bugs}</td>
                     <td style={cellStyle}>{row.partial_treatment ? '✔' : ''}</td>
-                    <td style={cellStyle}>{row.comments}</td>
+                    <td
+                      style={{ ...cellStyle, maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      title={row.comments || ''}
+                    >
+                      {row.comments}
+                    </td>
+                    <td style={{ ...cellStyle, maxWidth: '280px', wordBreak: 'keep-all' }}>
+                      {getCheckedOptionLabels(row)}
+                    </td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
                         <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
