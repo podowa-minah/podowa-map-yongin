@@ -697,7 +697,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           </div>
         )}
 
-        {/* 차트 직후: 최근 2회 기록 미리보기 (시간상 가장 최신 2개, 생육시기 무관) */}
+        {/* 차트 직후: 최근 2회 기록 — 농부 일기장 느낌 */}
         {history.length > 0 && (
           <div style={{ marginBottom: '1rem' }}>
             {[...history]
@@ -706,59 +706,144 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               .map((row, idx) => {
                 const checked = getCheckedOptionLabels(row);
                 const hasImages = row.images && row.images.length > 0;
+                const producerInitial = row.producer ? row.producer.charAt(0) : '';
                 return (
                   <div
                     key={`recent-${idx}`}
                     style={{
-                      border: '1px solid #ddd',
-                      borderRadius: '0.5rem',
-                      padding: '0.75rem',
-                      marginBottom: '0.5rem',
-                      backgroundColor: '#fafafa',
+                      background: 'linear-gradient(135deg, #fffaf0 0%, #fff5e6 100%)',
+                      border: '2px solid #fde68a',
+                      borderRadius: '1rem',
+                      padding: '0.85rem 1rem',
+                      marginBottom: '0.7rem',
+                      boxShadow: '0 2px 8px rgba(251, 191, 36, 0.12), 0 1px 3px rgba(0,0,0,0.04)',
                     }}
                   >
-                    {/* 헤더: 날짜, 생육시기, 생산자, 부분방제 */}
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.4rem' }}>
-                      <span style={{ fontWeight: 'bold' }}>{row.date}</span>
-                      <span style={{ color: '#666' }}>{SEASON_NAMES[row.season] || ''}</span>
-                      {row.producer && (
-                        <span style={{ color: '#666' }}>· {row.producer}</span>
+                    {/* 헤더: 날짜 칩 + 생육시기 칩 + 작업자 아바타 + 부분방제 배지 */}
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.55rem' }}>
+                      {/* 날짜 칩 (햇살 노랑) */}
+                      <span style={{
+                        backgroundColor: '#fbbf24',
+                        color: '#78350f',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '0.5rem',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        boxShadow: '0 1px 0 rgba(146, 64, 14, 0.2)',
+                      }}>
+                        {row.date}
+                      </span>
+                      {/* 생육시기 칩 (잎 초록) */}
+                      {row.season && (
+                        <span style={{
+                          backgroundColor: '#bef264',
+                          color: '#365314',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '0.5rem',
+                          fontWeight: 600,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 1px 0 rgba(54, 83, 20, 0.2)',
+                        }}>
+                          {SEASON_NAMES[row.season]}
+                        </span>
                       )}
+                      {/* 부분방제 배지 */}
                       {row.partial_treatment && (
-                        <span style={{ color: '#0077cc' }}>· 부분방제 ✔</span>
+                        <span style={{
+                          backgroundColor: '#fecaca',
+                          color: '#991b1b',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.5rem',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                        }}>
+                          부분방제
+                        </span>
+                      )}
+                      {/* 작업자 아바타 (오른쪽 끝) */}
+                      {row.producer && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                          marginLeft: 'auto',
+                          color: '#6b7280',
+                          fontSize: '0.9rem',
+                        }}>
+                          <span style={{
+                            width: '26px', height: '26px',
+                            background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)',
+                            borderRadius: '50%',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            boxShadow: '0 1px 3px rgba(168, 85, 247, 0.4)',
+                          }}>
+                            {producerInitial}
+                          </span>
+                          {row.producer}
+                        </span>
                       )}
                     </div>
 
-                    {/* 한일 */}
+                    {/* 한일 — 깔끔한 흰 미니박스 */}
                     {checked && (
-                      <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>한일:</strong> {checked}
+                      <div style={{
+                        marginBottom: '0.4rem',
+                        padding: '0.5rem 0.7rem',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '0.5rem',
+                        border: '1px solid #fef3c7',
+                      }}>
+                        <span style={{ color: '#92400e', fontWeight: 700, marginRight: '0.4rem' }}>한일</span>
+                        <span style={{ color: '#374151' }}>{checked}</span>
                       </div>
                     )}
 
-                    {/* 코멘트 (강조) */}
+                    {/* 코멘트 — 따뜻한 양피지, 인용 느낌 */}
                     {row.comments && (
                       <div style={{
-                        marginBottom: '0.3rem',
-                        padding: '0.4rem 0.6rem',
-                        backgroundColor: '#fff8e1',
-                        borderLeft: '3px solid #f59e0b',
-                        borderRadius: '0.25rem',
+                        marginBottom: '0.4rem',
+                        padding: '0.5rem 0.7rem',
+                        backgroundColor: '#fef3c7',
+                        borderLeft: '4px solid #f59e0b',
+                        borderRadius: '0.4rem',
                       }}>
-                        <strong>코멘트:</strong> {row.comments}
+                        <div style={{ color: '#92400e', fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.15rem' }}>
+                          💬 코멘트
+                        </div>
+                        <div style={{ color: '#451a03', fontStyle: 'italic' }}>
+                          "{row.comments}"
+                        </div>
                       </div>
                     )}
 
-                    {/* 사진 */}
+                    {/* 사진 — 폴라로이드 64px */}
                     {hasImages && (
-                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '0.5rem' }}>
                         {row.images.map((img, imgIdx) => (
-                          <ThumbImg
+                          <div
                             key={imgIdx}
-                            src={row.thumbnails?.[imgIdx] || img}
-                            fullSrc={img}
-                            onPreview={(url) => setPreviewImg(url)}
-                          />
+                            onClick={() => setPreviewImg(img)}
+                            style={{
+                              width: '64px', height: '64px',
+                              borderRadius: '0.5rem',
+                              overflow: 'hidden',
+                              border: '3px solid #ffffff',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                              cursor: 'zoom-in',
+                              backgroundColor: '#f3f4f6',
+                            }}
+                          >
+                            <img
+                              src={row.thumbnails?.[imgIdx] || img}
+                              alt="기록 사진"
+                              loading="lazy"
+                              decoding="async"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            />
+                          </div>
                         ))}
                       </div>
                     )}
