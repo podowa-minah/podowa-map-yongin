@@ -608,15 +608,15 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           )}
         </div>
 
-        {/* Chart 카드 */}
+        {/* Chart 카드 — 가장자리까지 확장 */}
         {history.length > 0 && (
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '1.2rem',
-            padding: '0.6rem 0.2rem 0.4rem',
+            padding: '0.5rem 0 0.4rem',
             marginBottom: '0.7rem',
-            marginLeft: '-0.3rem',
-            marginRight: '-0.3rem',
+            marginLeft: '-0.6rem',
+            marginRight: '-0.6rem',
             boxShadow: '0 4px 0 rgba(0,0,0,0.06)',
             border: '2px solid #f0ebe0',
             height: 240,
@@ -624,7 +624,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={history}
-                margin={{ top: 10, right: 8, left: -8, bottom: 0 }}
+                margin={{ top: 10, right: 12, left: -20, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="grad-power" x1="0" y1="0" x2="0" y2="1">
