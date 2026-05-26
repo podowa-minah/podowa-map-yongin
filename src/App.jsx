@@ -22,6 +22,9 @@ import waterlink from './assets/icons/global_water_small.png';
 import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
+import TreatmentStatusBar from './components/TreatmentStatusBar';
+import IrrigationModal from './components/IrrigationModal';
+import PestTreatmentModal from './components/PestTreatmentModal';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -55,6 +58,9 @@ export default function App() {
   const [historySummaries, setHistorySummaries] = useState(null);
   const [latestAnnouncement, setLatestAnnouncement] = useState([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showIrrigation, setShowIrrigation] = useState(false);
+  const [showPestTreatment, setShowPestTreatment] = useState(false);
+  const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const [viewportInfo, setViewportInfo] = useState(null);
   const [dismissedAt, setDismissedAt] = useState('1970-01-01T00:00:00.000Z');
@@ -430,8 +436,8 @@ export default function App() {
               ) : (
                 <IconLink href="#" src={grapelink} alt="farm map" size={38} style={{ transform: 'rotate(22deg)' }} onClick={(e) => { e.preventDefault(); setViewMode('farm'); }} />
               )}
-              <IconLink href="https://example.com/water" src={waterlink} alt="global water" size={38} style={{ marginTop: '1px' }} />
-              <IconLink href="https://example.com/trt" src={trtlink} alt="global treatment" size={37} />
+              <IconLink href="#" src={waterlink} alt="전체관수" size={38} style={{ marginTop: '1px' }} onClick={(e) => { e.preventDefault(); setShowIrrigation(true); }} />
+              <IconLink href="#" src={trtlink} alt="전체방제" size={37} onClick={(e) => { e.preventDefault(); setShowPestTreatment(true); }} />
               <button
                 className="header-toggle-btn"
                 onClick={() => setHeaderOpen((v) => !v)}
@@ -465,6 +471,11 @@ export default function App() {
               </button>
             </div>
           )}
+          <TreatmentStatusBar
+            refreshKey={treatmentRefreshKey}
+            onClickIrrigation={() => setShowIrrigation(true)}
+            onClickPest={() => setShowPestTreatment(true)}
+          />
           <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
@@ -494,6 +505,22 @@ export default function App() {
 
         {showChangePassword && (
           <ChangePassword onClose={() => setShowChangePassword(false)} />
+        )}
+
+        {showIrrigation && (
+          <IrrigationModal
+            user={user}
+            onClose={() => setShowIrrigation(false)}
+            onSaved={() => { setShowIrrigation(false); setTreatmentRefreshKey(k => k + 1); }}
+          />
+        )}
+
+        {showPestTreatment && (
+          <PestTreatmentModal
+            user={user}
+            onClose={() => setShowPestTreatment(false)}
+            onSaved={() => { setShowPestTreatment(false); setTreatmentRefreshKey(k => k + 1); }}
+          />
         )}
 
         {showAnnouncements && (
