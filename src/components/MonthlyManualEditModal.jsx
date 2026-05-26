@@ -5,6 +5,7 @@
 // - 저장: monthly_manuals 행 upsert
 
 import { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 
@@ -57,7 +58,8 @@ export default function MonthlyManualEditModal({ category, onClose, onSaved }) {
     onSaved?.();
   }
 
-  return (
+  // Portal로 body에 직접 렌더 → header 안에 갇히지 않고 viewport 전체 덮음
+  return ReactDOM.createPortal(
     <div
       onClick={onClose}
       style={{
@@ -65,7 +67,7 @@ export default function MonthlyManualEditModal({ category, onClose, onSaved }) {
         overflow: 'auto',                  // 전체 스크롤은 outer가 담당
         padding: '2rem 1rem',              // 위/아래 숨 쉴 공간
         boxSizing: 'border-box',
-        zIndex: 999,
+        zIndex: 9999,
         WebkitOverflowScrolling: 'touch',  // iOS 부드러운 스크롤
       }}
     >
@@ -137,6 +139,7 @@ export default function MonthlyManualEditModal({ category, onClose, onSaved }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
