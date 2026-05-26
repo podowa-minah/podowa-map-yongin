@@ -613,8 +613,10 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '1.2rem',
-            padding: '0.8rem 0.6rem 0.6rem',
+            padding: '0.6rem 0.2rem 0.4rem',
             marginBottom: '0.7rem',
+            marginLeft: '-0.3rem',
+            marginRight: '-0.3rem',
             boxShadow: '0 4px 0 rgba(0,0,0,0.06)',
             border: '2px solid #f0ebe0',
             height: 240,
@@ -622,7 +624,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={history}
-                margin={{ top: 10, right: 20 }}
+                margin={{ top: 10, right: 8, left: -8, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="grad-power" x1="0" y1="0" x2="0" y2="1">
@@ -769,21 +771,21 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     style={{
                       background: 'linear-gradient(135deg, #fffaf0 0%, #fff5e6 100%)',
                       border: '2px solid #fde68a',
-                      borderRadius: '1rem',
-                      padding: '0.85rem 1rem',
+                      borderRadius: '0.85rem',
+                      padding: '0.6rem 0.75rem',
                       boxShadow: '0 2px 8px rgba(251, 191, 36, 0.12), 0 1px 3px rgba(0,0,0,0.04)',
                     }}
                   >
                     {/* 헤더: 날짜 칩 + 생육시기 칩 + 작업자 아바타 + 부분방제 배지 */}
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.55rem' }}>
+                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.4rem' }}>
                       {/* 날짜 칩 (햇살 노랑) */}
                       <span style={{
                         backgroundColor: '#fbbf24',
                         color: '#78350f',
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '0.5rem',
+                        padding: '0.18rem 0.5rem',
+                        borderRadius: '0.4rem',
                         fontWeight: 700,
-                        fontSize: '0.95rem',
+                        fontSize: '0.9rem',
                         boxShadow: '0 1px 0 rgba(146, 64, 14, 0.2)',
                       }}>
                         {row.date}
@@ -793,10 +795,10 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                         <span style={{
                           backgroundColor: '#bef264',
                           color: '#365314',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '0.5rem',
+                          padding: '0.18rem 0.5rem',
+                          borderRadius: '0.4rem',
                           fontWeight: 600,
-                          fontSize: '0.95rem',
+                          fontSize: '0.9rem',
                           boxShadow: '0 1px 0 rgba(54, 83, 20, 0.2)',
                         }}>
                           {SEASON_NAMES[row.season]}
@@ -807,10 +809,10 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                         <span style={{
                           backgroundColor: '#fecaca',
                           color: '#991b1b',
-                          padding: '0.25rem 0.5rem',
-                          borderRadius: '0.5rem',
+                          padding: '0.18rem 0.45rem',
+                          borderRadius: '0.4rem',
                           fontWeight: 600,
-                          fontSize: '0.85rem',
+                          fontSize: '0.82rem',
                         }}>
                           부분방제
                         </span>
@@ -818,13 +820,13 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                       {/* 작업자 아바타 (오른쪽 끝) */}
                       {row.producer && (
                         <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                           marginLeft: 'auto',
                           color: '#6b7280',
-                          fontSize: '0.9rem',
+                          fontSize: '0.85rem',
                         }}>
                           <span style={{
-                            width: '26px', height: '26px',
+                            width: '22px', height: '22px',
                             background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)',
                             borderRadius: '50%',
                             display: 'inline-flex',
@@ -832,7 +834,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                             justifyContent: 'center',
                             color: 'white',
                             fontWeight: 700,
-                            fontSize: '0.85rem',
+                            fontSize: '0.78rem',
                             boxShadow: '0 1px 3px rgba(168, 85, 247, 0.4)',
                           }}>
                             {producerInitial}
@@ -845,13 +847,13 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     {/* 한일 — 깔끔한 흰 미니박스 */}
                     {checked && (
                       <div style={{
-                        marginBottom: '0.4rem',
-                        padding: '0.5rem 0.7rem',
+                        marginBottom: '0.3rem',
+                        padding: '0.4rem 0.55rem',
                         backgroundColor: '#ffffff',
-                        borderRadius: '0.5rem',
+                        borderRadius: '0.45rem',
                         border: '1px solid #fef3c7',
                       }}>
-                        <span style={{ color: '#92400e', fontWeight: 700, marginRight: '0.4rem' }}>한일</span>
+                        <span style={{ color: '#92400e', fontWeight: 700, marginRight: '0.35rem' }}>한일</span>
                         <span style={{ color: '#374151' }}>{checked}</span>
                       </div>
                     )}
@@ -859,13 +861,13 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     {/* 코멘트 — 따뜻한 양피지, 인용 느낌 */}
                     {row.comments && (
                       <div style={{
-                        marginBottom: '0.4rem',
-                        padding: '0.5rem 0.7rem',
+                        marginBottom: '0.3rem',
+                        padding: '0.4rem 0.55rem',
                         backgroundColor: '#fef3c7',
                         borderLeft: '4px solid #f59e0b',
                         borderRadius: '0.4rem',
                       }}>
-                        <div style={{ color: '#92400e', fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.15rem' }}>
+                        <div style={{ color: '#92400e', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.1rem' }}>
                           💬 코멘트
                         </div>
                         <div style={{ color: '#451a03', fontStyle: 'italic' }}>
@@ -874,18 +876,18 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                       </div>
                     )}
 
-                    {/* 사진 — 폴라로이드 64px */}
+                    {/* 사진 — 폴라로이드 52px */}
                     {hasImages && (
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginTop: '0.35rem' }}>
                         {row.images.map((img, imgIdx) => (
                           <div
                             key={imgIdx}
                             onClick={() => setPreviewImg(img)}
                             style={{
-                              width: '64px', height: '64px',
-                              borderRadius: '0.5rem',
+                              width: '52px', height: '52px',
+                              borderRadius: '0.4rem',
                               overflow: 'hidden',
-                              border: '3px solid #ffffff',
+                              border: '2px solid #ffffff',
                               boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
                               cursor: 'zoom-in',
                               backgroundColor: '#f3f4f6',
