@@ -387,6 +387,23 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
     transition: 'all 0.1s ease',
   });
 
+  // 평가 행에서 쓰는 컴팩트 버튼 (flex로 너비 균등 분배)
+  const ratingBtnStyle = (active) => ({
+    flex: '1 1 0',
+    minWidth: 0,
+    padding: '0.85rem 0',
+    fontSize: '1.2rem',
+    textAlign: 'center',
+    border: active ? '3px solid #16a34a' : '2px solid #e2e8f0',
+    borderRadius: '0.7rem',
+    backgroundColor: active ? '#16a34a' : '#fff',
+    color: active ? '#ffffff' : '#1f2937',
+    fontWeight: active ? 700 : 400,
+    boxShadow: active ? '0 4px 0 rgba(20, 83, 45, 0.5)' : 'none',
+    cursor: 'pointer',
+    transition: 'all 0.1s ease',
+  });
+
   function handleCheckboxChange(season, optionKey, checked) {
     setTreeData((prev) => ({
       ...prev,
@@ -1050,56 +1067,65 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             평가
           </div>
 
-          {/* 4. Power */}
-          <div style={{ marginBottom: '0.3rem' }}>
+          {/* 4. Power — 2줄 (판단불가 / 1~5) */}
+          <div style={{ marginBottom: '0.45rem' }}>
             <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 세력</label>
-            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-              {POWER_OPTIONS.map((p) => (
-                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{labelOf(p)}</button>
-              ))}
+            {/* 1줄: 판단불가 / 보류 */}
+            <div style={{ marginLeft: '0.5rem', display: 'flex', marginTop: '0.3rem' }}>
+              <button
+                onClick={() => handleChange('power', treeData.power === POWER_OPTIONS[0] ? '' : POWER_OPTIONS[0])}
+                style={ratingBtnStyle(treeData.power === POWER_OPTIONS[0])}
+              >
+                {labelOf(POWER_OPTIONS[0])}
+              </button>
             </div>
-          </div>
-
-          {/* 5. Balance */}
-          <div style={{ marginBottom: '0.3rem' }}>
-            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 균형도</label>
-            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-              {BALANCE_OPTIONS.map((b) => (
-                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{labelOf(b)}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* 6. Bugs — 0~5 한 줄 고정 (어떤 폰에서도) */}
-          <div style={{ marginBottom: '0.3rem' }}>
-            <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
+            {/* 2줄: 1~5 */}
             <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'nowrap', gap: '0.3rem', marginTop: '0.3rem' }}>
-              {BUG_OPTIONS.map((num) => {
-                const active = treeData.bugs === String(num);
-                return (
-                  <button
-                    key={num}
-                    onClick={() => handleChange('bugs', active ? '' : String(num))}
-                    style={{
-                      flex: '1 1 0',
-                      minWidth: 0,
-                      padding: '0.85rem 0',
-                      fontSize: '1.2rem',
-                      textAlign: 'center',
-                      border: active ? '3px solid #16a34a' : '2px solid #e2e8f0',
-                      borderRadius: '0.7rem',
-                      backgroundColor: active ? '#16a34a' : '#fff',
-                      color: active ? '#ffffff' : '#1f2937',
-                      fontWeight: active ? 700 : 400,
-                      boxShadow: active ? '0 4px 0 rgba(20, 83, 45, 0.5)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.1s ease',
-                    }}
-                  >
-                    {num}
-                  </button>
-                );
-              })}
+              {POWER_OPTIONS.slice(1).map((p) => (
+                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={ratingBtnStyle(treeData.power === p)}>{p}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 5. Balance — 2줄 (판단불가 / 1~5) */}
+          <div style={{ marginBottom: '0.45rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 균형도</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', marginTop: '0.3rem' }}>
+              <button
+                onClick={() => handleChange('balance', treeData.balance === BALANCE_OPTIONS[0] ? '' : BALANCE_OPTIONS[0])}
+                style={ratingBtnStyle(treeData.balance === BALANCE_OPTIONS[0])}
+              >
+                {labelOf(BALANCE_OPTIONS[0])}
+              </button>
+            </div>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'nowrap', gap: '0.3rem', marginTop: '0.3rem' }}>
+              {BALANCE_OPTIONS.slice(1).map((b) => (
+                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={ratingBtnStyle(treeData.balance === b)}>{b}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 6. Bugs — 2줄 (0 / 1~5) */}
+          <div style={{ marginBottom: '0.45rem' }}>
+            <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', marginTop: '0.3rem' }}>
+              <button
+                onClick={() => handleChange('bugs', treeData.bugs === '0' ? '' : '0')}
+                style={ratingBtnStyle(treeData.bugs === '0')}
+              >
+                0
+              </button>
+            </div>
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'nowrap', gap: '0.3rem', marginTop: '0.3rem' }}>
+              {[1, 2, 3, 4, 5].map((num) => (
+                <button
+                  key={num}
+                  onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))}
+                  style={ratingBtnStyle(treeData.bugs === String(num))}
+                >
+                  {num}
+                </button>
+              ))}
             </div>
           </div>
 
