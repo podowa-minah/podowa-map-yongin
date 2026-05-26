@@ -626,7 +626,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               >
                 <CartesianGrid vertical={false} horizontal={false} />
                 {[0, 1, 2, 3, 4, 5].map((y) => (
-                  <ReferenceLine key={y} y={y} stroke="#ccc" strokeDasharray="3 3" ifOverflow="extendDomain" />
+                  <ReferenceLine key={y} y={y} stroke="#ede4d3" strokeDasharray="3 3" ifOverflow="extendDomain" />
                 ))}
                 <XAxis dataKey="date" tickFormatter={(d) => { const [, month, day] = d.split('-'); return `${month}/${day}`; }} axisLine />
                 <YAxis domain={[0, 5]} ticks={[0, 1, 2, 3, 4, 5]} tickFormatter={(v) => (v === 0 ? '0/NA' : v)} axisLine />
@@ -634,17 +634,24 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                   cursor={false}
                   content={({ active, payload, label }) => {
                     if (!active || !payload || payload.length === 0) return null;
-                    const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#5c8db8', balanceNA: '#5c8db8', bugsJ: '#e57373' };
+                    const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#7c3aed', balanceNA: '#7c3aed', bugsJ: '#e57373' };
                     const nameMap = { powerJ: '세력', powerNA: '세력', balanceJ: '균형', balanceNA: '균형', bugsJ: '해충' };
                     const order = ['powerJ', 'powerNA', 'balanceJ', 'balanceNA', 'bugsJ'];
                     const items = payload
                       .filter(p => p.value != null)
                       .sort((a, b) => order.indexOf(a.dataKey) - order.indexOf(b.dataKey));
                     return (
-                      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 3 }}>{label}</div>
+                      <div style={{
+                        background: 'linear-gradient(135deg, #fffaf0 0%, #fff5e6 100%)',
+                        border: '2px solid #fde68a',
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        boxShadow: '0 4px 12px rgba(251, 191, 36, 0.18)',
+                      }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: '#78350f' }}>{label}</div>
                         {items.map(p => (
-                          <div key={p.dataKey} style={{ color: colorMap[p.dataKey] }}>
+                          <div key={p.dataKey} style={{ color: colorMap[p.dataKey], fontWeight: 600 }}>
                             {nameMap[p.dataKey]} : {p.dataKey.endsWith('NA') ? '판단불가' : Math.round(p.value)}
                           </div>
                         ))}
@@ -658,7 +665,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     <div style={{ display: 'flex', gap: 18 }}>
                       {[
                         { color: '#66bb6a', label: '세력' },
-                        { color: '#5c8db8', label: '균형' },
+                        { color: '#7c3aed', label: '균형' },
                         { color: '#e57373', label: '해충' },
                       ].map(({ color, label }) => (
                         <span key={label} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
@@ -681,11 +688,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                <Line type="basis" dataKey="bugsJ" stroke="#e57373" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={3} fill="#e57373" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="balanceJ" stroke="#5c8db8" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line type="basis" dataKey="powerJ" stroke="#66bb6a" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} connectNulls={true} />
-                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={3} fill="#66bb6a" /> : null} isAnimationActive={false} legendType="none" />
-                <Line dataKey="balanceNA" stroke="#5c8db8" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={3} fill="#5c8db8" /> : null} isAnimationActive={false} legendType="none" />
+                <Line type="basis" dataKey="bugsJ" stroke="#e57373" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={4} fill="#e57373" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="balanceJ" stroke="#7c3aed" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={4} fill="#7c3aed" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line type="basis" dataKey="powerJ" stroke="#66bb6a" strokeWidth={2} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={4} fill="#66bb6a" /> : null} isAnimationActive={false} connectNulls={true} />
+                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={4} fill="#66bb6a" /> : null} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={4} fill="#7c3aed" /> : null} isAnimationActive={false} legendType="none" />
               </LineChart>
             </ResponsiveContainer>
           </div>
