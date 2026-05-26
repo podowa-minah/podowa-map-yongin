@@ -129,6 +129,12 @@ const POWER_OPTIONS = ['판단불가/지켜봐야함', '1', '2', '3', '4', '5'];
 const BALANCE_OPTIONS = ['판단불가/지켜봐야함', '1', '2', '3', '4', '5'];
 const BUG_OPTIONS = [0, 1, 2, 3, 4, 5];
 
+// 보이는 라벨만 따로 (DB 값은 그대로 두고 표시만 짧게)
+const OPTION_LABELS = {
+  '판단불가/지켜봐야함': '판단불가 / 보류',
+};
+const labelOf = (v) => OPTION_LABELS[v] ?? v;
+
 const SEASON_CHECKBOX_COUNTS = { 1: 5, 2: 4, 3: 6, 4: 6, 5: 3, 6: 3 };
 
 const SEASON_OPTION_LABELS = {
@@ -1049,7 +1055,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 세력</label>
             <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
               {POWER_OPTIONS.map((p) => (
-                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{p}</button>
+                <button key={p} onClick={() => handleChange('power', treeData.power === p ? '' : p)} style={buttonStyle(treeData.power === p)}>{labelOf(p)}</button>
               ))}
             </div>
           </div>
@@ -1059,18 +1065,41 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             <label style={{ color: '#4b5563', fontWeight: 500 }}>나무의 균형도</label>
             <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
               {BALANCE_OPTIONS.map((b) => (
-                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{b}</button>
+                <button key={b} onClick={() => handleChange('balance', treeData.balance === b ? '' : b)} style={buttonStyle(treeData.balance === b)}>{labelOf(b)}</button>
               ))}
             </div>
           </div>
 
-          {/* 6. Bugs */}
+          {/* 6. Bugs — 0~5 한 줄 고정 (어떤 폰에서도) */}
           <div style={{ marginBottom: '0.3rem' }}>
             <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
-            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'wrap' }}>
-              {BUG_OPTIONS.map((num) => (
-                <button key={num} onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))} style={buttonStyle(treeData.bugs === String(num))}>{num}</button>
-              ))}
+            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'nowrap', gap: '0.3rem', marginTop: '0.3rem' }}>
+              {BUG_OPTIONS.map((num) => {
+                const active = treeData.bugs === String(num);
+                return (
+                  <button
+                    key={num}
+                    onClick={() => handleChange('bugs', active ? '' : String(num))}
+                    style={{
+                      flex: '1 1 0',
+                      minWidth: 0,
+                      padding: '0.85rem 0',
+                      fontSize: '1.2rem',
+                      textAlign: 'center',
+                      border: active ? '3px solid #16a34a' : '2px solid #e2e8f0',
+                      borderRadius: '0.7rem',
+                      backgroundColor: active ? '#16a34a' : '#fff',
+                      color: active ? '#ffffff' : '#1f2937',
+                      fontWeight: active ? 700 : 400,
+                      boxShadow: active ? '0 4px 0 rgba(20, 83, 45, 0.5)' : 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.1s ease',
+                    }}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
