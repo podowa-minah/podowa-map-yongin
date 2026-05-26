@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import grasslink from './assets/icons/grass.svg';
 import SaveCelebration from './components/SaveCelebration';
 import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
+import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -933,6 +934,61 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               })}
           </div>
         )}
+
+        {/* 만개일 → 자동 시기 타임라인 카드 (만개** 체크된 적 있을 때만) */}
+        {(() => {
+          const bloomIso = getBloomDateFromHistory(history);
+          if (!bloomIso) return null;
+          const tl = getStageTimelineFromBloom(bloomIso);
+          const cur = getCurrentStageFromBloom(bloomIso, todayMMDDYYYY ? todayMMDDYYYY.split('/').map(p => p.padStart(2, '0')).reverse().join('-').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3') : null);
+          // todayMMDDYYYY는 "MM/DD/YYYY" 형식 → ISO "YYYY-MM-DD" 변환
+          const today = todayMMDDYYYY ? (() => {
+            const [m, d, y] = todayMMDDYYYY.split('/');
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+          })() : null;
+          const curStage = getCurrentStageFromBloom(bloomIso, today);
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, #fce7f3 0%, #fef3c7 100%)',
+              border: '2px solid #f9a8d4',
+              borderRadius: '0.9rem',
+              padding: '0.8rem 1rem',
+              marginBottom: '0.7rem',
+              boxShadow: '0 2px 8px rgba(244, 114, 182, 0.12)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>🌸</span>
+                <strong style={{ color: '#9d174d' }}>만개일</strong>
+                <span style={{ fontWeight: 700, color: '#831843' }}>{bloomIso}</span>
+                <span style={{ color: '#9d174d', fontSize: '0.85rem' }}>({shortDate(bloomIso)})</span>
+              </div>
+
+              {curStage && (
+                <div style={{ color: '#7c2d12', marginBottom: '0.35rem' }}>
+                  <strong>현재:</strong> {curStage.num}.{curStage.name}
+                  {curStage.daysFromBloom >= 0 && (
+                    <span style={{ color: '#a16207', marginLeft: '0.4rem' }}>
+                      (만개 +{curStage.daysFromBloom}일째{curStage.daysToEnd !== null ? `, ${curStage.daysToEnd}일 남음` : ''})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.25rem 0.6rem', fontSize: '0.82rem', color: '#78350f', marginTop: '0.3rem' }}>
+                {tl.stages.map(s => (
+                  <div key={s.num}>
+                    <strong>{s.num}.{s.name}</strong> {shortDate(s.start)}~{shortDate(s.end)}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '0.5rem', padding: '0.4rem 0.6rem', backgroundColor: '#fef9c3', borderLeft: '3px solid #ca8a04', borderRadius: '0.3rem' }}>
+                🌾 <strong>수확 마감 예정</strong>: {tl.harvestEstimate}
+                <span style={{ color: '#a16207', marginLeft: '0.4rem' }}>(만개 +119일)</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 오늘 작업 카드 (날짜 + 생육시기) */}
         <div style={{
