@@ -485,7 +485,7 @@ export default function App() {
         />
 
         {selectedTree && (
-          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { if (window.history.state?.modal) window.history.back(); else setSelectedTree(null); setTimeout(loadAllRows, 500); }} onOpenGrass={(grassId) => { setSelectedTree(null); setTimeout(() => setSelectedGrassCell(grassId), 100); }} />
+          <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); if (window.history.state?.modal) window.history.back(); setTimeout(loadAllRows, 500); }} onOpenGrass={(grassId) => { setSelectedTree(null); setTimeout(() => setSelectedGrassCell(grassId), 100); }} />
         )}
 
         {selectedGrassCell && (
