@@ -51,24 +51,36 @@ export default function TreatmentIcons({ refreshKey = 0, onClickIrrigation, onCl
     whiteSpace: 'nowrap',
   });
 
+  // 두 아이콘 폭/높이 통일 → 라벨 baseline 자동 정렬
   const wrapperStyle = {
     display: 'inline-flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'flex-start',
     gap: 0,
+    width: 42,
+    height: 56,
+  };
+  const iconBoxStyle = {
+    height: 38,
+    display: 'flex',
+    alignItems: 'center',
   };
 
   return (
     <>
       <div style={wrapperStyle}>
-        <IconLink href="#" src={waterlink} alt="전체관수" size={38}
-          style={{ marginTop: '1px' }}
-          onClick={(e) => { e.preventDefault(); onClickIrrigation?.(); }} />
+        <div style={iconBoxStyle}>
+          <IconLink href="#" src={waterlink} alt="전체관수" size={38}
+            onClick={(e) => { e.preventDefault(); onClickIrrigation?.(); }} />
+        </div>
         <span style={labelStyle(irrEval.isDue)}>{irrLabel}</span>
       </div>
       <div style={wrapperStyle}>
-        <IconLink href="#" src={trtlink} alt="전체방제" size={37}
-          onClick={(e) => { e.preventDefault(); onClickPest?.(); }} />
+        <div style={iconBoxStyle}>
+          <IconLink href="#" src={trtlink} alt="전체방제" size={38}
+            onClick={(e) => { e.preventDefault(); onClickPest?.(); }} />
+        </div>
         <span style={labelStyle(pestEval.isDue)}>{pestLabel}</span>
       </div>
     </>
