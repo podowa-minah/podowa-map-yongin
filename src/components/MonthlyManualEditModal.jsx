@@ -62,8 +62,11 @@ export default function MonthlyManualEditModal({ category, onClose, onSaved }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '5vh 0', zIndex: 999, overflowY: 'auto',
+        overflow: 'auto',                  // 전체 스크롤은 outer가 담당
+        padding: '2rem 1rem',              // 위/아래 숨 쉴 공간
+        boxSizing: 'border-box',
+        zIndex: 999,
+        WebkitOverflowScrolling: 'touch',  // iOS 부드러운 스크롤
       }}
     >
       <div
@@ -71,8 +74,9 @@ export default function MonthlyManualEditModal({ category, onClose, onSaved }) {
         style={{
           background: 'linear-gradient(180deg, #faf7f0 0%, #f3ede0 100%)',
           padding: '1.2rem', borderRadius: '1.2rem',
-          maxWidth: '540px', width: '92%',
-          maxHeight: '90vh', overflowY: 'auto',
+          maxWidth: '540px', width: '100%',
+          margin: '0 auto',                // 좌우 가운데 정렬 (flex 없이)
+          // max-height 제거 → outer가 알아서 스크롤
           boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
           border: `3px solid ${info.border}`,
         }}
