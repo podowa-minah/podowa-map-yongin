@@ -23,6 +23,7 @@ import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
 import TreatmentStatusBar from './components/TreatmentStatusBar';
+import TreatmentIcons from './components/TreatmentIcons';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
 
@@ -436,8 +437,11 @@ export default function App() {
               ) : (
                 <IconLink href="#" src={grapelink} alt="farm map" size={38} style={{ transform: 'rotate(22deg)' }} onClick={(e) => { e.preventDefault(); setViewMode('farm'); }} />
               )}
-              <IconLink href="#" src={waterlink} alt="전체관수" size={38} style={{ marginTop: '1px' }} onClick={(e) => { e.preventDefault(); setShowIrrigation(true); }} />
-              <IconLink href="#" src={trtlink} alt="전체방제" size={37} onClick={(e) => { e.preventDefault(); setShowPestTreatment(true); }} />
+              <TreatmentIcons
+                refreshKey={treatmentRefreshKey}
+                onClickIrrigation={() => setShowIrrigation(true)}
+                onClickPest={() => setShowPestTreatment(true)}
+              />
               <button
                 className="header-toggle-btn"
                 onClick={() => setHeaderOpen((v) => !v)}
