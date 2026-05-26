@@ -620,7 +620,8 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             '',
             ...tl.stages.map(s => `${s.num}.${s.name}: ${s.start} ~ ${s.end}`),
             '',
-            `🍇 수확 마감: ${tl.harvestEstimate} (만개 +119일)`,
+            `🍇 수확 가능: ${tl.stages[3].start} ~ ${tl.harvestEstimate}`,
+            `   (성숙 완료 후 40일 안에 수확)`,
           ].filter(Boolean).join('\n') : null;
           return (
             <div
@@ -661,7 +662,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}
                 >
-                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(tl.harvestEstimate)}
+                  🌸 {shortDate(bloomIso)} · 🍇 {shortDate(tl.stages[3].start)}~{shortDate(tl.harvestEstimate)}
                   {cur && <span style={{ color: '#a16207', marginLeft: '0.25rem' }}>· {cur.num}.{cur.name}</span>}
                 </span>
               )}

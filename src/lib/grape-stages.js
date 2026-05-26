@@ -22,21 +22,24 @@ export const STAGE_FROM_BLOOM = [
 
 export const HARVEST_DEADLINE_DAYS = 119;
 
-// "YYYY-MM-DD" + n일 → "YYYY-MM-DD"
+// "YYYY-MM-DD" + n일 → "YYYY-MM-DD" (TZ 영향 없게 UTC로만 계산)
 function addDaysISO(isoDate, days) {
-  const d = new Date(`${isoDate}T00:00:00+09:00`);
-  d.setUTCDate(d.getUTCDate() + days);
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + days);
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// 두 ISO 날짜 사이 일수 (KST 자정 기준)
+// 두 ISO 날짜 사이 일수 (UTC 자정 기준 — TZ 영향 없음)
 function daysBetweenISO(fromIso, toIso) {
-  const from = new Date(`${fromIso}T00:00:00+09:00`);
-  const to = new Date(`${toIso}T00:00:00+09:00`);
-  return Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+  const [fy, fm, fd] = fromIso.split('-').map(Number);
+  const [ty, tm, td] = toIso.split('-').map(Number);
+  const from = Date.UTC(fy, fm - 1, fd);
+  const to = Date.UTC(ty, tm - 1, td);
+  return Math.floor((to - from) / (1000 * 60 * 60 * 24));
 }
 
 // history 배열에서 그 나무의 만개일(가장 이른 만개 체크 날짜) 찾기
