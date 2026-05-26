@@ -23,7 +23,7 @@ import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
 import TreatmentIcons from './components/TreatmentIcons';
-import EnvCautionLine from './components/EnvCautionLine';
+import MonthlyManualLine from './components/MonthlyManualLine';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
 
@@ -475,7 +475,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <EnvCautionLine refreshKey={treatmentRefreshKey} />
+          <MonthlyManualLine refreshKey={treatmentRefreshKey} />
           <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
