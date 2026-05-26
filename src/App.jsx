@@ -22,8 +22,8 @@ import waterlink from './assets/icons/global_water_small.png';
 import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
-import TreatmentStatusBar from './components/TreatmentStatusBar';
 import TreatmentIcons from './components/TreatmentIcons';
+import EnvCautionLine from './components/EnvCautionLine';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
 
@@ -475,11 +475,7 @@ export default function App() {
               </button>
             </div>
           )}
-          <TreatmentStatusBar
-            refreshKey={treatmentRefreshKey}
-            onClickIrrigation={() => setShowIrrigation(true)}
-            onClickPest={() => setShowPestTreatment(true)}
-          />
+          <EnvCautionLine refreshKey={treatmentRefreshKey} />
           <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
