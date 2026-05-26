@@ -17,7 +17,7 @@ createRoot(document.getElementById('root')).render(
       <LabelProvider>
         <GrassLabelProvider>
           <GrassTypesProvider>
-            <BrowserRouter basename="/farmt">
+            <BrowserRouter>
               <App />
             </BrowserRouter>
           </GrassTypesProvider>
