@@ -42,45 +42,40 @@ export default function TreatmentIcons({ refreshKey = 0, onClickIrrigation, onCl
   const irrLabel = !latestIrr ? '시작 전' : `${irrEval.daysPassed}일째`;
   const pestLabel = !latestPest ? '시작 전' : `다음 ${formatMD(pestEval.nextDate)}`;
 
+  // wrapper는 아이콘 크기만큼만, 라벨은 absolute로 아래에 띄움
+  //   → 다른 헤더 아이콘들(잎, 메뉴)이랑 vertical-center 정렬이 자연스럽게 맞음
+  const wrapperStyle = {
+    position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 42,
+    height: 38,
+  };
   const labelStyle = (isDue) => ({
+    position: 'absolute',
+    top: 'calc(100% + 1px)',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: '0.62rem',
     color: isDue ? '#dc2626' : '#9ca3af',
     fontWeight: 600,
     lineHeight: 1,
-    marginTop: '2px',
     whiteSpace: 'nowrap',
+    pointerEvents: 'none',
   });
-
-  // 두 아이콘 폭/높이 통일 → 라벨 baseline 자동 정렬
-  const wrapperStyle = {
-    display: 'inline-flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 0,
-    width: 42,
-    height: 56,
-  };
-  const iconBoxStyle = {
-    height: 38,
-    display: 'flex',
-    alignItems: 'center',
-  };
 
   return (
     <>
       <div style={wrapperStyle}>
-        <div style={iconBoxStyle}>
-          <IconLink href="#" src={waterlink} alt="전체관수" size={38}
-            onClick={(e) => { e.preventDefault(); onClickIrrigation?.(); }} />
-        </div>
+        <IconLink href="#" src={waterlink} alt="전체관수" size={38}
+          onClick={(e) => { e.preventDefault(); onClickIrrigation?.(); }} />
         <span style={labelStyle(irrEval.isDue)}>{irrLabel}</span>
       </div>
       <div style={wrapperStyle}>
-        <div style={iconBoxStyle}>
-          <IconLink href="#" src={trtlink} alt="전체방제" size={38}
-            onClick={(e) => { e.preventDefault(); onClickPest?.(); }} />
-        </div>
+        <IconLink href="#" src={trtlink} alt="전체방제" size={38}
+          onClick={(e) => { e.preventDefault(); onClickPest?.(); }} />
         <span style={labelStyle(pestEval.isDue)}>{pestLabel}</span>
       </div>
     </>
