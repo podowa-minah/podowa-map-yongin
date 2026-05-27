@@ -106,6 +106,25 @@ supabase/
 
 ## 5. 깃 / 협업 워크플로
 
+### ⚠️ 핵심 워크플로 (minari 명시 요구)
+
+**Claude는 코드 편집만. add/commit/push는 minari가 OK한 후에만.**
+
+```
+1. minari가 "X 바꿔줘"
+2. Claude가 코드 편집 (commit/push 안 함)
+3. Vite dev 서버가 localhost:5173 자동 반영
+4. minari가 로컬에서 확인
+5. OK → "푸쉬해" → 그때 Claude가 add/commit/push
+   NG → "이거 바꿔" → 2번부터 반복
+```
+
+**이유**: 매 iteration push하면 Vercel 무료 일일 한도(100/day) 빠르게 소진됨. 로컬에서 10번 다듬어도 push는 1번이면 됨.
+
+**예외**: minari가 명시적으로 "푸쉬도 같이 해줘" 한 경우만 add/commit/push 자동.
+
+### 그 외 규칙
+
 - **main 브랜치에 직접 푸쉬 금지.** 항상 새 브랜치에서 작업.
 - 브랜치 이름: `minari-기능명` 또는 `soyoung-기능명` (누가 작업했는지 명확히)
 - 작업 시작 전: `git pull origin main` 먼저

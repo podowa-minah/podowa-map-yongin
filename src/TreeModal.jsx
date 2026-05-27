@@ -818,6 +818,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                 />
                 <Tooltip
                   cursor={false}
+                  defaultIndex={history.length > 0 ? history.length - 1 : undefined}
                   content={({ active, payload, label }) => {
                     if (!active || !payload || payload.length === 0) return null;
                     const colorMap = { powerJ: '#66bb6a', powerNA: '#66bb6a', balanceJ: '#7c3aed', balanceNA: '#7c3aed', bugsJ: '#e57373' };
@@ -874,34 +875,34 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     strokeWidth={2}
                   />
                 ))}
-                {/* 메인 3개: Area로 변경 (선 + 그라데이션 채우기) */}
+                {/* dot은 마지막 데이터 포인트에서만 표시 (혼잡 방지). 호버는 정상 작동. */}
                 <Area
                   type="basis" dataKey="bugsJ"
                   stroke="#e57373" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
                   fill="url(#grad-bugs)"
-                  activeDot={false}
-                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx - 4} cy={cy} r={5} fill="#e57373" stroke="#fff" strokeWidth={2} /> : null}
+                  activeDot={{ r: 6, fill: '#e57373', stroke: '#fff', strokeWidth: 2 }}
+                  dot={({ cx, cy, value, index }) => (value != null && index === history.length - 1) ? <circle key={index} cx={cx - 4} cy={cy} r={6} fill="#e57373" stroke="#fff" strokeWidth={2.5} /> : null}
                   isAnimationActive={false} connectNulls={true}
                 />
                 <Area
                   type="basis" dataKey="balanceJ"
                   stroke="#7c3aed" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
                   fill="url(#grad-balance)"
-                  activeDot={false}
-                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null}
+                  activeDot={{ r: 6, fill: '#7c3aed', stroke: '#fff', strokeWidth: 2 }}
+                  dot={({ cx, cy, value, index }) => (value != null && index === history.length - 1) ? <circle key={index} cx={cx} cy={cy} r={6} fill="#7c3aed" stroke="#fff" strokeWidth={2.5} /> : null}
                   isAnimationActive={false} connectNulls={true}
                 />
                 <Area
                   type="basis" dataKey="powerJ"
                   stroke="#66bb6a" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"
                   fill="url(#grad-power)"
-                  activeDot={false}
-                  dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null}
+                  activeDot={{ r: 6, fill: '#66bb6a', stroke: '#fff', strokeWidth: 2 }}
+                  dot={({ cx, cy, value, index }) => (value != null && index === history.length - 1) ? <circle key={index} cx={cx + 4} cy={cy} r={6} fill="#66bb6a" stroke="#fff" strokeWidth={2.5} /> : null}
                   isAnimationActive={false} connectNulls={true}
                 />
-                {/* NA 표시 점만 (선 없음) */}
-                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx + 4} cy={cy} r={5} fill="#66bb6a" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
-                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => value != null ? <circle key={index} cx={cx} cy={cy} r={5} fill="#7c3aed" stroke="#fff" strokeWidth={2} /> : null} isAnimationActive={false} legendType="none" />
+                {/* NA(판단불가) 점은 마지막에만 표시 */}
+                <Line dataKey="powerNA" stroke="#66bb6a" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => (value != null && index === history.length - 1) ? <circle key={index} cx={cx + 4} cy={cy} r={6} fill="#66bb6a" stroke="#fff" strokeWidth={2.5} /> : null} isAnimationActive={false} legendType="none" />
+                <Line dataKey="balanceNA" stroke="#7c3aed" strokeWidth={0} activeDot={false} dot={({ cx, cy, value, index }) => (value != null && index === history.length - 1) ? <circle key={index} cx={cx} cy={cy} r={6} fill="#7c3aed" stroke="#fff" strokeWidth={2.5} /> : null} isAnimationActive={false} legendType="none" />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
