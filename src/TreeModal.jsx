@@ -1026,7 +1026,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                         borderRadius: '0.4rem',
                       }}>
                         <div style={{ color: '#92400e', fontWeight: 700, fontSize: '0.82rem', marginBottom: '0.1rem' }}>
-                          💬 코멘트
+                          💬 {row.producer ? `${row.producer} ` : ''}농부진단
                         </div>
                         <div style={{ color: '#451a03', fontStyle: 'italic' }}>
                           "{row.comments}"
