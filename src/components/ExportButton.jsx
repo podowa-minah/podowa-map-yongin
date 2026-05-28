@@ -227,6 +227,8 @@ export default function ExportButton() {
           '사진개수', '사진1', '사진2', '사진3',
           '날씨', '최고온도(°C)', '최저온도(°C)', '강수량(mm)',
           '일출', '일몰', '습도(%)',
+          '관수 동', '관수 시간(분)', '관수 메모',
+          '방제 약제', '방제 배율', '방제 방식', '방제 메모',
         ];
         const jHeaderRow = ws2.addRow(jHeaders);
         jHeaderRow.eachCell((cell) => {
@@ -252,10 +254,19 @@ export default function ExportButton() {
           { width: 8 },   // 일출
           { width: 8 },   // 일몰
           { width: 8 },   // 습도
+          { width: 10 },  // 관수 동
+          { width: 11 },  // 관수 시간
+          { width: 25 },  // 관수 메모
+          { width: 14 },  // 방제 약제
+          { width: 10 },  // 방제 배율
+          { width: 12 },  // 방제 방식
+          { width: 25 },  // 방제 메모
         ];
 
         journalData.forEach((entry) => {
           const w = entry.weather || {};
+          const irr = entry.irrigation || {};
+          const pest = entry.pest_treatment || {};
           const imgs = entry.image_urls || [];
           const created = entry.created_at
             ? new Date(entry.created_at).toISOString().slice(0, 19).replace('T', ' ')
@@ -276,6 +287,13 @@ export default function ExportButton() {
             w.sunrise || '',
             w.sunset || '',
             w.currentHumidity != null ? w.currentHumidity : '',
+            irr.blocks?.length > 0 ? irr.blocks.join(',') + '동' : '',
+            irr.duration_minutes != null ? irr.duration_minutes : '',
+            irr.note || '',
+            pest.chemical || '',
+            pest.dilution || '',
+            pest.method || '',
+            pest.note || '',
           ]);
         });
       }

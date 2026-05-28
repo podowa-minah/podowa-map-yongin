@@ -208,6 +208,7 @@ export default function App() {
   }, [user]);
 
   // 오늘 영농일지 작성 여부 → "Podowa" 버튼 불 상태 결정
+  // 텍스트 또는 사진이 있으면 "작성됨" (관수/방제만 입력된 빈 row는 미작성으로 간주)
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -215,12 +216,15 @@ export default function App() {
       const today = getKSTToday();
       const { data } = await supabase
         .from('daily_notes')
-        .select('id')
+        .select('id,content,image_urls')
         .eq('date', today)
         .eq('type', 'journal')
         .limit(1);
       if (!alive) return;
-      setJournalHasToday(!!(data && data.length > 0));
+      const row = data?.[0];
+      const hasContent = !!(row && row.content && row.content.trim().length > 0);
+      const hasImages = !!(row && row.image_urls && row.image_urls.length > 0);
+      setJournalHasToday(hasContent || hasImages);
     })();
     return () => { alive = false; };
   }, [user, journalRefreshKey]);
@@ -462,7 +466,8 @@ export default function App() {
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, paddingBottom: '14px' }}>
+            {/* 우측 아이콘 그룹 — 위쪽 정렬 (왼쪽 Podowa/날짜와 균형) */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flexShrink: 0, paddingTop: '2px' }}>
               {viewMode === 'farm' ? (
                 <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); setViewMode('grass'); }} />
               ) : (

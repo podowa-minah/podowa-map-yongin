@@ -377,9 +377,10 @@
 
 .header-bar-inner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;       /* 양쪽 위쪽 정렬 → 균형 */
   justify-content: space-between;
-  padding: 0.4rem 0.75rem;
+  padding: 0.5rem 0.75rem 0.45rem;
+  gap: 8px;
 }
 
 /* 햄버거 버튼 */

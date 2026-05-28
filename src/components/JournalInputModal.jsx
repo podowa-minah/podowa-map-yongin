@@ -9,6 +9,7 @@ import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import { createThumbnail } from '../utils/imageThumbnail';
 import { fetchDailyWeather, WEATHER_EMOJI, WEATHER_LABEL } from '../lib/weather';
+import { summarizeIrrigation, summarizePest, countIrrigation, countPest, countJournal } from '../lib/treatments';
 
 const MAX_PHOTOS = 3;
 const HISTORY_LIMIT = 60;  // 최근 60일까지
@@ -27,6 +28,7 @@ function formatDateTime(iso) {
 
 export default function JournalInputModal({ user, onClose, onSaved }) {
   const today = todayKST();
+  const [selectedDate, setSelectedDate] = useState(today);
   const [content, setContent] = useState('');
   const [imageUrls, setImageUrls] = useState([]);
   const [thumbnails, setThumbnails] = useState([]);
@@ -40,12 +42,14 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
-  // 백암면 오늘 날씨 자동 가져오기
+  // 선택된 날짜의 백암면 날씨 가져오기 (날짜 바뀌면 자동 재요청)
   useEffect(() => {
     let alive = true;
+    setWeather(null);
+    setWeatherError(false);
     (async () => {
       try {
-        const w = await fetchDailyWeather(today);
+        const w = await fetchDailyWeather(selectedDate);
         if (alive) setWeather(w);
       } catch (e) {
         console.error('Weather fetch error:', e);
@@ -53,11 +57,16 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
       }
     })();
     return () => { alive = false; };
-  }, [today]);
+  }, [selectedDate]);
 
-  // 오늘 일지 + 과거 히스토리 한 번에 fetch
+  // 선택된 날짜의 일지 + 전체 히스토리
   useEffect(() => {
     let alive = true;
+    setLoading(true);
+    setExisting(null);
+    setContent('');
+    setImageUrls([]);
+    setThumbnails([]);
     (async () => {
       const { data } = await supabase
         .from('daily_notes')
@@ -68,20 +77,19 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
         .limit(HISTORY_LIMIT);
       if (!alive) return;
       if (data) {
-        const todayRow = data.find(n => n.date === today);
-        if (todayRow) {
-          setExisting(todayRow);
-          setContent(todayRow.content || '');
-          setImageUrls(todayRow.image_urls || []);
-          setThumbnails(todayRow.thumbnails || []);
+        const dateRow = data.find(n => n.date === selectedDate);
+        if (dateRow) {
+          setExisting(dateRow);
+          setContent(dateRow.content || '');
+          setImageUrls(dateRow.image_urls || []);
+          setThumbnails(dateRow.thumbnails || []);
         }
-        // 히스토리는 오늘 거 포함 (저장 즉시 쌓이는 거 보이게)
         setHistory(data);
       }
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, [today]);
+  }, [selectedDate]);
 
   async function handleFileSelected(file) {
     if (!file) return;
@@ -91,7 +99,7 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
     // 한글/공백 등 invalid char 방지 — 확장자만 살리고 안전한 ID 사용
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
     const safeExt = ext || 'jpg';
-    const fileName = `journal/${today}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+    const fileName = `journal/${selectedDate}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
 
     const { error } = await supabase.storage.from('tree-images').upload(fileName, file);
     if (error) {
@@ -200,7 +208,7 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
     if (existing) {
       result = await supabase.from('daily_notes').update(payload).eq('id', existing.id);
     } else {
-      result = await supabase.from('daily_notes').insert({ date: today, type: 'journal', ...payload });
+      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', ...payload });
     }
     setSaving(false);
     if (result?.error) {
@@ -242,12 +250,60 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
           <span style={{ fontSize: '1.4rem' }}>📔</span>
           <h2 style={{ margin: 0, fontSize: '1.15rem', flex: 1 }}>
-            오늘의 영농일지 <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>({today})</span>
+            영농일지 {selectedDate === today && <span style={{ fontSize: '0.85rem', color: '#92400e', fontWeight: 700, background: '#fde68a', padding: '1px 6px', borderRadius: 4 }}>오늘</span>}
           </h2>
+          {/* 닫기 X — 우측 상단 */}
+          <button
+            onClick={onClose}
+            aria-label="닫기"
+            title="닫기"
+            style={{
+              width: 32, height: 32, flexShrink: 0,
+              borderRadius: '50%',
+              border: '1px solid #d6c8a8',
+              backgroundColor: '#fffefb',
+              color: '#6b7280',
+              fontSize: '1.05rem', fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(120, 90, 40, 0.15)',
+              lineHeight: 1, padding: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 날짜 선택 — 과거 일지 채워넣기 가능 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+          <label style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600 }}>날짜:</label>
+          <input
+            type="date"
+            value={selectedDate}
+            max={today}
+            onChange={(e) => setSelectedDate(e.target.value || today)}
+            style={{
+              padding: '0.35rem 0.6rem',
+              border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+              background: '#fffefb', fontFamily: 'inherit', fontSize: '0.9rem',
+            }}
+          />
+          {selectedDate !== today && (
+            <button
+              onClick={() => setSelectedDate(today)}
+              style={{
+                fontSize: '0.75rem', padding: '0.25rem 0.55rem',
+                border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+                background: '#fff', color: '#6b7280', cursor: 'pointer',
+              }}
+            >오늘로</button>
+          )}
         </div>
 
         <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0 0 0.6rem' }}>
-          오늘 농장 전체의 한 줄 감각/요약을 적어주세요.
+          {selectedDate === today
+            ? '오늘 농장 전체의 한 줄 감각/요약을 적어주세요.'
+            : '과거 일지를 채워넣고 있어요. 사진/날씨 모두 그날 기준으로 저장됩니다.'}
         </p>
 
         {/* ── 백암면 날씨 자동 표시 — 순수 텍스트 (CSV/Excel 친화) ── */}
@@ -431,6 +487,70 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
             </span>
           </div>
 
+          {/* 년도별 누적 요약 카드 */}
+          {history.length > 0 && (() => {
+            const currentYear = new Date().getFullYear();
+            const thisYearHistory = history.filter(h => h.date && h.date.startsWith(String(currentYear)));
+            return (
+              <div style={{
+                marginBottom: '0.7rem',
+                background: '#fffefb',
+                border: '1px solid #d6c8a8',
+                borderRadius: '0.6rem',
+                padding: '0.6rem 0.8rem',
+                boxShadow: '0 1px 2px rgba(120, 90, 40, 0.06)',
+              }}>
+                <div style={{
+                  fontSize: '0.78rem', fontWeight: 700, color: '#92400e',
+                  marginBottom: '0.4rem',
+                }}>
+                  {currentYear}년 누적
+                </div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '0.5rem',
+                }}>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '0.4rem 0',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '0.4rem',
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600 }}>관수</div>
+                    <div style={{ fontSize: '1.05rem', color: '#1e40af', fontWeight: 800 }}>
+                      {countIrrigation(thisYearHistory)}<span style={{ fontSize: '0.7rem', fontWeight: 600, marginLeft: '2px' }}>회</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '0.4rem 0',
+                    background: '#fffbeb',
+                    border: '1px solid #fde68a',
+                    borderRadius: '0.4rem',
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600 }}>방제</div>
+                    <div style={{ fontSize: '1.05rem', color: '#92400e', fontWeight: 800 }}>
+                      {countPest(thisYearHistory)}<span style={{ fontSize: '0.7rem', fontWeight: 600, marginLeft: '2px' }}>회</span>
+                    </div>
+                  </div>
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '0.4rem 0',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '0.4rem',
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', fontWeight: 600 }}>일지</div>
+                    <div style={{ fontSize: '1.05rem', color: '#166534', fontWeight: 800 }}>
+                      {countJournal(thisYearHistory)}<span style={{ fontSize: '0.7rem', fontWeight: 600, marginLeft: '2px' }}>건</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {loading ? (
             <div style={{ fontSize: '0.85rem', color: '#9ca3af' }}>불러오는 중...</div>
           ) : history.length === 0 ? (
@@ -441,6 +561,7 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '360px', overflowY: 'auto' }}>
               {history.map(entry => {
                 const isToday = entry.date === today;
+                const isSelected = entry.date === selectedDate;
                 return (
                 <div
                   key={entry.id}
@@ -519,7 +640,7 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
                     </div>
                   )}
                   {entry.thumbnails && entry.thumbnails.length > 0 && (
-                    <div style={{ display: 'flex', gap: '4px' }}>
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: (entry.irrigation || entry.pest_treatment) ? '0.4rem' : 0 }}>
                       {entry.thumbnails.map((t, i) => t && (
                         <a key={i} href={entry.image_urls?.[i] || t} target="_blank" rel="noreferrer">
                           <img
@@ -533,6 +654,36 @@ export default function JournalInputModal({ user, onClose, onSaved }) {
                           />
                         </a>
                       ))}
+                    </div>
+                  )}
+                  {/* 관수 라인 (있으면) — 파란 배경으로 강조 */}
+                  {entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.note) && (
+                    <div style={{
+                      marginTop: '0.35rem',
+                      padding: '0.4rem 0.55rem',
+                      background: '#eff6ff',
+                      borderLeft: '3px solid #3b82f6',
+                      borderRadius: '0.35rem',
+                      fontSize: '0.8rem',
+                      color: '#1e3a8a',
+                    }}>
+                      <span style={{ fontWeight: 700 }}>💧 관수</span>
+                      {' '}{summarizeIrrigation(entry.irrigation)}
+                    </div>
+                  )}
+                  {/* 방제 라인 (있으면) — 노란 배경으로 강조 */}
+                  {entry.pest_treatment && (entry.pest_treatment.chemical || entry.pest_treatment.note) && (
+                    <div style={{
+                      marginTop: '0.35rem',
+                      padding: '0.4rem 0.55rem',
+                      background: '#fffbeb',
+                      borderLeft: '3px solid #f59e0b',
+                      borderRadius: '0.35rem',
+                      fontSize: '0.8rem',
+                      color: '#78350f',
+                    }}>
+                      <span style={{ fontWeight: 700 }}>💊 방제</span>
+                      {' '}{summarizePest(entry.pest_treatment)}
                     </div>
                   )}
                 </div>
