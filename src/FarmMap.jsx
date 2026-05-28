@@ -324,14 +324,29 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 style={{
                   width: cellW,
                   height: cellH + 10,
-                  backgroundColor: "#d3d3d3",
-                  opacity: 0.5,
-                  borderRadius: 2,
+                  backgroundColor: "#ede4cf",   // 크림톤에 어울리는 베이지
+                  opacity: 0.55,
+                  borderRadius: 5,              // 살짝 둥글게
                   cursor: "pointer",
                 }}
               />
             );
           }
+
+          // 할일(색깔 있는 셀) = 진하게 띄움 / 완료(흰 셀) = 차분하게
+          const isNamedCard = !!lbl.name;
+          const hasTodo = signalOn && anyOn;        // 색깔 있음 = 할 일
+          const cardShadow = (hasTodo && anyOverdue)
+            // 빨강 (긴급 할일) — 둥둥 떠 보이게
+            ? "0 0 0 1.5px rgba(220, 80, 60, 0.7), 0 5px 12px rgba(220, 80, 60, 0.30), 0 2px 4px rgba(220, 80, 60, 0.20)"
+            : hasTodo
+              // 초록 (오늘 할일) — 또렷하게 띄움
+              ? "0 0 0 1.5px #6fa97a, 0 5px 12px rgba(60, 130, 80, 0.28), 0 2px 4px rgba(60, 130, 80, 0.15)"
+              : isNamedCard
+                // 흰 카드 (완료/관리 중) — 차분, 평평
+                ? "0 0 0 1px #d6c8a8, 0 1px 2px rgba(120, 90, 40, 0.08)"
+                // 빈 칸 — 거의 평평
+                : "0 0 0 1px #e0d4b5, 0 0px 1px rgba(120, 90, 40, 0.04)";
 
           return (
             <div
@@ -343,9 +358,13 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                outline: "1.5px solid #000000",
-                backgroundColor: (signalOn && anyOn) ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : undefined,
+                boxShadow: cardShadow,
+                borderRadius: 5,
+                backgroundColor: hasTodo ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : '#fffefb',
+                overflow: "hidden",            // 둥근 모서리 안쪽까지 잘림
                 position: "relative",
+                // 흰 카드(완료)는 살짝 가라앉게, 색깔 카드는 살짝 위로
+                transform: hasTodo ? 'translateY(-1px)' : 'none',
               }}
             >
               {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 헛돌봄=오렌지, 착한돌봄=파랑) */}

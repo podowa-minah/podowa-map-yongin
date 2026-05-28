@@ -7,7 +7,9 @@
 .app-wrapper {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #f7fafc;
+  /* TreeModal과 톤앤매너 통일 — 크림색 그라데이션 */
+  background: linear-gradient(180deg, #faf7f0 0%, #f3ede0 100%);
+  background-attachment: fixed;
 }
 
 .app-container {
@@ -21,13 +23,23 @@
 }
 
 .app-header {
-  background: white;
-  border-bottom: 2px solid #e2e8f0;
-  padding: 16px 24px;
+  /* 맵 위 카드처럼 — 카드 셀과 동일한 톤앤매너 */
+  background: #fffefb;
+  /* 카드 셀과 같은 boxShadow 패턴 (1px 베이지 보더 + 부드러운 그림자) */
+  box-shadow:
+    0 0 0 1px #c9b890,
+    0 3px 10px rgba(120, 90, 40, 0.15);
+  border: none;
+  /* 상단의 보라 액센트 바 — TreeModal 상단과 통일 */
+  border-top: 4px solid #6d28d9;
+  /* 카드 느낌 — 좌/우/하단에만 라운드 (top은 페이지 끝과 붙음) */
+  border-radius: 0 0 12px 12px;
+  /* 좌우/하단에 살짝 여백 → 카드가 떠있는 느낌 */
+  margin: 0 6px 4px;
+  padding: 14px 20px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -51,8 +63,9 @@
 }
 
 .version {
-  background: #edf2f7;
-  color: #4a5568;
+  /* 보라 톤 — 헤더 액센트 컬러와 통일 */
+  background: #ede9fe;
+  color: #6d28d9;
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;

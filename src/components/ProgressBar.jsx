@@ -133,7 +133,7 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
       </>
     ) : (
       <>
-      {/* 바 + 농부 (왼쪽, 넓게) */}
+      {/* 바 + 농부 (왼쪽, 넓게) — 헤더 원래 높이 유지 (38px) */}
       <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
         {/* 배경 바 */}
         <div style={{
@@ -156,26 +156,30 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
           }} />
         </div>
 
-        {/* 농부 캐릭터 */}
+        {/* 농부 캐릭터 — 주인공! 50x56 유지
+            top: -22 → -10 으로 내려서 날짜 텍스트 안 가리게
+            (살짝 바를 넘어 내려와 맵 위에서 일하는 느낌) */}
         <img
           src={farmerSVG}
           alt="farmer"
           onClick={() => setShowLog(v => !v)}
           style={{
             position: 'absolute',
-            left: `clamp(-17px, calc(${pct}% - 17px), calc(100% - 22px))`,
-            top: '0px',
-            width: '30px',
-            height: '34px',
+            left: `clamp(-28px, calc(${pct}% - 28px), calc(100% - 36px))`,
+            top: '-10px',
+            width: '50px',
+            height: '56px',
             transition: 'left 0.5s ease',
-            filter: isComplete ? 'drop-shadow(0 0 4px gold)' : 'none',
-            zIndex: 1,
+            filter: isComplete
+              ? 'drop-shadow(0 0 8px gold)'
+              : 'drop-shadow(0 2px 3px rgba(120,90,40,0.30))',
+            zIndex: 5,
             cursor: 'pointer',
           }}
         />
       </div>
 
-      {/* 오른쪽: 초록점(위) + 퍼센트(아래) */}
+      {/* 오른쪽: 초록점(위) + 퍼센트(아래) — 원래 38px 로 복귀 */}
       <div style={{
         flexShrink: 0,
         display: 'flex',
@@ -204,14 +208,34 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
             </span>
           </span>
         ) : <span />}
+        {/* 퍼센트 표시 — 성장 이모지 + 보라 그라데이션 숫자 + 회색 분수 */}
         <span style={{
           fontSize: '0.75rem',
-          fontWeight: 600,
-          color: '#4a5568',
+          fontWeight: 700,
           whiteSpace: 'nowrap',
           marginBottom: '3.4px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '3px',
+          padding: '1px 7px',
+          background: 'rgba(255, 255, 255, 0.7)',
+          borderRadius: '10px',
+          boxShadow: '0 1px 2px rgba(120, 90, 40, 0.08)',
         }}>
-          {`${pct}% (${completed}/${total})`}
+          <span aria-hidden="true">
+            {pct === 100 ? '🎉' : pct >= 80 ? '🍇' : pct >= 50 ? '🌳' : pct >= 25 ? '🌿' : pct > 0 ? '🌱' : '💤'}
+          </span>
+          <span style={{
+            background: 'linear-gradient(90deg, #667eea, #764ba2)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontWeight: 800,
+          }}>
+            {pct}%
+          </span>
+          <span style={{ color: '#a0aec0', fontWeight: 500 }}>
+            ({completed}/{total})
+          </span>
         </span>
       </div>
       </>
