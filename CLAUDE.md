@@ -260,3 +260,104 @@ supabase/
 ### 🎯 한 줄 요약
 
 > **trees + lib + 작은 컴포넌트.** 그 외 다른 구조 만들기 전에 한 번 더 생각.
+
+---
+
+## 11. 효율 유지 자동 체크리스트 (스파게티 방지)
+
+매 새 기능 시작 전 Claude가 **자동으로 통과해야 할 게이트**.
+
+### 🚦 작업 시작 전 4가지 자문 (Claude 내부 체크)
+
+```
+[ ] 1. 새 컬럼/테이블 만들기 전 → "이거 trees(또는 기존 테이블)에서 계산 가능?" 자문
+       → YES → 새 컬럼 X, src/lib/ 함수로 처리
+       → NO → 새 컬럼/테이블 OK (단, minari에 알림 + schema.sql 동기화)
+
+[ ] 2. 새 컴포넌트 vs 기존 수정 → "이게 기존 컴포넌트랑 다른 역할인가?"
+       → YES → 새 파일 (src/components/X.jsx)
+       → NO → 기존 파일 작은 수정
+
+[ ] 3. 큰 파일(>500줄) 건드리려 함 → STOP, minari에 한 번 더 확인
+       (TreeModal 1500+, GrassModal 1300+ — 절대 자동으로 X)
+
+[ ] 4. 같은 코드 3번째 복붙하려 함 → STOP, src/utils/ 또는 src/lib/로 추출
+       (createThumbnail 같은 거)
+```
+
+### 📏 파일 크기 가이드라인
+
+| 종류 | 권장 | 경고 | 강제 분리 |
+|---|---|---|---|
+| `src/components/` (UI 컴포넌트) | <300줄 | 500줄 | **700줄** |
+| `src/lib/` (순수 함수) | <80줄 | 150줄 | 200줄 (도메인 분리) |
+| `src/utils/` (유틸) | <50줄 | 100줄 | 150줄 |
+| `src/App.jsx` (오케스트레이터) | 새 기능 추가 시 ~10줄만 (import + state + JSX) |
+
+→ 경고선 도달 시 **Claude가 minari에 먼저 "분리 권장" 알림 보낼 것**.
+
+### 🎨 명명 규칙 (소영이 패턴)
+
+| 종류 | 패턴 | 예시 |
+|---|---|---|
+| 입력 모달 | `XxxInputModal.jsx` | `JournalInputModal`, `IrrigationInputModal` |
+| 일반 모달 | `XxxModal.jsx` | `TreeModal`, `GrassModal` |
+| 작은 팝업 | `XxxPopup.jsx` | `RenamePopup`, `AnnouncementPopup` |
+| 헤더 아이콘 | `XxxIcons.jsx` 또는 `XxxIcon.jsx` | `TreatmentIcons` |
+| 도메인 lib | `lib/<도메인>.js` | `weather.js`, `journal.js` |
+| 계산 lib | `lib/<도메인>-metrics.js` | `bloom-metrics.js` (예시) |
+| 작은 유틸 | `utils/<기능>.js` | `imageThumbnail.js`, `dailyStats.js` |
+| Context | `XxxContext.jsx` | `LabelContext`, `SignalLightsContext` |
+| Hook | `hooks/useXxx.js` | (앞으로 만들 거) |
+
+### 🚫 빨간 깃발 (자동 STOP)
+
+작업 중 다음 상황 발생 시 코드 멈추고 minari에 묻기:
+
+1. **`npm install` 하려 함** → STOP, 무조건 minari 승인 필요
+2. **TreeModal/GrassModal/HistoryPopup 편집하려 함** → STOP, 새 컴포넌트로 우회 가능한지 먼저 검토
+3. **DB DELETE 쿼리 추가하려 함** → STOP, soft-delete 패턴(archived_at, deleted) 가능한지 확인
+4. **새 Supabase 테이블 만들려 함** → STOP, 기존 테이블 ALTER로 가능한지 우선 검토
+5. **service_role key 사용하려 함** → 절대 안 됨
+6. **localStorage에 민감 정보 저장하려 함** → STOP, 다른 방식 검토
+
+### ✅ 재사용 우선 (만들기 전 검색)
+
+새 기능 만들 때 항상 **기존에 비슷한 거 있는지 먼저 검색**:
+
+```bash
+# 예: 영농일지 추가 전에 자동 점검
+grep -r "daily_notes" src/   # 기존 사용 패턴 파악
+grep -r "createThumbnail" src/  # 썸네일 함수 이미 있는지
+ls src/lib/ src/utils/ src/components/  # 기존 파일 목록
+```
+
+기존 코드를 못 보고 새로 만들면 = 중복 = 스파게티의 시작.
+
+### 📦 데이터 저장 우선순위
+
+새 정보 저장할 때 이 순서로 시도:
+
+```
+1순위: 기존 테이블에 컬럼 추가 (ALTER ADD COLUMN)
+       예: daily_notes에 image_urls, thumbnails, weather 추가
+2순위: 기존 테이블의 jsonb 컬럼 안에 키 추가
+       예: trees.season_data 안에 새 옵션
+3순위: 새 테이블 (정말 raw data 새 차원일 때만)
+       예: irrigations, pest_treatments
+4순위: 절대 만들지 말 것: 계산 가능한 값을 위한 컬럼/테이블
+       예: bloom_ratio 컬럼 ❌ (계산해서 표시)
+```
+
+### 🔍 코드 리뷰 셀프 체크 (커밋 전)
+
+- [ ] 같은 함수 다른 파일에 있나? (중복 추출)
+- [ ] 컴포넌트가 너무 큰가? (700줄 넘으면 분리)
+- [ ] lib 함수 React/DOM 안 쓰나? (순수 유지)
+- [ ] CLAUDE.md 섹션 10 원칙 지켰나? (DB → lib → 컴포넌트)
+- [ ] 새 파일 이름이 컨벤션 따르나? (위 표 참조)
+- [ ] minari 입장에서 디버깅 가능한가? (에러 메시지 user-friendly)
+
+### 🎯 한 줄 요약
+
+> **새 기능 = 새 파일 / 기존 활용 / 작게 / 순수 함수.** 의심나면 minari에 한 번 더 묻기.
