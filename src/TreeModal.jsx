@@ -628,7 +628,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                 display: 'flex', flexDirection: 'column', gap: '0.4rem',
               }}
             >
-              {/* Row 1: 나무 이름 + 잎 아이콘 */}
+              {/* Row 1: 나무 이름 + 잎 아이콘 + 닫기 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span
                   onClick={() => { setArchivePassword(''); setArchiveError(''); setShowArchiveModal(true); }}
@@ -650,6 +650,27 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     style={{ width: 32, height: 32, cursor: 'pointer', opacity: 0.7, flexShrink: 0 }}
                   />
                 )}
+                {/* 닫기 X — 우측 상단, sticky 헤더 안에 위치 */}
+                <button
+                  onClick={onClose}
+                  aria-label="닫기"
+                  style={{
+                    width: 32, height: 32, flexShrink: 0,
+                    borderRadius: '50%',
+                    border: '1px solid #d6c8a8',
+                    backgroundColor: '#fffefb',
+                    color: '#6b7280',
+                    fontSize: '1.05rem', fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 1px 3px rgba(120, 90, 40, 0.15)',
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                  title="닫기"
+                >
+                  ✕
+                </button>
               </div>
 
               {/* Row 2: 만개 칩 (자기 줄, 안 잘림) */}
