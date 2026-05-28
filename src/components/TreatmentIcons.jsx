@@ -115,25 +115,13 @@ export default function TreatmentIcons({ refreshKey = 0, onClickIrrigation, onCl
   const irrLabel = !latestIrrDate ? '시작 전' : `${irrEval.daysPassed}일째`;
   const pestLabel = !latestPestDate ? '시작 전' : `다음 ${formatMD(pestEval.nextDate)}`;
 
-  // 버튼 wrapper — 클릭 가능, 불 켜짐 시 글로우+펄스
-  function IconButton({ lit, onClick, ariaLabel, children, glowColor }) {
+  // 게임 아이템 슬롯 버튼 — 슬롯 안에 SVG 아이콘
+  function IconButton({ lit, onClick, ariaLabel, children, litClass }) {
     return (
       <button
         onClick={onClick}
         aria-label={ariaLabel}
-        style={{
-          position: 'relative',
-          width: 42, height: 38,
-          padding: 0,
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          filter: lit ? `drop-shadow(0 0 4px ${glowColor}) drop-shadow(0 0 8px ${glowColor})` : 'none',
-          animation: lit ? 'treatmentPulse 1.8s ease-in-out infinite' : 'none',
-        }}
+        className={`item-slot ${lit ? litClass : ''}`}
       >
         {children}
       </button>
@@ -157,26 +145,19 @@ export default function TreatmentIcons({ refreshKey = 0, onClickIrrigation, onCl
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    width: 42,
+    width: 38,
   };
 
   return (
     <>
-      <style>{`
-        @keyframes treatmentPulse {
-          0%, 100% { transform: scale(1); }
-          50%      { transform: scale(1.08); }
-        }
-      `}</style>
-
       <div style={stackStyle}>
         <IconButton
           lit={irrEval.isDue}
           onClick={onClickIrrigation}
           ariaLabel="전체관수"
-          glowColor="rgba(14, 165, 233, 0.7)"
+          litClass="lit-blue"
         >
-          <WaterDropIcon lit={irrEval.isDue} size={38} />
+          <WaterDropIcon lit={irrEval.isDue} size={26} />
         </IconButton>
         <span style={labelStyle(irrEval.isDue)}>{irrLabel}</span>
       </div>
@@ -186,9 +167,9 @@ export default function TreatmentIcons({ refreshKey = 0, onClickIrrigation, onCl
           lit={pestEval.isDue}
           onClick={onClickPest}
           ariaLabel="전체방제"
-          glowColor="rgba(251, 191, 36, 0.7)"
+          litClass="lit-amber"
         >
-          <PestBottleIcon lit={pestEval.isDue} size={38} />
+          <PestBottleIcon lit={pestEval.isDue} size={26} />
         </IconButton>
         <span style={labelStyle(pestEval.isDue)}>{pestLabel}</span>
       </div>

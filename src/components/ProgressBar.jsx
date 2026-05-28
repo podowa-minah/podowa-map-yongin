@@ -92,8 +92,8 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
   return (
     <div style={{
       padding: isEmpty ? '6px 0.85rem' : '4px 0.85rem',
-      background: '#fff',
-      borderBottom: '1px solid #e0e0e0',
+      /* 헤더와 같은 베이지 그라데이션 — 통일감 */
+      background: 'transparent',
       display: 'flex',
       alignItems: 'center',
       gap: isEmpty ? '10px' : '8px',
@@ -135,30 +135,73 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
       <>
       {/* 바 + 농부 (왼쪽, 넓게) — 헤더 원래 높이 유지 (38px) */}
       <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
-        {/* 배경 바 */}
+        {/* 게임 HP 바 — 굵고 깊이감 있게 (민트 톤) */}
         <div style={{
           position: 'absolute',
-          top: '24px',
+          top: '20px',
           left: 0,
           right: 0,
-          height: '10px',
-          background: '#e2e8f0',
-          borderRadius: '5px',
+          height: '14px',
+          background: 'linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%)',
+          borderRadius: '7px',
           overflow: 'hidden',
+          border: '1.5px solid #16a34a',
+          boxShadow: 'inset 0 2px 3px rgba(22, 163, 74, 0.20), 0 1px 0 rgba(255, 255, 255, 0.8)',
         }}>
-          {/* 채워진 바 */}
+          {/* 채워진 바 — 보라 그라데이션 + 위쪽 하이라이트 */}
           <div style={{
             height: '100%',
-            width: isComplete ? 'calc(100% - 10px)' : `${pct}%`,
-            background: 'linear-gradient(90deg, #667eea, #764ba2)',
-            borderRadius: '5px',
+            width: isComplete ? '100%' : `${pct}%`,
+            background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 50%, #5b21b6 100%)',
+            borderRadius: '5.5px 0 0 5.5px',
             transition: 'width 0.5s ease',
-          }} />
+            position: 'relative',
+            boxShadow:
+              'inset 0 1px 0 rgba(255, 255, 255, 0.4),' +    /* 위쪽 하이라이트 */
+              'inset 0 -2px 3px rgba(67, 20, 142, 0.4)',     /* 아래 깊이감 */
+          }}>
+            {/* 광택 효과 — 바 위쪽 */}
+            <div style={{
+              position: 'absolute',
+              top: '1px',
+              left: '4px',
+              right: '4px',
+              height: '4px',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%)',
+              borderRadius: '4px',
+              pointerEvents: 'none',
+            }} />
+          </div>
         </div>
 
-        {/* 농부 캐릭터 — 주인공! 50x56 유지
-            top: -22 → -10 으로 내려서 날짜 텍스트 안 가리게
-            (살짝 바를 넘어 내려와 맵 위에서 일하는 느낌) */}
+        {/* 농부 캐릭터 — 주인공! 살짝 흔들흔들 + 따뜻한 후광 */}
+        <style>{`
+          @keyframes farmerSway {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25%      { transform: translateY(-1px) rotate(-2deg); }
+            75%      { transform: translateY(-1px) rotate(2deg); }
+          }
+          @keyframes farmerSparkle {
+            0%, 100% { opacity: 0; transform: scale(0.7); }
+            50%      { opacity: 1; transform: scale(1.1); }
+          }
+        `}</style>
+        {/* 후광 (등 뒤 노란빛) */}
+        <div style={{
+          position: 'absolute',
+          left: `clamp(-26px, calc(${pct}% - 26px), calc(100% - 34px))`,
+          top: '-6px',
+          width: '46px',
+          height: '46px',
+          background: isComplete
+            ? 'radial-gradient(circle, rgba(252, 211, 77, 0.55) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(252, 211, 77, 0.30) 0%, transparent 70%)',
+          borderRadius: '50%',
+          transition: 'left 0.5s ease',
+          pointerEvents: 'none',
+          zIndex: 4,
+        }} />
+        {/* 농부 본체 */}
         <img
           src={farmerSVG}
           alt="farmer"
@@ -171,12 +214,37 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
             height: '56px',
             transition: 'left 0.5s ease',
             filter: isComplete
-              ? 'drop-shadow(0 0 8px gold)'
+              ? 'drop-shadow(0 0 8px gold) drop-shadow(0 2px 3px rgba(120,90,40,0.30))'
               : 'drop-shadow(0 2px 3px rgba(120,90,40,0.30))',
             zIndex: 5,
             cursor: 'pointer',
+            animation: 'farmerSway 3.5s ease-in-out infinite',
+            transformOrigin: '50% 80%',
           }}
         />
+        {/* 완료 시 반짝이 ✨ */}
+        {isComplete && (
+          <>
+            <span style={{
+              position: 'absolute',
+              left: `clamp(0px, calc(${pct}% + 8px), calc(100% - 14px))`,
+              top: '-12px',
+              fontSize: '0.85rem',
+              animation: 'farmerSparkle 1.5s ease-in-out infinite',
+              pointerEvents: 'none',
+              zIndex: 6,
+            }}>✨</span>
+            <span style={{
+              position: 'absolute',
+              left: `clamp(-30px, calc(${pct}% - 18px), calc(100% - 36px))`,
+              top: '-2px',
+              fontSize: '0.75rem',
+              animation: 'farmerSparkle 1.5s ease-in-out infinite 0.7s',
+              pointerEvents: 'none',
+              zIndex: 6,
+            }}>⭐</span>
+          </>
+        )}
       </div>
 
       {/* 오른쪽: 초록점(위) + 퍼센트(아래) — 원래 38px 로 복귀 */}

@@ -466,20 +466,33 @@ export default function App() {
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
             </div>
-            {/* 우측 아이콘 그룹 — 위쪽 정렬 (왼쪽 Podowa/날짜와 균형) */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flexShrink: 0, paddingTop: '2px' }}>
-              {viewMode === 'farm' ? (
-                <IconLink href="#" src={grasslink} alt="grass map" size={38} onClick={(e) => { e.preventDefault(); setViewMode('grass'); }} />
-              ) : (
-                <IconLink href="#" src={grapelink} alt="farm map" size={38} style={{ transform: 'rotate(22deg)' }} onClick={(e) => { e.preventDefault(); setViewMode('farm'); }} />
-              )}
+            {/* 우측 아이콘 그룹 — 게임 아이템 슬롯 스타일 (RPG 인벤토리) */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', flexShrink: 0, paddingTop: '2px' }}>
+              {/* 잎/포도 슬롯 (지도 전환) */}
+              <button
+                className="item-slot"
+                onClick={() => setViewMode(viewMode === 'farm' ? 'grass' : 'farm')}
+                aria-label={viewMode === 'farm' ? '잔디 지도로' : '나무 지도로'}
+              >
+                <img
+                  src={viewMode === 'farm' ? grasslink : grapelink}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    width: 26, height: 26,
+                    transform: viewMode === 'farm' ? 'none' : 'rotate(22deg)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </button>
               <TreatmentIcons
                 refreshKey={treatmentRefreshKey}
                 onClickIrrigation={() => setShowIrrigation(true)}
                 onClickPest={() => setShowPestTreatment(true)}
               />
+              {/* 메뉴 슬롯 */}
               <button
-                className="header-toggle-btn"
+                className="item-slot menu"
                 onClick={() => setHeaderOpen((v) => !v)}
                 aria-label="메뉴 열기/닫기"
               >
