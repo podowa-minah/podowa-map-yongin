@@ -34,6 +34,12 @@ create table if not exists public.daily_notes (
 );
 create index if not exists daily_notes_date_idx on public.daily_notes using btree (date);
 
+-- daily_notes 확장 — 영농일지(type='journal')에 사진/날씨 첨부 지원 (2026-05-28)
+-- 1일 1엔트리(type='journal') 기준, 최대 3장 + 그날 백암면 날씨 스냅샷
+alter table public.daily_notes add column if not exists image_urls text[] default '{}';
+alter table public.daily_notes add column if not exists thumbnails text[] default '{}';
+alter table public.daily_notes add column if not exists weather jsonb default null;
+
 create table if not exists public.daily_summaries (
   date text not null,
   completed integer not null default 0,

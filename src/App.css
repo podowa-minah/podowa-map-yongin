@@ -52,6 +52,79 @@
   color: #2d3748;
 }
 
+/* 영농일지 버튼 — Podowa 타이틀이 누름직한 3D 버튼이자 일지 입력 트리거
+   .lit 클래스 = 오늘 일지 미작성 (불 켜짐 / 글로우 / 펄스)
+   기본 = 오늘 일지 작성 완료 (불 꺼짐 / 차분, 깔끔한 흰 버튼) */
+.journal-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: #ffffff;            /* 작성 완료 → 깨끗한 흰색 */
+  border: 2px solid #d6c8a8;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
+  /* 차분한 입체감 — 작성 완료 후엔 그림자 약하게 */
+  box-shadow: 0 1px 2px rgba(120, 90, 40, 0.08);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.journal-btn:hover {
+  background: #faf7f0;
+}
+
+/* 누르는 순간 — 살짝만 가라앉음 */
+.journal-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 1px rgba(120, 90, 40, 0.05);
+}
+
+/* 불 켜진 상태 (오늘 일지 아직 안 씀) */
+.journal-btn.lit {
+  background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+  box-shadow:
+    0 3px 0 #d97706,
+    0 0 14px rgba(245, 158, 11, 0.45),
+    0 4px 12px rgba(217, 119, 6, 0.25);
+  animation: journalPulse 2.2s ease-in-out infinite;
+}
+
+.journal-btn.lit:hover {
+  background: linear-gradient(180deg, #fef08a 0%, #fcd34d 100%);
+}
+
+.journal-btn.lit:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #d97706,
+    0 0 8px rgba(245, 158, 11, 0.4),
+    0 2px 6px rgba(217, 119, 6, 0.2);
+  animation: none;
+}
+
+/* 글자 색도 불 켜졌을 때 따뜻한 갈색 */
+.journal-btn.lit h1 {
+  color: #92400e;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.35);
+}
+
+@keyframes journalPulse {
+  0%, 100% {
+    box-shadow:
+      0 3px 0 #d97706,
+      0 0 10px rgba(245, 158, 11, 0.4),
+      0 4px 12px rgba(217, 119, 6, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 3px 0 #d97706,
+      0 0 18px rgba(245, 158, 11, 0.6),
+      0 4px 14px rgba(217, 119, 6, 0.35);
+  }
+}
+
 .version {
   /* 보라 톤 — 헤더 액센트 컬러와 통일 */
   background: #ede9fe;

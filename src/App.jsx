@@ -26,6 +26,7 @@ import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
+import JournalInputModal from './components/JournalInputModal';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -61,6 +62,10 @@ export default function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showIrrigation, setShowIrrigation] = useState(false);
   const [showPestTreatment, setShowPestTreatment] = useState(false);
+  // 영농일지 — Podowa 버튼 클릭 시 열림. 오늘 일지 있으면 불 꺼짐
+  const [showJournal, setShowJournal] = useState(false);
+  const [journalHasToday, setJournalHasToday] = useState(false);
+  const [journalRefreshKey, setJournalRefreshKey] = useState(0);
   const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
   const [viewportInfo, setViewportInfo] = useState(null);
@@ -201,6 +206,24 @@ export default function App() {
 
     return () => supabase.removeChannel(channel);
   }, [user]);
+
+  // 오늘 영농일지 작성 여부 → "Podowa" 버튼 불 상태 결정
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const today = getKSTToday();
+      const { data } = await supabase
+        .from('daily_notes')
+        .select('id')
+        .eq('date', today)
+        .eq('type', 'journal')
+        .limit(1);
+      if (!alive) return;
+      setJournalHasToday(!!(data && data.length > 0));
+    })();
+    return () => { alive = false; };
+  }, [user, journalRefreshKey]);
 
   const authorName = user?.user_metadata?.nickname || user?.email || '';
 
@@ -425,8 +448,16 @@ export default function App() {
         <header className="app-header-bar">
           <div className="header-bar-inner">
             <div className="header-title">
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                <h1>Podowa</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Podowa 타이틀 = 영농일지 버튼 (불 켜져있으면 미작성) */}
+                <button
+                  className={`journal-btn ${journalHasToday ? '' : 'lit'}`}
+                  onClick={() => setShowJournal(true)}
+                  aria-label="오늘의 영농일지"
+                  title={journalHasToday ? '오늘 한 줄 작성됨 — 탭해서 수정' : '✨ 오늘 한 줄 쓰기'}
+                >
+                  <h1>Podowa</h1>
+                </button>
                 <span className="version">v1.1.15</span>
               </div>
               <WeatherDate onClick={() => setShowHistory(true)} />
@@ -521,6 +552,14 @@ export default function App() {
             user={user}
             onClose={() => setShowPestTreatment(false)}
             onSaved={() => { setShowPestTreatment(false); setTreatmentRefreshKey(k => k + 1); }}
+          />
+        )}
+
+        {showJournal && (
+          <JournalInputModal
+            user={user}
+            onClose={() => setShowJournal(false)}
+            onSaved={() => { setJournalHasToday(true); setJournalRefreshKey(k => k + 1); }}
           />
         )}
 

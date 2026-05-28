@@ -2,6 +2,7 @@
 import React from 'react';
 import { supabase } from '../supabaseClient';
 import { useLabels } from '../LabelContext';
+import { WEATHER_LABEL } from '../lib/weather';
 import ExcelJS from 'exceljs';
 
 const SEASON_NAMES = {
@@ -206,6 +207,77 @@ export default function ExportButton() {
             // 이미지 실패해도 계속 진행
           }
         }
+      }
+
+      // ============================================================
+      // 시트 2: 영농일지 (daily_notes type='journal')
+      // ============================================================
+      const { data: journalData } = await supabase
+        .from('daily_notes')
+        .select('*')
+        .eq('type', 'journal')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (journalData && journalData.length > 0) {
+        const ws2 = wb.addWorksheet('영농일지');
+
+        const jHeaders = [
+          '날짜', '작성시각', '작성자', '내용',
+          '사진개수', '사진1', '사진2', '사진3',
+          '날씨', '최고온도(°C)', '최저온도(°C)', '강수량(mm)',
+          '일출', '일몰', '습도(%)',
+        ];
+        const jHeaderRow = ws2.addRow(jHeaders);
+        jHeaderRow.eachCell((cell) => {
+          cell.font = { bold: true, size: 11 };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF7E0' } };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+        });
+
+        ws2.columns = [
+          { width: 12 },  // 날짜
+          { width: 18 },  // 작성시각
+          { width: 12 },  // 작성자
+          { width: 50 },  // 내용
+          { width: 8 },   // 사진개수
+          { width: 32 },  // 사진1
+          { width: 32 },  // 사진2
+          { width: 32 },  // 사진3
+          { width: 12 },  // 날씨
+          { width: 11 },  // 최고
+          { width: 11 },  // 최저
+          { width: 11 },  // 강수량
+          { width: 8 },   // 일출
+          { width: 8 },   // 일몰
+          { width: 8 },   // 습도
+        ];
+
+        journalData.forEach((entry) => {
+          const w = entry.weather || {};
+          const imgs = entry.image_urls || [];
+          const created = entry.created_at
+            ? new Date(entry.created_at).toISOString().slice(0, 19).replace('T', ' ')
+            : '';
+          ws2.addRow([
+            entry.date || '',
+            created,
+            entry.author || '',
+            entry.content || '',
+            imgs.length,
+            imgs[0] || '',
+            imgs[1] || '',
+            imgs[2] || '',
+            WEATHER_LABEL[w.code] || '',
+            w.tempMax != null ? w.tempMax : '',
+            w.tempMin != null ? w.tempMin : '',
+            w.precipitation != null ? w.precipitation : '',
+            w.sunrise || '',
+            w.sunset || '',
+            w.currentHumidity != null ? w.currentHumidity : '',
+          ]);
+        });
       }
 
       // 다운로드
