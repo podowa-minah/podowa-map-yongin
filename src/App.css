@@ -23,23 +23,13 @@
 }
 
 .app-header {
-  /* 맵 위 카드처럼 — 카드 셀과 동일한 톤앤매너 */
-  background: #fffefb;
-  /* 카드 셀과 같은 boxShadow 패턴 (1px 베이지 보더 + 부드러운 그림자) */
-  box-shadow:
-    0 0 0 1px #c9b890,
-    0 3px 10px rgba(120, 90, 40, 0.15);
-  border: none;
-  /* 상단의 보라 액센트 바 — TreeModal 상단과 통일 */
-  border-top: 4px solid #6d28d9;
-  /* 카드 느낌 — 좌/우/하단에만 라운드 (top은 페이지 끝과 붙음) */
-  border-radius: 0 0 12px 12px;
-  /* 좌우/하단에 살짝 여백 → 카드가 떠있는 느낌 */
-  margin: 0 6px 4px;
-  padding: 14px 20px;
+  background: white;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 16px 24px;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -291,13 +281,23 @@
   }
 }
 
-/* 항상 보이는 상단 바 */
+/* 항상 보이는 상단 바 — TreeModal 차트 카드처럼 떠있는 카드 스타일 */
 .app-header-bar {
   position: sticky;
-  top: 0;
+  top: 8px;
   z-index: 100;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  background: #fffefb;
+  /* 부드러운 그림자 (밑쪽으로) */
+  box-shadow: 0 4px 12px rgba(120, 90, 40, 0.15);
+  /* 상단의 따뜻한 베이지 라인 — 맵 카드 보더 톤과 통일 */
+  border-top: 2px solid #c9b890;
+  border-bottom: none;
+  /* 사방 라운드 */
+  border-radius: 14px;
+  /* 사방 여백 — 카드가 숨 쉴 공간 */
+  margin: 8px;
+  /* 라운드 안쪽까지 깔끔하게 */
+  overflow: hidden;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
 }
