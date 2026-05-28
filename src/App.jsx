@@ -475,7 +475,8 @@ export default function App() {
               </button>
             </div>
           )}
-          <MonthlyManualLine refreshKey={treatmentRefreshKey} />
+          {/* MonthlyManualLine 임시 숨김 — 디자인 개편 중 */}
+          {/* <MonthlyManualLine refreshKey={treatmentRefreshKey} /> */}
           <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
