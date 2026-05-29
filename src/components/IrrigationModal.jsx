@@ -356,11 +356,12 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
           <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, marginBottom: '0.4rem' }}>
             시간 (분)
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
             <button
               onClick={() => setDurationMinutes(d => Math.max(5, d - 5))}
               style={{
-                width: 40, height: 40, fontSize: '1.2rem', fontWeight: 700,
+                width: 40, height: 40, flexShrink: 0,
+                fontSize: '1.2rem', fontWeight: 700,
                 border: '2px solid #d6c8a8', background: '#fffefb',
                 borderRadius: '0.5rem', cursor: 'pointer',
               }}
@@ -370,20 +371,23 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value) || 0))}
               style={{
-                flex: 1, padding: '0.6rem', fontSize: '1.1rem', fontWeight: 700,
+                flex: 1, minWidth: 0,
+                padding: '0.6rem', fontSize: '1.1rem', fontWeight: 700,
                 textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
                 background: '#f0f9ff', color: '#0c4a6e',
+                boxSizing: 'border-box',
               }}
             />
             <button
               onClick={() => setDurationMinutes(d => Math.min(300, d + 5))}
               style={{
-                width: 40, height: 40, fontSize: '1.2rem', fontWeight: 700,
+                width: 40, height: 40, flexShrink: 0,
+                fontSize: '1.2rem', fontWeight: 700,
                 border: '2px solid #d6c8a8', background: '#fffefb',
                 borderRadius: '0.5rem', cursor: 'pointer',
               }}
             >+</button>
-            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>분</span>
+            <span style={{ fontSize: '0.85rem', color: '#6b7280', flexShrink: 0 }}>분</span>
           </div>
         </div>
 
@@ -449,19 +453,20 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
         </div>
 
         {/* 저장/취소 */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
           <button
             onClick={handleSave}
             disabled={saving || selectedBlocks.length === 0}
             style={{
-              flex: 1,
+              flex: 1, minWidth: 0,
               backgroundColor: '#0ea5e9', color: '#fff',
-              padding: '0.85rem 1rem',
+              padding: '0.85rem 0.5rem',
               border: '3px solid #0369a1', borderRadius: '0.8rem',
               cursor: saving || selectedBlocks.length === 0 ? 'not-allowed' : 'pointer',
               opacity: selectedBlocks.length === 0 ? 0.5 : 1,
               fontSize: '1.05rem', fontWeight: 700,
               boxShadow: '0 5px 0 rgba(3, 105, 161, 0.5)',
+              boxSizing: 'border-box',
             }}
           >
             {existing?.irrigation ? '수정 저장' : '저장하기'}
@@ -470,10 +475,12 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
             onClick={onClose}
             disabled={saving}
             style={{
+              flexShrink: 0,
               backgroundColor: '#fff', color: '#6b7280',
-              padding: '0.85rem 1.2rem',
+              padding: '0.85rem 1rem',
               border: '2px solid #d1d5db', borderRadius: '0.8rem',
               cursor: 'pointer', fontSize: '1.05rem', fontWeight: 600,
+              boxSizing: 'border-box',
             }}
           >
             취소

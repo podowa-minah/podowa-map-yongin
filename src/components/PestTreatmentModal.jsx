@@ -505,19 +505,20 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
         </div>
 
         {/* 저장/취소 */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
           <button
             onClick={handleSave}
             disabled={saving || !chemical.trim()}
             style={{
-              flex: 1,
+              flex: 1, minWidth: 0,
               backgroundColor: '#f59e0b', color: '#fff',
-              padding: '0.85rem 1rem',
+              padding: '0.85rem 0.5rem',
               border: '3px solid #b45309', borderRadius: '0.8rem',
               cursor: saving || !chemical.trim() ? 'not-allowed' : 'pointer',
               opacity: !chemical.trim() ? 0.5 : 1,
               fontSize: '1.05rem', fontWeight: 700,
               boxShadow: '0 5px 0 rgba(180, 83, 9, 0.5)',
+              boxSizing: 'border-box',
             }}
           >
             {existing?.pest_treatment ? '수정 저장' : '저장하기'}
@@ -525,10 +526,12 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
           <button
             onClick={onClose} disabled={saving}
             style={{
+              flexShrink: 0,
               backgroundColor: '#fff', color: '#6b7280',
-              padding: '0.85rem 1.2rem',
+              padding: '0.85rem 1rem',
               border: '2px solid #d1d5db', borderRadius: '0.8rem',
               cursor: 'pointer', fontSize: '1.05rem', fontWeight: 600,
+              boxSizing: 'border-box',
             }}
           >
             취소
