@@ -1,0 +1,811 @@
+// src/AnalysisPage.jsx
+// 현황분석 — 자동 일일 리포트 + 농부 입력 (영농일지 통합 페이지)
+// 디자인: 뉴스레터/잡지 풍
+
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { supabase } from './supabaseClient';
+import { todayKST } from './lib/treatment-cycles';
+import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
+import { getSeasonalTerm, getSeasonalTermInfo } from './lib/seasonalTerms';
+import { getMoonPhase } from './lib/moonPhase';
+import { generateOpinions } from './lib/aiOpinion';
+import { scoreBand, avgScore } from './lib/scoring';
+import { buildTrends, avgFromRecords } from './lib/trends';
+import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
+import { createThumbnail } from './utils/imageThumbnail';
+
+const ENV_MAX_PHOTOS = 2;
+
+export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenIrrigation, onOpenPest, onSaved, onOpenScores, onClose }) {
+  const today = todayKST();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [dayNote, setDayNote] = useState(null);
+
+  // 농부 입력 state
+  const [envNote, setEnvNote] = useState('');
+  const [envImageUrls, setEnvImageUrls] = useState([]);
+  const [envThumbnails, setEnvThumbnails] = useState([]);
+  const [oneLiner, setOneLiner] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
+  const [history, setHistory] = useState([]);
+
+  // 날씨
+  const [weather, setWeather] = useState(null);
+
+  // 과거 리포트 리스트
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from('daily_notes')
+        .select('id,date,author,content,journal_notes,weather,irrigation,pest_treatment')
+        .eq('type', 'journal')
+        .order('date', { ascending: false })
+        .limit(60);
+      if (!alive) return;
+      setHistory(data || []);
+    })();
+    return () => { alive = false; };
+  }, [historyKey]);
+
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+
+  // 날씨 가져오기
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const w = await fetchDailyWeather(selectedDate);
+        if (alive) setWeather(w);
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [selectedDate]);
+
+  // daily_notes 그날 row
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from('daily_notes')
+        .select('*')
+        .eq('date', selectedDate)
+        .eq('type', 'journal')
+        .maybeSingle();
+      if (!alive) return;
+      setDayNote(data || null);
+      // 농부 입력 state 채우기
+      const env = data?.journal_notes?.env || {};
+      setEnvNote(env.note || '');
+      setEnvImageUrls(env.image_urls || []);
+      setEnvThumbnails(env.thumbnails || []);
+      setOneLiner(data?.content || '');
+    })();
+    return () => { alive = false; };
+  }, [selectedDate]);
+
+  // 그날 trees 기록 추출
+  const records = useMemo(() => {
+    const out = [];
+    for (const treeId of Object.keys(treeData)) {
+      const days = treeData[treeId] || [];
+      for (const r of days) {
+        if (r.date === selectedDate) out.push({ id: treeId, ...r });
+      }
+    }
+    return out;
+  }, [treeData, selectedDate]);
+
+  const report = useMemo(() => buildDailyReport({ records, labels }), [records, labels]);
+  const trends = useMemo(() => buildTrends({ todayRecords: records, treeData, selectedDate, pastDays: 7 }), [records, treeData, selectedDate]);
+  const past5 = useMemo(() => avgFromRecords(treeData, selectedDate, 5), [treeData, selectedDate]);
+
+  const opinions = useMemo(() => generateOpinions({ report, trends, triggers: null, dailyNote: dayNote }), [report, trends, dayNote]);
+
+  // 사진 업로드
+  async function handleEnvUpload(file) {
+    if (!file) return;
+    if (envImageUrls.length >= ENV_MAX_PHOTOS) return;
+    setUploading(true);
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const safeExt = ext || 'jpg';
+    const fileName = `journal/${selectedDate}-env-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`;
+    const { error } = await supabase.storage.from('tree-images').upload(fileName, file);
+    if (error) { alert('업로드 실패: ' + error.message); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('tree-images').getPublicUrl(fileName);
+    let thumbUrl = '';
+    const thumbBlob = await createThumbnail(file);
+    if (thumbBlob) {
+      const thumbName = `thumb/${fileName}`;
+      const { error: thumbErr } = await supabase.storage.from('tree-images').upload(thumbName, thumbBlob);
+      if (!thumbErr) {
+        const { data: thumbData } = supabase.storage.from('tree-images').getPublicUrl(thumbName);
+        thumbUrl = thumbData?.publicUrl || '';
+      }
+    }
+    if (urlData?.publicUrl) {
+      setEnvImageUrls(prev => [...prev, urlData.publicUrl]);
+      setEnvThumbnails(prev => [...prev, thumbUrl]);
+    }
+    setUploading(false);
+  }
+
+  function handleEnvDelete(idx) {
+    const url = envImageUrls[idx]; const thumb = envThumbnails[idx];
+    setEnvImageUrls(prev => prev.filter((_, i) => i !== idx));
+    setEnvThumbnails(prev => prev.filter((_, i) => i !== idx));
+    if (url) {
+      const path = url.split('tree-images/')[1];
+      if (path) supabase.storage.from('tree-images').remove([path]).catch(() => {});
+    }
+    if (thumb) {
+      const path = thumb.split('tree-images/')[1];
+      if (path) supabase.storage.from('tree-images').remove([path]).catch(() => {});
+    }
+  }
+
+  // 과거 리포트 삭제 (비번 6687)
+  async function handleDeleteReport(entry, e) {
+    e?.stopPropagation();
+    const dateStr = entry.date || '';
+    if (!window.confirm(`${dateStr} 리포트를 삭제할까요?\n사진/관수/방제 기록까지 함께 사라져요.`)) return;
+    const pw = window.prompt('삭제 비번 입력:');
+    if (pw === null) return;
+    if (pw !== '6687') { alert('비번이 틀려요'); return; }
+    // 사진까지 스토리지에서 제거
+    const allUrls = [];
+    const jn = entry.journal_notes || {};
+    ['growth', 'env', 'env_indoor', 'env_outdoor', 'pest'].forEach(k => {
+      (jn[k]?.image_urls || []).forEach(u => allUrls.push(u));
+      (jn[k]?.thumbnails || []).forEach(u => allUrls.push(u));
+    });
+    (entry.image_urls || []).forEach(u => allUrls.push(u));
+    (entry.thumbnails || []).forEach(u => allUrls.push(u));
+    for (const url of allUrls) {
+      if (!url) continue;
+      const filePath = url.split('tree-images/')[1];
+      if (filePath) await supabase.storage.from('tree-images').remove([filePath]).catch(() => {});
+    }
+    // DB row 삭제
+    const { error } = await supabase.from('daily_notes').delete().eq('id', entry.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    // 로컬 상태 갱신
+    setHistory(prev => prev.filter(h => h.id !== entry.id));
+    if (entry.id === dayNote?.id) {
+      setDayNote(null);
+      setEnvNote(''); setEnvImageUrls([]); setEnvThumbnails([]); setOneLiner('');
+    }
+    onSaved?.();
+  }
+
+  // 보고서 완료 = 저장
+  async function handleComplete() {
+    setSaving(true);
+    const author = user?.user_metadata?.nickname || user?.email || '';
+    const isPastDate = selectedDate < today;
+    const journal_notes = {
+      ...(dayNote?.journal_notes || {}),
+      env: {
+        note: envNote.trim(),
+        image_urls: envImageUrls,
+        thumbnails: envThumbnails,
+      },
+    };
+    const payload = {
+      content: oneLiner.trim(),
+      author,
+      journal_notes,
+      weather: weather ? { ...weather, _final: isPastDate } : (dayNote?.weather || null),
+    };
+    let result;
+    if (dayNote) {
+      result = await supabase.from('daily_notes').update(payload).eq('id', dayNote.id);
+    } else {
+      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', ...payload });
+    }
+    setSaving(false);
+    if (result?.error) {
+      alert('저장 실패: ' + result.error.message);
+      return;
+    }
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 2500);
+    // 새로 fetch
+    const { data } = await supabase.from('daily_notes').select('*')
+      .eq('date', selectedDate).eq('type', 'journal').maybeSingle();
+    setDayNote(data || null);
+    setHistoryKey(k => k + 1);
+    onSaved?.();
+  }
+
+  // 컬러
+  const C = {
+    headlineFont: 'Arvo, "Pretendard Variable", serif',
+    border: '#1f2937',
+    muted: '#9ca3af',
+    text: '#1f2937',
+    accentBg: '#fffbeb',
+    accentBorder: '#fde68a',
+  };
+
+  return (
+    <div style={{
+      maxWidth: '580px', margin: '0 auto',
+      padding: '1.2rem 1.2rem 6rem',
+      color: C.text, fontFamily: '"Pretendard Variable", sans-serif',
+      position: 'relative',
+    }}>
+      {/* ✕ 닫기 — 완전 우측 상단 (다른 요소와 분리) */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          aria-label="닫기"
+          title="닫기 (이전 화면으로)"
+          style={{
+            position: 'absolute',
+            top: '0.6rem',
+            right: '0.8rem',
+            width: 36, height: 36, borderRadius: '50%',
+            border: `1.5px solid ${C.border}`,
+            background: '#fff', color: C.text,
+            cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1, padding: 0,
+            zIndex: 10,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+          }}
+        >✕</button>
+      )}
+      {/* 날짜 선택 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.2rem' }}>
+        <input
+          type="date" value={selectedDate} max={today}
+          onChange={(e) => setSelectedDate(e.target.value || today)}
+          style={{ padding: '0.4rem 0.6rem', border: '1px solid #d6c8a8', borderRadius: '0.4rem', fontSize: '0.9rem' }}
+        />
+        {selectedDate !== today && (
+          <button onClick={() => setSelectedDate(today)}
+            style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem', border: '1px solid #d6c8a8', borderRadius: '0.4rem', background: '#fff', cursor: 'pointer' }}>
+            오늘로
+          </button>
+        )}
+      </div>
+
+      {/* 헤더 */}
+      <header style={{ marginBottom: '1.2rem', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ fontFamily: C.headlineFont, fontSize: '1.9rem', fontWeight: 700, margin: '0 0 0.2rem' }}>
+            현황 분석
+          </h1>
+          <p style={{ fontSize: '0.85rem', color: C.muted, margin: 0 }}>
+            {selectedDate === today ? '오늘의 밭, 한눈에' : `${selectedDate}의 밭, 한눈에`}
+          </p>
+        </div>
+        {onOpenScores && (
+          <button
+            onClick={onOpenScores}
+            style={{
+              fontSize: '0.78rem', fontWeight: 600,
+              padding: '6px 12px',
+              border: `1px solid ${C.border}`,
+              borderRadius: '6px',
+              background: '#fff', color: C.text,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              marginRight: '3.2rem',           /* ✕ 버튼 자리 비우기 */
+            }}
+          >점수기준 →</button>
+        )}
+      </header>
+
+      {/* 생육시기 + 날씨 + 절기(뜻) + 달모양 통합 스트립 */}
+      {(() => {
+        const termInfo = getSeasonalTermInfo(selectedDate);
+        const moon = getMoonPhase(selectedDate);
+        return (
+          <div style={{
+            marginBottom: '1.8rem',
+            padding: '0.95rem 1rem',
+            background: '#fffefb',
+            border: `1.5px solid ${C.border}`,
+            borderRadius: '0.5rem',
+          }}>
+            {/* 생육시기 — 가장 큰 글씨 */}
+            <div style={{
+              fontFamily: C.headlineFont,
+              fontSize: '1.35rem',
+              fontWeight: 700,
+              color: C.text,
+              marginBottom: '0.35rem',
+              letterSpacing: '0.3px',
+            }}>
+              생육시기 · {report.dominantSeason || '기록 없음'}
+            </div>
+
+            {/* 날씨 줄 */}
+            {weather && (
+              <div style={{
+                fontFamily: C.headlineFont,
+                fontSize: '0.88rem',
+                color: '#4b5563',
+                lineHeight: 1.5,
+                marginBottom: '0.25rem',
+              }}>
+                백암면 · {WEATHER_LABEL[weather.code] || ''} {weather.tempMax}°/{weather.tempMin}°
+                {(weather.humidityMean != null || weather.currentHumidity != null) && (
+                  <> · 습도 {weather.humidityMean ?? weather.currentHumidity}%</>
+                )}
+              </div>
+            )}
+
+            {/* 절기 + 뜻 + 달 — 한 줄 */}
+            <div style={{
+              fontFamily: C.headlineFont,
+              fontSize: '0.85rem',
+              color: '#6b7280',
+              lineHeight: 1.5,
+              display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap',
+            }}>
+              {moon && (
+                <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{moon.emoji}</span>
+              )}
+              {moon && (
+                <span style={{ color: '#4b5563', fontWeight: 600 }}>{moon.name}</span>
+              )}
+              {termInfo && (
+                <>
+                  <span style={{ color: '#d6c8a8' }}>·</span>
+                  <span style={{ color: '#4b5563', fontWeight: 600 }}>{termInfo.name}</span>
+                  <span style={{ color: '#9ca3af' }}>— {termInfo.meaning}</span>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* AI 종합의견 */}
+      <Section title="AI 종합의견" right="CLAUDE" C={C}>
+        {opinions.length === 0 ? (
+          <p style={{ fontSize: '0.85rem', color: C.muted }}>의견을 생성할 데이터가 부족해요.</p>
+        ) : (
+          opinions.map((o, i) => (
+            <div key={i} style={{ display: 'flex', gap: '0.6rem', padding: '0.35rem 0' }}>
+              <span style={{
+                fontSize: '0.72rem', padding: '2px 8px',
+                background: '#fffefb', border: '1px solid #d6c8a8',
+                borderRadius: '0.3rem', fontWeight: 600,
+                whiteSpace: 'nowrap', flexShrink: 0, color: '#4b5563',
+                alignSelf: 'flex-start',
+              }}>{o.label}</span>
+              <span style={{ fontSize: '0.92rem', lineHeight: 1.55 }}>{o.text}</span>
+            </div>
+          ))
+        )}
+      </Section>
+
+      {/* 오늘 활동 */}
+      <Section title="오늘 활동" C={C}>
+        <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', lineHeight: 1.7 }}>
+          {dayNote?.irrigation && (dayNote.irrigation.blocks?.length > 0 || dayNote.irrigation.duration_minutes) && (
+            <li>
+              관수: {dayNote.irrigation.blocks?.join('·')}동 · {dayNote.irrigation.duration_minutes}분
+              {dayNote.irrigation.note && <span style={{ color: '#6b7280' }}> · {dayNote.irrigation.note}</span>}
+              {onOpenIrrigation && (
+                <button onClick={onOpenIrrigation} style={editBtnStyle}>수정</button>
+              )}
+            </li>
+          )}
+          {!dayNote?.irrigation && onOpenIrrigation && (
+            <li style={{ color: C.muted }}>
+              관수 기록 없음 · <button onClick={onOpenIrrigation} style={editBtnStyle}>입력</button>
+            </li>
+          )}
+          {dayNote?.pest_treatment && (dayNote.pest_treatment.chemical || dayNote.pest_treatment.note) && (
+            <li>
+              방제: {dayNote.pest_treatment.chemical} · {dayNote.pest_treatment.dilution}
+              {dayNote.pest_treatment.method && ` · ${dayNote.pest_treatment.method}`}
+              {onOpenPest && <button onClick={onOpenPest} style={editBtnStyle}>수정</button>}
+            </li>
+          )}
+          {!dayNote?.pest_treatment && onOpenPest && (
+            <li style={{ color: C.muted }}>
+              방제 기록 없음 · <button onClick={onOpenPest} style={editBtnStyle}>입력</button>
+            </li>
+          )}
+          {report.records.length > 0 ? (
+            <li>
+              {report.records.length}그루 기록 · 작업자 {' '}
+              {report.workerBreakdown.map(w => `${w.name} ${w.count}`).join(', ')}
+            </li>
+          ) : (
+            <li style={{ color: C.muted }}>나무 기록 없음</li>
+          )}
+          {report.bloomCount > 0 && <li>만개 {report.bloomCount}건</li>}
+          {report.partialTreatmentCount > 0 && <li>부분방제 {report.partialTreatmentCount}그루</li>}
+          {report.bugDetectedCount > 0 && <li>해충 발견 {report.bugDetectedCount}그루</li>}
+        </ul>
+      </Section>
+
+      {/* 밭 전체 분포 (오늘 vs 5일 평균) */}
+      <Section title="밭 전체 분포" right="오늘 vs 5일 평균" C={C}>
+        <MetricBar label="세력" idealLabel="이상점 3 ★" today={report.metrics?.power} past={past5.metrics?.power} idealValue={3} />
+        <MetricBar label="균형도" idealLabel="이상점 5 ★" today={report.metrics?.balance} past={past5.metrics?.balance} idealValue={5} />
+        <MetricBar label="해충" idealLabel="이상점 0 ★" today={report.metrics?.bugs} past={past5.metrics?.bugs} idealValue={0} reverse />
+      </Section>
+
+      {/* 품종별 종합점수 */}
+      <Section title="품종별 종합점수" right="평균 기반" C={C}>
+        {report.varietyScores.length > 0 ? (
+          report.varietyScores.map(v => {
+            const band = scoreBand(v.score);
+            const widthPct = (v.score || 0) / 5 * 100;
+            return (
+              <div key={v.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', fontSize: '0.92rem' }}>
+                <div style={{ width: '5rem', flexShrink: 0, fontWeight: 600 }}>{v.name}</div>
+                <div style={{ flex: 1, height: '8px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${widthPct}%`, background: '#1f2937', borderRadius: '4px' }} />
+                </div>
+                <div style={{ width: '2.4rem', textAlign: 'right', flexShrink: 0, fontWeight: 700 }}>
+                  {v.score?.toFixed(1)}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <p style={{ color: C.muted, fontSize: '0.85rem' }}>품종 라벨이 부족해요.</p>
+        )}
+        {/* 점수 해석 */}
+        <div style={{ marginTop: '1rem', padding: '0.7rem', background: '#fffefb', border: '1px solid #e7d9b8', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280' }}>
+          <div>○ 4.0 이상 양호</div>
+          <div>○ 3.5–4.0 관찰</div>
+          <div>○ 3.0–3.5 주의</div>
+          <div>○ 3.0 미만 경보</div>
+          <div style={{ marginTop: '0.5rem', fontFamily: 'Arvo, serif' }}>
+            공식: 세력×0.4 + 균형×0.25 + 해충×0.35
+          </div>
+        </div>
+      </Section>
+
+      {/* ─── 농부 입력 ─── */}
+      <div style={{ borderTop: `2px dashed ${C.border}`, margin: '2rem 0 1.2rem' }} />
+
+      <Section title="환경 메모" right="농부 입력" C={C}>
+        <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0 0 0.5rem' }}>
+          비, 바람, 토양, 하우스 내·외부 상태 등 자동 집계 안 되는 관찰
+        </p>
+        <textarea
+          value={envNote}
+          onChange={(e) => setEnvNote(e.target.value)}
+          placeholder="예: 오전 비 30mm, 4동 배수 막힘 확인"
+          style={{
+            width: '100%', minHeight: '70px', padding: '0.6rem',
+            border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+            fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.45rem' }}>
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
+            style={uploadBtn(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
+          >촬영</button>
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
+          <button
+            onClick={() => galleryInputRef.current?.click()}
+            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
+            style={uploadBtnOutline(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
+          >갤러리</button>
+          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
+        </div>
+        {envImageUrls.length > 0 && (
+          <div style={{ display: 'flex', gap: '5px', marginTop: '0.5rem' }}>
+            {envImageUrls.map((url, idx) => (
+              <div key={idx} style={{ position: 'relative', width: 56, height: 56 }}>
+                <img src={envThumbnails[idx] || url} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 5, border: '1px solid #bfdbfe' }} />
+                <button onClick={() => handleEnvDelete(idx)} style={deletePhotoBtn}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {uploading && <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.3rem' }}>업로드 중...</div>}
+      </Section>
+
+      <Section title="오늘 한줄평" right="농부 입력" C={C}>
+        <textarea
+          value={oneLiner}
+          onChange={(e) => setOneLiner(e.target.value)}
+          placeholder="오늘 농장 전체를 한 줄로 종합..."
+          style={{
+            width: '100%', minHeight: '55px', padding: '0.6rem',
+            border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+            fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
+          }}
+        />
+      </Section>
+
+      {/* 보고서 완료 버튼 */}
+      <div style={{ marginTop: '2rem' }}>
+        <button
+          onClick={handleComplete}
+          disabled={saving}
+          style={{
+            width: '100%',
+            padding: '1rem',
+            background: savedFlash ? '#16a34a' : '#1f2937',
+            color: '#fff',
+            border: 'none', borderRadius: '0.6rem',
+            fontSize: '1rem', fontWeight: 700,
+            cursor: saving ? 'wait' : 'pointer',
+            transition: 'background 0.2s',
+            fontFamily: C.headlineFont,
+          }}
+        >
+          {savedFlash ? '✓ 저장됨' : (saving ? '저장 중...' : '오늘 보고서 마무리하기')}
+        </button>
+        <p style={{ fontSize: '0.72rem', color: C.muted, textAlign: 'center', marginTop: '0.5rem' }}>
+          저장하면 PODOWA 버튼 불이 꺼져요. 언제든 다시 수정 가능.
+        </p>
+      </div>
+
+      {/* ─── 과거 리포트 ─── */}
+      <div style={{ borderTop: `2px solid ${C.border}`, margin: '2.5rem 0 1.2rem' }} />
+      <Section title="과거 리포트" right={`최근 ${history.length}건`} C={C}>
+        {history.length === 0 ? (
+          <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 리포트가 없어요.</p>
+        ) : (
+          history.map(entry => {
+            const isSelected = entry.date === selectedDate;
+            const isToday = entry.date === today;
+            // 그 날짜의 trees 평균점수/그루수
+            const recs = [];
+            for (const treeId of Object.keys(treeData)) {
+              const days = treeData[treeId] || [];
+              for (const r of days) {
+                if (r.date === entry.date) recs.push({ id: treeId, ...r });
+              }
+            }
+            const dayScore = avgScore(recs);
+            const env = entry.journal_notes?.env || {};
+            const hasIrr = !!(entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.duration_minutes));
+            const hasPest = !!(entry.pest_treatment && entry.pest_treatment.chemical);
+            const hasEnv = !!(env.note || env.image_urls?.length > 0);
+            // 절기 + 도미넌트 생육시기 자동 계산
+            const histTerm = getSeasonalTerm(entry.date);
+            const histDominantSeason = getDominantSeason(recs);
+            const histHumidity = entry.weather?.humidityMean ?? entry.weather?.currentHumidity ?? null;
+            return (
+              <div
+                key={entry.id}
+                style={{
+                  position: 'relative',
+                  background: isSelected ? '#fffefb' : '#fff',
+                  border: isSelected ? `2px solid ${C.border}` : '1px solid #e7d9b8',
+                  borderRadius: '0.45rem',
+                  marginBottom: '0.4rem',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <button
+                  onClick={(e) => handleDeleteReport(entry, e)}
+                  aria-label="이 리포트 삭제"
+                  title="삭제 (비번 필요)"
+                  style={{
+                    position: 'absolute',
+                    top: 6, right: 6,
+                    width: 22, height: 22, borderRadius: '50%',
+                    border: '1px solid #e5e7eb',
+                    background: '#fff', color: '#9ca3af',
+                    cursor: 'pointer', fontSize: '0.72rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    lineHeight: 1, padding: 0, zIndex: 1,
+                  }}
+                >×</button>
+              <button
+                onClick={() => setSelectedDate(entry.date)}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '0.7rem 2rem 0.7rem 0.85rem',
+                  background: 'transparent', border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: C.headlineFont, fontWeight: 700, fontSize: '0.95rem', color: C.text }}>
+                    {formatDateLine(entry.date)}
+                  </span>
+                  {isToday && (
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 700, color: '#92400e',
+                      background: '#fde68a', padding: '1px 6px', borderRadius: '3px',
+                    }}>오늘</span>
+                  )}
+                  {entry.author && (
+                    <span style={{ fontSize: '0.7rem', color: C.muted, marginLeft: 'auto' }}>
+                      {entry.author}
+                    </span>
+                  )}
+                </div>
+                {/* 날씨 · 습도 · 절기 · 생육시기 — 같은 폰트 같은 줄 */}
+                <div style={{
+                  fontFamily: C.headlineFont,
+                  fontSize: '0.76rem',
+                  color: C.muted,
+                  marginBottom: '0.35rem',
+                  lineHeight: 1.4,
+                }}>
+                  {entry.weather?.code != null && entry.weather.tempMax != null && (
+                    <>{WEATHER_LABEL[entry.weather.code] || ''} {entry.weather.tempMax}°/{entry.weather.tempMin}°</>
+                  )}
+                  {histHumidity != null && <> · 습도 {histHumidity}%</>}
+                  {histTerm && <> · {histTerm}</>}
+                  {histDominantSeason && <> · {histDominantSeason}</>}
+                </div>
+
+                {/* 한줄평 */}
+                {entry.content && (
+                  <div style={{ fontSize: '0.85rem', color: C.text, marginBottom: '0.3rem', lineHeight: 1.45 }}>
+                    "{entry.content}"
+                  </div>
+                )}
+
+                {/* 환경 메모 (한줄로 요약) */}
+                {env.note && (
+                  <div style={{ fontSize: '0.78rem', color: '#0c4a6e', marginBottom: '0.3rem', lineHeight: 1.4 }}>
+                    <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>
+                    {env.note}
+                  </div>
+                )}
+
+                {/* 상태 배지 — 전체 정보 표시 */}
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+                  {hasIrr && (
+                    <Badge color="#0284c7" bg="#eff6ff" border="#bfdbfe">
+                      관수 · {entry.irrigation.blocks?.join('·')}동 · {entry.irrigation.duration_minutes}분
+                      {entry.irrigation.note && ` · ${entry.irrigation.note}`}
+                    </Badge>
+                  )}
+                  {hasPest && (
+                    <Badge color="#92400e" bg="#fffbeb" border="#fde68a">
+                      방제 · {entry.pest_treatment.chemical}
+                      {entry.pest_treatment.dilution && ` · ${entry.pest_treatment.dilution}`}
+                      {entry.pest_treatment.method && ` · ${entry.pest_treatment.method}`}
+                      {entry.pest_treatment.note && ` · ${entry.pest_treatment.note}`}
+                    </Badge>
+                  )}
+                  {hasEnv && (
+                    <Badge color="#0c4a6e" bg="#eff6ff" border="#bfdbfe">
+                      환경 메모
+                    </Badge>
+                  )}
+                  {recs.length > 0 && (
+                    <Badge color="#374151" bg="#f3f4f6" border="#d1d5db">
+                      {recs.length}그루
+                      {dayScore != null && !isNaN(dayScore) && ` · ${dayScore.toFixed(1)}점`}
+                    </Badge>
+                  )}
+                </div>
+              </button>
+              </div>
+            );
+          })
+        )}
+      </Section>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 작은 헬퍼 컴포넌트들
+// ─────────────────────────────────────────────
+
+function formatDateLine(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  const date = new Date(`${iso}T00:00:00+09:00`);
+  const dow = ['일','월','화','수','목','금','토'][date.getDay()];
+  return `${parseInt(m)}/${parseInt(d)} (${dow})`;
+}
+
+function Badge({ children, color, bg, border }) {
+  return (
+    <span style={{
+      padding: '2px 7px',
+      background: bg, color, border: `1px solid ${border}`,
+      borderRadius: '0.3rem', fontWeight: 600,
+      whiteSpace: 'nowrap',
+    }}>{children}</span>
+  );
+}
+
+function Section({ title, right, C, children }) {
+  return (
+    <section style={{ marginBottom: '1.8rem' }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline',
+        borderBottom: `1.5px solid ${C.border}`,
+        paddingBottom: '0.3rem', marginBottom: '0.7rem',
+      }}>
+        <h2 style={{
+          fontFamily: C.headlineFont,
+          fontSize: '1.1rem', fontWeight: 700, margin: 0, flex: 1, color: C.text,
+        }}>{title}</h2>
+        {right && (
+          <span style={{ fontSize: '0.7rem', color: C.muted, letterSpacing: '0.4px' }}>
+            {right}
+          </span>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// 오늘 vs 과거 평균 바 (가로)
+function MetricBar({ label, idealLabel, today, past, idealValue, reverse }) {
+  const max = 5;
+  const todayPct = today != null ? (today / max) * 100 : 0;
+  const pastPct  = past  != null ? (past  / max) * 100 : 0;
+  return (
+    <div style={{ marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+        <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>
+          {label} <span style={{ color: '#9ca3af', fontSize: '0.78rem', fontWeight: 400 }}>({idealLabel})</span>
+        </div>
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+          {(today ?? '—').toString().slice(0, 3)} 오늘
+        </div>
+      </div>
+      <div style={{ position: 'relative', height: '11px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.3rem' }}>
+        <div style={{ height: '100%', width: `${todayPct}%`, background: '#1f2937', borderRadius: '4px' }} />
+      </div>
+      <div style={{ position: 'relative', height: '5px', background: '#fafaf7', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pastPct}%`, background: '#9ca3af', borderRadius: '3px' }} />
+      </div>
+      <div style={{ fontSize: '0.68rem', color: '#9ca3af', fontStyle: 'italic', marginTop: '2px' }}>
+        5일 평균 {past != null ? past.toFixed(1) : '—'}
+      </div>
+    </div>
+  );
+}
+
+const editBtnStyle = {
+  marginLeft: '0.4rem',
+  fontSize: '0.7rem', padding: '1px 8px',
+  border: '1px solid #d6c8a8', borderRadius: '0.3rem',
+  background: '#fff', color: '#6b7280', cursor: 'pointer',
+};
+
+function uploadBtn(disabled, color) {
+  return {
+    flex: 1, padding: '0.45rem 0.6rem',
+    background: disabled ? '#d1d5db' : color, color: '#fff',
+    border: 'none', borderRadius: '0.4rem',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '0.85rem', fontWeight: 600,
+  };
+}
+function uploadBtnOutline(disabled, color) {
+  return {
+    flex: 1, padding: '0.45rem 0.6rem',
+    background: '#fff', color: disabled ? '#9ca3af' : color,
+    border: `1.5px solid ${disabled ? '#d1d5db' : color}`,
+    borderRadius: '0.4rem',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '0.85rem', fontWeight: 600,
+  };
+}
+const deletePhotoBtn = {
+  position: 'absolute', top: -5, right: -5,
+  width: 19, height: 19, borderRadius: '50%',
+  border: 'none', background: '#ef4444', color: '#fff',
+  fontSize: '0.7rem', cursor: 'pointer',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  lineHeight: 1, padding: 0,
+};

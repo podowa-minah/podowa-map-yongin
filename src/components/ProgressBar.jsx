@@ -135,43 +135,26 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
       <>
       {/* 바 + 농부 (왼쪽, 넓게) — 헤더 원래 높이 유지 (38px) */}
       <div style={{ position: 'relative', height: '38px', flex: 1, marginLeft: '6px', overflow: 'visible' }}>
-        {/* 게임 HP 바 — 굵고 깊이감 있게 (민트 톤) */}
+        {/* 진행률 바 — 에디토리얼 선형 (얇고 차분) */}
         <div style={{
           position: 'absolute',
-          top: '20px',
+          top: '26px',
           left: 0,
           right: 0,
-          height: '14px',
-          background: 'linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%)',
-          borderRadius: '7px',
+          height: '6px',
+          background: '#f3f4f6',
+          borderRadius: '3px',
           overflow: 'hidden',
-          border: '1.5px solid #16a34a',
-          boxShadow: 'inset 0 2px 3px rgba(22, 163, 74, 0.20), 0 1px 0 rgba(255, 255, 255, 0.8)',
+          border: '1px solid #d6c8a8',
         }}>
-          {/* 채워진 바 — 보라 그라데이션 + 위쪽 하이라이트 */}
+          {/* 채워진 바 — 깔끔한 검정 */}
           <div style={{
             height: '100%',
             width: isComplete ? '100%' : `${pct}%`,
-            background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 50%, #5b21b6 100%)',
-            borderRadius: '5.5px 0 0 5.5px',
+            background: '#1f2937',
+            borderRadius: '3px 0 0 3px',
             transition: 'width 0.5s ease',
-            position: 'relative',
-            boxShadow:
-              'inset 0 1px 0 rgba(255, 255, 255, 0.4),' +    /* 위쪽 하이라이트 */
-              'inset 0 -2px 3px rgba(67, 20, 142, 0.4)',     /* 아래 깊이감 */
-          }}>
-            {/* 광택 효과 — 바 위쪽 */}
-            <div style={{
-              position: 'absolute',
-              top: '1px',
-              left: '4px',
-              right: '4px',
-              height: '4px',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%)',
-              borderRadius: '4px',
-              pointerEvents: 'none',
-            }} />
-          </div>
+          }} />
         </div>
 
         {/* 농부 캐릭터 — 주인공! 살짝 흔들흔들 + 따뜻한 후광 */}
@@ -276,32 +259,21 @@ export default function ProgressBar({ completed, total, greenDots = 0, kindDots 
             </span>
           </span>
         ) : <span />}
-        {/* 퍼센트 표시 — 성장 이모지 + 보라 그라데이션 숫자 + 회색 분수 */}
+        {/* 퍼센트 — 에디토리얼 세리프 */}
         <span style={{
-          fontSize: '0.75rem',
+          fontFamily: 'Arvo, serif',
+          fontSize: '0.78rem',
           fontWeight: 700,
           whiteSpace: 'nowrap',
-          marginBottom: '3.4px',
+          marginBottom: '3px',
           display: 'flex',
-          alignItems: 'center',
-          gap: '3px',
-          padding: '1px 7px',
-          background: 'rgba(255, 255, 255, 0.7)',
-          borderRadius: '10px',
-          boxShadow: '0 1px 2px rgba(120, 90, 40, 0.08)',
+          alignItems: 'baseline',
+          gap: '4px',
+          color: '#1f2937',
+          letterSpacing: '0.3px',
         }}>
-          <span aria-hidden="true">
-            {pct === 100 ? '🎉' : pct >= 80 ? '🍇' : pct >= 50 ? '🌳' : pct >= 25 ? '🌿' : pct > 0 ? '🌱' : '💤'}
-          </span>
-          <span style={{
-            background: 'linear-gradient(90deg, #667eea, #764ba2)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            fontWeight: 800,
-          }}>
-            {pct}%
-          </span>
-          <span style={{ color: '#a0aec0', fontWeight: 500 }}>
+          <span style={{ fontWeight: 700 }}>{pct}%</span>
+          <span style={{ color: '#9ca3af', fontWeight: 400, fontSize: '0.72rem' }}>
             ({completed}/{total})
           </span>
         </span>

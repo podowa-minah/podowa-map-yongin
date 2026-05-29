@@ -8,6 +8,8 @@ import Login from './components/Login.jsx';
 import ExportButton from './components/ExportButton.jsx';
 import ChangePassword from './components/ChangePassword.jsx';
 import ProgressBar from './components/ProgressBar.jsx';
+import HeaderHero from './components/HeaderHero.jsx';
+import WorkerStatsPopup from './components/WorkerStatsPopup.jsx';
 import WeatherDate from './components/WeatherDate.jsx';
 import HistoryPopup from './components/HistoryPopup.jsx';
 import AnnouncementPopup from './components/AnnouncementPopup.jsx';
@@ -26,7 +28,15 @@ import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
-import JournalInputModal from './components/JournalInputModal';
+import { hasJournalData } from './lib/journal';
+import { getMissedDaysNeedingReasons } from './lib/historyStats';
+import IncompleteReasonPopup from './components/IncompleteReasonPopup';
+import WorkerDrilldownPopup from './components/WorkerDrilldownPopup';
+import { getDominantSeason } from './lib/dailyReport';
+import { evaluateCycle } from './lib/treatment-cycles';
+import TabNav from './components/TabNav';
+import AnalysisPage from './AnalysisPage';
+import ScoreReferencePage from './ScoreReferencePage';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -62,8 +72,18 @@ export default function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showIrrigation, setShowIrrigation] = useState(false);
   const [showPestTreatment, setShowPestTreatment] = useState(false);
+  const [activeTab, setActiveTab] = useState('map');   // 'map' | 'analysis' | 'scores'
+  const [previousTab, setPreviousTab] = useState('map');  // X 닫기 시 돌아갈 탭
+  const [showLogPopup, setShowLogPopup] = useState(false);
+  const [heroCollapsed, setHeroCollapsed] = useState(false);  // 그린 hero 접기/펼치기
+  const [irrEval, setIrrEval] = useState(null);
+  const [pestEval, setPestEval] = useState(null);
+  const [missedDaysNeedingReasons, setMissedDaysNeedingReasons] = useState([]);
+  const [showIncompletePopup, setShowIncompletePopup] = useState(false);
+  const [incompleteRefresh, setIncompleteRefresh] = useState(0);
+  const [workerDrilldown, setWorkerDrilldown] = useState(null);   // {name, date} | null
   // 영농일지 — Podowa 버튼 클릭 시 열림. 오늘 일지 있으면 불 꺼짐
-  const [showJournal, setShowJournal] = useState(false);
+  // (영농일지 모달 제거됨 — 현황분석 페이지로 통합)
   const [journalHasToday, setJournalHasToday] = useState(false);
   const [journalRefreshKey, setJournalRefreshKey] = useState(0);
   const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
@@ -207,8 +227,55 @@ export default function App() {
     return () => supabase.removeChannel(channel);
   }, [user]);
 
+  // 관수/방제 사이클 평가 — BottomBar 알람 컬러용
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const [irrRes, pestRes, settingsRes] = await Promise.all([
+        supabase.from('daily_notes').select('date').not('irrigation', 'is', null)
+          .order('date', { ascending: false }).limit(1),
+        supabase.from('daily_notes').select('date').not('pest_treatment', 'is', null)
+          .order('date', { ascending: false }).limit(1),
+        supabase.from('app_settings').select('key,value')
+          .in('key', ['irrigation_cycle_days', 'pest_cycle_days']),
+      ]);
+      if (!alive) return;
+      const settings = Object.fromEntries((settingsRes.data || []).map(r => [r.key, r.value]));
+      const irrCycle = parseInt(settings.irrigation_cycle_days) || 3;
+      const pestCycle = parseInt(settings.pest_cycle_days) || 7;
+      setIrrEval(evaluateCycle(irrRes.data?.[0]?.date || null, irrCycle));
+      setPestEval(evaluateCycle(pestRes.data?.[0]?.date || null, pestCycle));
+    })();
+    return () => { alive = false; };
+  }, [user, treatmentRefreshKey]);
+
+  // 미달일 사유 미제출 fetch (최근 30일)
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const today = new Date();
+      const kstToday = new Date(today.getTime() + 9 * 3600 * 1000);
+      const cutoff = new Date(kstToday.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+      const [summariesRes, notesRes] = await Promise.all([
+        supabase.from('daily_summaries').select('*').gte('date', cutoff),
+        supabase.from('daily_notes').select('date,type,content')
+          .eq('type', 'incomplete_reason').gte('date', cutoff),
+      ]);
+      if (!alive) return;
+      const missed = getMissedDaysNeedingReasons(
+        summariesRes.data || [],
+        notesRes.data || [],
+        30,
+      );
+      setMissedDaysNeedingReasons(missed);
+    })();
+    return () => { alive = false; };
+  }, [user, incompleteRefresh]);
+
   // 오늘 영농일지 작성 여부 → "Podowa" 버튼 불 상태 결정
-  // 텍스트 또는 사진이 있으면 "작성됨" (관수/방제만 입력된 빈 row는 미작성으로 간주)
+  // 한줄평/사진/카테고리(생육/환경/해충) 중 하나라도 있으면 작성됨
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -216,15 +283,12 @@ export default function App() {
       const today = getKSTToday();
       const { data } = await supabase
         .from('daily_notes')
-        .select('id,content,image_urls')
+        .select('id,content,image_urls,journal_notes')
         .eq('date', today)
         .eq('type', 'journal')
         .limit(1);
       if (!alive) return;
-      const row = data?.[0];
-      const hasContent = !!(row && row.content && row.content.trim().length > 0);
-      const hasImages = !!(row && row.image_urls && row.image_urls.length > 0);
-      setJournalHasToday(hasContent || hasImages);
+      setJournalHasToday(hasJournalData(data?.[0]));
     })();
     return () => { alive = false; };
   }, [user, journalRefreshKey]);
@@ -431,6 +495,25 @@ export default function App() {
     });
   }, [user, dataLoading, treeData, labels]);
 
+  // 현재 포도밭의 생육시기 — 오늘 기록 우선, 없으면 어제 기록
+  const currentDominantSeason = useMemo(() => {
+    const today = new Date();
+    const kstToday = new Date(today.getTime() + 9 * 3600 * 1000);
+    const tIso = kstToday.toISOString().slice(0, 10);
+    const kstYesterday = new Date(today.getTime() + 9 * 3600 * 1000 - 86400000);
+    const yIso = kstYesterday.toISOString().slice(0, 10);
+    const todayRecs = [];
+    const yRecs = [];
+    for (const treeId of Object.keys(treeData || {})) {
+      const days = treeData[treeId] || [];
+      for (const r of days) {
+        if (r.date === tIso) todayRecs.push({ id: treeId, ...r });
+        else if (r.date === yIso) yRecs.push({ id: treeId, ...r });
+      }
+    }
+    return getDominantSeason(todayRecs) || getDominantSeason(yRecs) || '';
+  }, [treeData]);
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
@@ -444,62 +527,31 @@ export default function App() {
     return <Login onLogin={setUser} />;
   }
 
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const userName = user?.user_metadata?.nickname || (user?.email ? user.email.split('@')[0] : '');
+  const hasRecentAnnouncement = prefetchedAnnouncements?.some(a => !dismissedAt || a.created_at > dismissedAt) || false;
+
   return (
     <div className="app-wrapper">
       <div className="app-container">
 
-        {/* ── 상단 바 + 접히는 메뉴 (sticky 안에 같이) ── */}
-        <header className="app-header-bar">
-          <div className="header-bar-inner">
-            <div className="header-title">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {/* Podowa 타이틀 = 영농일지 버튼 (불 켜져있으면 미작성) */}
-                <button
-                  className={`journal-btn ${journalHasToday ? '' : 'lit'}`}
-                  onClick={() => setShowJournal(true)}
-                  aria-label="오늘의 영농일지"
-                  title={journalHasToday ? '오늘 한 줄 작성됨 — 탭해서 수정' : '✨ 오늘 한 줄 쓰기'}
-                >
-                  <h1>Podowa</h1>
-                </button>
-                <span className="version">v1.1.15</span>
-              </div>
-              <WeatherDate onClick={() => setShowHistory(true)} />
-            </div>
-            {/* 우측 아이콘 그룹 — 게임 아이템 슬롯 스타일 (RPG 인벤토리) */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', flexShrink: 0, paddingTop: '2px' }}>
-              {/* 잎/포도 슬롯 (지도 전환) */}
-              <button
-                className="item-slot"
-                onClick={() => setViewMode(viewMode === 'farm' ? 'grass' : 'farm')}
-                aria-label={viewMode === 'farm' ? '잔디 지도로' : '나무 지도로'}
-              >
-                <img
-                  src={viewMode === 'farm' ? grasslink : grapelink}
-                  alt=""
-                  draggable={false}
-                  style={{
-                    width: 26, height: 26,
-                    transform: viewMode === 'farm' ? 'none' : 'rotate(22deg)',
-                    pointerEvents: 'none',
-                  }}
-                />
-              </button>
-              <TreatmentIcons
-                refreshKey={treatmentRefreshKey}
-                onClickIrrigation={() => setShowIrrigation(true)}
-                onClickPest={() => setShowPestTreatment(true)}
-              />
-              {/* 메뉴 슬롯 */}
-              <button
-                className="item-slot menu"
-                onClick={() => setHeaderOpen((v) => !v)}
-                aria-label="메뉴 열기/닫기"
-              >
-                {headerOpen ? '✕' : '☰'}
-              </button>
-            </div>
-          </div>
+        {/* ── 그린 hero (접기 가능 — 맵 더 넓게 보기) ── */}
+        <header className={`app-header-bar ${heroCollapsed ? 'collapsed' : ''}`}>
+          <HeaderHero
+            pct={pct}
+            completed={completed}
+            total={total}
+            userName={userName}
+            hasRecentAnnouncement={hasRecentAnnouncement}
+            greenDots={greenDots}
+            kindDots={greenDots - completed}
+            fakeDots={fakeDoneCount}
+            missedCount={missedDaysNeedingReasons.length}
+            onGoAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
+            onFarmerClick={() => setShowLogPopup(true)}
+            onAnnouncements={() => setShowAnnouncements(true)}
+            onIncompleteReasons={() => setShowIncompletePopup(true)}
+          />
 
           {/* ── 접히는 메뉴 ── */}
           {headerOpen && (
@@ -524,25 +576,60 @@ export default function App() {
               </button>
             </div>
           )}
-          {/* MonthlyManualLine 임시 숨김 — 디자인 개편 중 */}
-          {/* <MonthlyManualLine refreshKey={treatmentRefreshKey} /> */}
-          <ProgressBar completed={completed} total={total} greenDots={greenDots} kindDots={greenDots - completed} fakeDots={fakeDoneCount} treeData={treeData} />
         </header>
 
-        <main className="app-content" style={{ paddingBottom: '70px' }}>
-          {viewMode === 'farm' ? (
-            <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
-          ) : (
-            <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
+        {/* ── 흰 카드 (헤더 토글 핸들 포함) ── */}
+        <div className="info-card-sticky">
+          <WeatherDate
+            onClick={() => setShowHistory(true)}
+            currentSeason={currentDominantSeason}
+          />
+          <button
+            className="hero-toggle"
+            onClick={() => setHeroCollapsed(!heroCollapsed)}
+            aria-label={heroCollapsed ? '헤더 펼치기' : '헤더 접기 (맵 더 넓게)'}
+          >
+            {heroCollapsed ? '▼' : '▲'}
+          </button>
+        </div>
+
+        <main className="app-content" style={{ paddingBottom: '92px' }}>
+          {activeTab === 'map' && (
+            viewMode === 'farm' ? (
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
+            ) : (
+              <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
+            )
+          )}
+          {activeTab === 'analysis' && (
+            <AnalysisPage
+              treeData={treeData} labels={labels} user={user}
+              onOpenIrrigation={() => setShowIrrigation(true)}
+              onOpenPest={() => setShowPestTreatment(true)}
+              onSaved={() => { setJournalRefreshKey(k => k + 1); setTreatmentRefreshKey(k => k + 1); }}
+              onOpenScores={() => setActiveTab('scores')}
+              onClose={() => setActiveTab(previousTab || 'map')}
+            />
+          )}
+          {activeTab === 'scores' && (
+            <ScoreReferencePage />
           )}
         </main>
 
         <BottomBar
-          onAnnouncementClick={() => setShowAnnouncements(true)}
-          litTreeIds={litTreeIds}
-          pinnedItems={latestAnnouncement}
-          viewportInfo={viewportInfo}
-          hasRecent={prefetchedAnnouncements?.some(a => a.created_at > dismissedAt) || false}
+          activeTab={activeTab}
+          viewMode={viewMode}
+          onToggleMap={() => {
+            setActiveTab('map');
+            setViewMode(viewMode === 'farm' ? 'grass' : 'farm');
+          }}
+          onOpenIrrigation={() => setShowIrrigation(true)}
+          onOpenPest={() => setShowPestTreatment(true)}
+          onOpenAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
+          onOpenMenu={() => setHeaderOpen((v) => !v)}
+          hasJournalToday={journalHasToday}
+          irrEval={irrEval}
+          pestEval={pestEval}
         />
 
         {selectedTree && (
@@ -573,11 +660,19 @@ export default function App() {
           />
         )}
 
-        {showJournal && (
-          <JournalInputModal
-            user={user}
-            onClose={() => setShowJournal(false)}
-            onSaved={() => { setJournalHasToday(true); setJournalRefreshKey(k => k + 1); }}
+        {showLogPopup && (
+          <WorkerStatsPopup
+            treeData={treeData}
+            onClose={() => setShowLogPopup(false)}
+          />
+        )}
+
+        {showIncompletePopup && (
+          <IncompleteReasonPopup
+            missedDays={missedDaysNeedingReasons}
+            authorName={authorName}
+            onClose={() => setShowIncompletePopup(false)}
+            onSubmitted={() => setIncompleteRefresh(k => k + 1)}
           />
         )}
 
@@ -608,6 +703,23 @@ export default function App() {
             tomorrowTotal={tomorrowTotal}
             prefetchedSummaries={historySummaries}
             authorName={authorName}
+            onWorkerClick={(name, date) => setWorkerDrilldown({ name, date })}
+          />
+        )}
+
+        {workerDrilldown && (
+          <WorkerDrilldownPopup
+            workerName={workerDrilldown.name}
+            date={workerDrilldown.date}
+            treeData={treeData}
+            labels={labels}
+            onClose={() => setWorkerDrilldown(null)}
+            onTreeClick={(treeId) => {
+              setShowHistory(false);
+              setWorkerDrilldown(null);
+              window.history.pushState({ modal: true }, '');
+              setSelectedTree(treeId);
+            }}
           />
         )}
       </div>

@@ -44,6 +44,12 @@ alter table public.daily_notes add column if not exists irrigation jsonb default
 -- 전체방제: {chemical: '보르도', dilution: '1000배', method: '연무기', note: '...'}
 alter table public.daily_notes add column if not exists pest_treatment jsonb default null;
 
+-- 영농일지 구조화 (2026-05-29): 카테고리별 note + 사진 2장씩
+-- { growth: {note, image_urls[], thumbnails[]},
+--   env_indoor: {...}, env_outdoor: {...}, pest: {...} }
+-- content 컬럼은 "최종 한줄평"으로 재사용. image_urls/thumbnails는 legacy.
+alter table public.daily_notes add column if not exists journal_notes jsonb default null;
+
 create table if not exists public.daily_summaries (
   date text not null,
   completed integer not null default 0,

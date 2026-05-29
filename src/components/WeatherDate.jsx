@@ -2,6 +2,8 @@
 // 헤더 좌측 — 날짜 + 백암면 현재 날씨 (2개 미니 칩, 인벤토리 슬롯과 통일)
 
 import React, { useState, useEffect } from 'react';
+import { getSeasonalTerm, getSeasonalTermInfo } from '../lib/seasonalTerms';
+import { getMoonPhase } from '../lib/moonPhase';
 
 const WEATHER_EMOJI = {
   0: '☀️',
@@ -21,7 +23,7 @@ const WEATHER_EMOJI = {
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function WeatherDate({ onClick }) {
+export default function WeatherDate({ onClick, currentSeason }) {
   const [weather, setWeather] = useState(null);
 
   const now = new Date();
@@ -29,6 +31,10 @@ export default function WeatherDate({ onClick }) {
   const month = kst.getUTCMonth() + 1;
   const day = kst.getUTCDate();
   const dayName = DAY_NAMES[kst.getUTCDay()];
+  // ISO 날짜 (KST) — 절기/달모양 계산용
+  const isoDate = `${kst.getUTCFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const termInfo = getSeasonalTermInfo(isoDate);
+  const moon = getMoonPhase(isoDate);
 
   useEffect(() => {
     async function fetchWeather() {
@@ -53,34 +59,40 @@ export default function WeatherDate({ onClick }) {
   const emoji = weather ? (WEATHER_EMOJI[weather.code] || '🌡️') : '';
 
   return (
-    <span
-      onClick={onClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        marginTop: '4px',
-        marginLeft: '4px',                     /* Podowa 버튼 안쪽과 맞춤 */
-        fontSize: '0.75rem',
-        fontWeight: 700,
-        color: '#92400e',
-        cursor: onClick ? 'pointer' : 'default',
-        whiteSpace: 'nowrap',
-        userSelect: 'none',
-        lineHeight: 1,
-        letterSpacing: '0.2px',
-      }}
-    >
-      <span style={{ fontSize: '0.82rem' }}>📅</span>
-      <span>{month}/{day}</span>
-      <span style={{ color: '#b45309', fontWeight: 700 }}>({dayName})</span>
-      {weather && (
-        <>
-          <span style={{ color: '#c9b890', margin: '0 1px' }}>·</span>
-          <span style={{ fontSize: '0.82rem' }}>{emoji}</span>
-          <span style={{ color: '#78350f', fontWeight: 800 }}>{weather.temp}°</span>
-        </>
+    <div onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+      {/* 1줄: 날짜 + 요일 + 날씨 + 현재 생육시기 */}
+      <div className="info-card-date">
+        <span>{month}/{day}</span>
+        <span className="day">({dayName})</span>
+        {weather && (
+          <>
+            <span className="sep">·</span>
+            <span style={{ fontSize: '0.95rem' }}>{emoji}</span>
+            <span className="temp">{weather.temp}°</span>
+          </>
+        )}
+        {currentSeason && (
+          <>
+            <span className="sep">·</span>
+            <span className="season-now">현재 {currentSeason}</span>
+          </>
+        )}
+      </div>
+
+      {/* 2줄: 달이름 + 절기 + 뜻 (기본 폰트, 작게) */}
+      {(moon || termInfo) && (
+        <div className="info-card-seasonal">
+          {moon && (
+            <>
+              <span style={{ fontSize: '0.95rem' }}>{moon.emoji}</span>
+              <span className="moon-name">{moon.name}</span>
+            </>
+          )}
+          {moon && termInfo && <span className="sep">·</span>}
+          {termInfo && <span className="name">{termInfo.name}</span>}
+          {termInfo && <span className="meaning">— {termInfo.meaning}</span>}
+        </div>
       )}
-    </span>
+    </div>
   );
 }

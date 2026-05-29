@@ -48,11 +48,12 @@ export function shortTime(iso) {
 }
 
 // 특정 날짜(YYYY-MM-DD)의 백암면 날씨 (일별 요약)
+// 일별 습도 포함 — 백필 시에도 그날 정확한 습도 기록됨
 export async function fetchDailyWeather(dateIso) {
   const url =
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${BAEKAM_LAT}&longitude=${BAEKAM_LON}` +
-    `&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,relative_humidity_2m_max,relative_humidity_2m_min,relative_humidity_2m_mean` +
     `&current=temperature_2m,weather_code,relative_humidity_2m` +
     `&timezone=Asia/Seoul` +
     `&start_date=${dateIso}&end_date=${dateIso}`;
@@ -69,6 +70,11 @@ export async function fetchDailyWeather(dateIso) {
     precipitation: d.precipitation_sum?.[0] ?? 0,
     sunrise: shortTime(d.sunrise?.[0]),
     sunset: shortTime(d.sunset?.[0]),
+    // 일별 습도 (그날 기록) — 백필 시에도 그날 실제 값
+    humidityMax: d.relative_humidity_2m_max?.[0] != null ? Math.round(d.relative_humidity_2m_max[0]) : null,
+    humidityMin: d.relative_humidity_2m_min?.[0] != null ? Math.round(d.relative_humidity_2m_min[0]) : null,
+    humidityMean: d.relative_humidity_2m_mean?.[0] != null ? Math.round(d.relative_humidity_2m_mean[0]) : null,
+    // 현재값 (오늘 일지 작성 시 "지금" 표시용)
     currentTemp: c?.temperature_2m != null ? Math.round(c.temperature_2m) : null,
     currentHumidity: c?.relative_humidity_2m ?? null,
   };

@@ -223,12 +223,15 @@ export default function ExportButton() {
         const ws2 = wb.addWorksheet('영농일지');
 
         const jHeaders = [
-          '날짜', '작성시각', '작성자', '내용',
-          '사진개수', '사진1', '사진2', '사진3',
+          '날짜', '작성시각', '작성자', '한줄평',
+          '생육 메모', '생육 사진1', '생육 사진2',
+          '환경 메모', '환경 사진1', '환경 사진2',
+          '병해충 메모', '병해충 사진1', '병해충 사진2',
           '날씨', '최고온도(°C)', '최저온도(°C)', '강수량(mm)',
           '일출', '일몰', '습도(%)',
           '관수 동', '관수 시간(분)', '관수 메모',
           '방제 약제', '방제 배율', '방제 방식', '방제 메모',
+          '옛 메모(legacy)', '옛 사진(legacy)',
         ];
         const jHeaderRow = ws2.addRow(jHeaders);
         jHeaderRow.eachCell((cell) => {
@@ -242,11 +245,10 @@ export default function ExportButton() {
           { width: 12 },  // 날짜
           { width: 18 },  // 작성시각
           { width: 12 },  // 작성자
-          { width: 50 },  // 내용
-          { width: 8 },   // 사진개수
-          { width: 32 },  // 사진1
-          { width: 32 },  // 사진2
-          { width: 32 },  // 사진3
+          { width: 40 },  // 한줄평
+          { width: 35 }, { width: 28 }, { width: 28 },  // 생육
+          { width: 35 }, { width: 28 }, { width: 28 },  // 환경
+          { width: 35 }, { width: 28 }, { width: 28 },  // 병해충
           { width: 12 },  // 날씨
           { width: 11 },  // 최고
           { width: 11 },  // 최저
@@ -261,13 +263,29 @@ export default function ExportButton() {
           { width: 10 },  // 방제 배율
           { width: 12 },  // 방제 방식
           { width: 25 },  // 방제 메모
+          { width: 40 },  // 옛 메모
+          { width: 30 },  // 옛 사진
         ];
 
         journalData.forEach((entry) => {
           const w = entry.weather || {};
           const irr = entry.irrigation || {};
           const pest = entry.pest_treatment || {};
-          const imgs = entry.image_urls || [];
+          const jn = entry.journal_notes || {};
+          const growth = jn.growth || {};
+          // 옛 env_indoor/env_outdoor가 있으면 env로 흡수해서 보여주기
+          let env = jn.env || {};
+          if (!jn.env && (jn.env_indoor || jn.env_outdoor)) {
+            const parts = [];
+            if (jn.env_indoor?.note) parts.push(`[내부] ${jn.env_indoor.note}`);
+            if (jn.env_outdoor?.note) parts.push(`[외부] ${jn.env_outdoor.note}`);
+            env = {
+              note: parts.join(' / '),
+              image_urls: [...(jn.env_indoor?.image_urls || []), ...(jn.env_outdoor?.image_urls || [])],
+            };
+          }
+          const pestObs = jn.pest || {};
+          const legacyImgs = entry.image_urls || [];
           const created = entry.created_at
             ? new Date(entry.created_at).toISOString().slice(0, 19).replace('T', ' ')
             : '';
@@ -275,18 +293,20 @@ export default function ExportButton() {
             entry.date || '',
             created,
             entry.author || '',
-            entry.content || '',
-            imgs.length,
-            imgs[0] || '',
-            imgs[1] || '',
-            imgs[2] || '',
+            entry.content || '',                                          // 한줄평
+            growth.note || '',
+            growth.image_urls?.[0] || '', growth.image_urls?.[1] || '',
+            env.note || '',
+            env.image_urls?.[0] || '', env.image_urls?.[1] || '',
+            pestObs.note || '',
+            pestObs.image_urls?.[0] || '', pestObs.image_urls?.[1] || '',
             WEATHER_LABEL[w.code] || '',
             w.tempMax != null ? w.tempMax : '',
             w.tempMin != null ? w.tempMin : '',
             w.precipitation != null ? w.precipitation : '',
             w.sunrise || '',
             w.sunset || '',
-            w.currentHumidity != null ? w.currentHumidity : '',
+            w.humidityMean != null ? w.humidityMean : (w.currentHumidity != null ? w.currentHumidity : ''),
             irr.blocks?.length > 0 ? irr.blocks.join(',') + '동' : '',
             irr.duration_minutes != null ? irr.duration_minutes : '',
             irr.note || '',
@@ -294,6 +314,9 @@ export default function ExportButton() {
             pest.dilution || '',
             pest.method || '',
             pest.note || '',
+            // legacy (옛 entry는 여기 표시됨)
+            legacyImgs.length > 0 && !jn.growth ? (entry.content || '') : '',
+            legacyImgs.join(' ; '),
           ]);
         });
       }

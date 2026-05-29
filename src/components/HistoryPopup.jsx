@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
+import { monthAvgCompletion, topWorkers, predictTomorrowWorkload } from '../lib/historyStats';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import farmerCrySVG from '../assets/icons/farmer_cry.svg';
 import farmerProudSVG from '../assets/icons/farmer_proud.svg';
@@ -389,6 +390,7 @@ function DayRow({
   date, label, completed, total, greenDots, kindDots, fakeDots, workers,
   isTomorrow, isToday,
   notes, onCreate, onUpdate, onDelete, currentAuthor,
+  onWorkerClick,
 }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
@@ -410,22 +412,27 @@ function DayRow({
 
   return (
     <div style={{
-      padding: '10px 0',
-      borderBottom: '1px solid #f0f0f0',
-      backgroundColor: isIncomplete ? '#fef9ef' : undefined,
-      marginLeft: '-12px', marginRight: '-12px',
-      paddingLeft: '12px', paddingRight: '12px',
-      borderRadius: isIncomplete ? '8px' : 0,
+      padding: '0.55rem 0.7rem',
+      marginBottom: '0.4rem',
+      background: isIncomplete ? '#fef9ef' : isComplete ? '#f0fdf4' : '#ffffff',
+      border: isIncomplete
+        ? '1px solid #fcd34d'
+        : isComplete
+          ? '1px solid #86efac'
+          : '1px solid #e7d9b8',
+      borderRadius: '0.5rem',
     }}>
       {/* 첫째 줄 */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: '8px',
+        display: 'flex', alignItems: 'center', gap: '6px',
         marginBottom: (showSlot || hasWorkers) ? '4px' : 0,
+        flexWrap: 'wrap',
+        minWidth: 0,
       }}>
         <span style={{
           fontSize: '0.85rem', fontWeight: 700,
           color: isTomorrow ? '#7c3aed' : isIncomplete ? '#e09600' : '#2d3748',
-          minWidth: '80px', flexShrink: 0,
+          flexShrink: 0,
         }}>
           {isTomorrow && '🔮 '}{isToday && '📍 '}{label}
         </span>
@@ -482,26 +489,54 @@ function DayRow({
           alignItems: 'center',
           minHeight: '16px',
         }}>
-          {showSlot && (
-            <NoteSlot
-              date={date}
-              slotType={slotType}
-              notes={notes}
-              onCreate={onCreate}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              currentAuthor={currentAuthor}
-            />
-          )}
+          {/* 미달일 사유 — 단순 inline 표시 (row2 전체) */}
+          {isIncomplete && showSlot && (() => {
+            const reasonNotes = notes.filter(n => n.type === 'incomplete_reason' || !n.type || n.type === 'summary');
+            const latestReason = reasonNotes[reasonNotes.length - 1];
+            return (
+              <div style={{
+                gridRow: 2, gridColumn: '1 / -1',
+                marginTop: '4px',
+                fontSize: '0.74rem',
+                color: '#7c4a00',
+                fontStyle: 'italic',
+                lineHeight: 1.4,
+                padding: '4px 7px',
+                background: '#fffbeb',
+                borderRadius: '4px',
+                borderLeft: '3px solid #f59e0b',
+                minWidth: 0,
+              }}>
+                {latestReason
+                  ? `📝 ${latestReason.content}${latestReason.author ? ` (${latestReason.author})` : ''}`
+                  : '📝 사유 미제출 — 헤더 ⚠️ 배너에서 입력'}
+              </div>
+            );
+          })()}
           {hasWorkers && (
             <div style={{
-              gridRow: 1, gridColumn: 2,
+              gridRow: 1, gridColumn: '1 / -1',
               fontSize: '0.72rem', color: '#a0aec0',
               minWidth: 0, lineHeight: 1.3,
+              wordBreak: 'keep-all',
             }}>
               {workers.map((w, i) => (
                 <span key={w.name}>
-                  {i > 0 && ' · '}👨‍🌾 {w.name} {w.count}
+                  {i > 0 && ' · '}
+                  <button
+                    onClick={() => onWorkerClick?.(w.name, date)}
+                    style={{
+                      background: 'none', border: 'none', padding: 0,
+                      color: '#1f2937', fontSize: 'inherit',
+                      fontWeight: 700, cursor: 'pointer',
+                      textDecoration: 'underline',
+                      textDecorationStyle: 'dotted',
+                      textUnderlineOffset: '2px',
+                    }}
+                    title={`${w.name}의 ${date} 작업 상세`}
+                  >
+                    👨‍🌾 {w.name} {w.count}
+                  </button>
                 </span>
               ))}
             </div>
@@ -513,46 +548,53 @@ function DayRow({
 }
 
 // 미래 plan row (모레~+6일) — 프로그레스바/워커/점들 없음, 날짜 + ? 슬롯만
-function PlanRow({ date, label, notes, onCreate, onUpdate, onDelete, currentAuthor }) {
+// 통계 카드 (월평균/TOP/예측)
+function StatCard({ label, value, subValue, color }) {
   return (
     <div style={{
-      padding: '10px 0',
-      borderBottom: '1px solid #f0f0f0',
-      marginLeft: '-12px', marginRight: '-12px',
-      paddingLeft: '12px', paddingRight: '12px',
+      padding: '8px 10px',
+      background: '#ffffff',
+      border: '1px solid #d1fae5',
+      borderRadius: '8px',
+      textAlign: 'center',
     }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '80px 1fr',
-        columnGap: '8px',
-        alignItems: 'center',
-      }}>
-        <span style={{
-          gridRow: 1, gridColumn: 1,
-          fontSize: '0.85rem', fontWeight: 700,
-          color: '#0EA5E9',
-        }}>
-          ☁️ {label}
-        </span>
-        <NoteSlot
-          date={date}
-          slotType="plan"
-          notes={notes}
-          onCreate={onCreate}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          currentAuthor={currentAuthor}
-          labelArea={{ gridRow: 1, gridColumn: 2 }}
-          expandedArea={{ gridRow: 2, gridColumn: '1 / -1', marginTop: '4px' }}
-        />
+      <div style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600, marginBottom: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {label}
       </div>
+      <div style={{ fontSize: '1rem', fontWeight: 800, color, lineHeight: 1.1 }}>
+        {value}
+      </div>
+      {subValue && (
+        <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '2px' }}>
+          {subValue}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanRow({ date, label }) {
+  return (
+    <div style={{
+      padding: '0.45rem 0.7rem',
+      marginBottom: '0.35rem',
+      background: '#eff6ff',
+      border: '1px solid #bfdbfe',
+      borderRadius: '0.5rem',
+    }}>
+      <span style={{
+        fontSize: '0.82rem', fontWeight: 700,
+        color: '#0c4a6e',
+      }}>
+        ☁️ {label}
+      </span>
     </div>
   );
 }
 
 const PAGE_SIZE = 30;
 
-export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries, authorName }) {
+export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries, authorName, onWorkerClick }) {
   const [summaries, setSummaries] = useState(prefetchedSummaries || []);
   const [loading, setLoading] = useState(!prefetchedSummaries);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -613,10 +655,10 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
   }, []);
 
   // 댓글 작성
-  const handleCreateNote = async (date, content) => {
+  const handleCreateNote = async (date, content, type = 'incomplete_reason') => {
     const { data, error } = await supabase
       .from('daily_notes')
-      .insert({ date, author: authorName || null, content })
+      .insert({ date, author: authorName || null, content, type })
       .select()
       .single();
     if (error) {
@@ -677,36 +719,40 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      position: 'fixed', inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.6)',
       zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '20px',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '5vh 1rem',
+      overflow: 'auto',
+      WebkitOverflowScrolling: 'touch',
     }}
       onClick={onClose}
     >
       <div
         style={{
-          backgroundColor: '#fff',
-          borderRadius: '16px',
-          padding: '20px',
+          background: 'linear-gradient(180deg, #faf7f0 0%, #f3ede0 100%)',
+          padding: '1.2rem',
+          borderRadius: '1.2rem',
           width: '100%',
-          maxWidth: '380px',
-          maxHeight: '70vh',
-          overflowY: 'auto',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          maxWidth: '540px',
+          margin: '0 auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          border: '3px solid #86efac',                /* 그린 — 작업/농장 톤 */
+          fontFamily: '"Pretendard Variable", sans-serif',
         }}
         onClick={e => e.stopPropagation()}
       >
         {/* 타이틀 */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          marginBottom: '12px',
+          marginBottom: '0.7rem',
         }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#2d3748' }}>
-              📋 작업 히스토리
-            </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.4rem' }}>📋</span>
+            <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#14532d', fontWeight: 700 }}>
+              작업 히스토리
+            </h2>
             <button
               onClick={() => setShowFuture(s => !s)}
               title={showFuture ? '미래 일주일 닫기' : '미래 일주일 보기'}
@@ -727,14 +773,59 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
           </span>
           <button
             onClick={onClose}
+            aria-label="닫기"
             style={{
-              border: 'none', background: 'none', fontSize: '1.2rem',
-              cursor: 'pointer', color: '#a0aec0', padding: '4px',
+              width: 32, height: 32, borderRadius: '50%',
+              border: '1px solid #d6c8a8', background: '#fffefb',
+              color: '#6b7280', cursor: 'pointer',
+              fontSize: '1.05rem', fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(120, 90, 40, 0.15)',
+              lineHeight: 1, padding: 0,
             }}
           >
             ✕
           </button>
         </div>
+
+        <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 0.9rem' }}>
+          매일의 작업 기록과 성취를 한눈에 볼 수 있어요.
+        </p>
+
+        {/* ── 📊 통계 카드 (관수/방제 스타일) ── */}
+        {!loading && (() => {
+          const allSummaries = [
+            ...summaries,
+            ...(todayStats ? [{ date: today, ...todayStats, workers: todayStats.workers }] : []),
+          ];
+          const now = new Date();
+          const kst = new Date(now.getTime() + 9 * 3600 * 1000);
+          const monthYear = kst.getUTCFullYear();
+          const monthNum = kst.getUTCMonth() + 1;
+          const avgPct = monthAvgCompletion(allSummaries, monthYear, monthNum);
+          const top = topWorkers(allSummaries, 30, 1)[0];
+          const predicted = predictTomorrowWorkload(allSummaries, 7);
+          return (
+            <div style={{
+              padding: '0.7rem 0.8rem',
+              background: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: '0.6rem',
+              marginBottom: '0.9rem',
+            }}>
+              <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 700, marginBottom: '0.5rem' }}>
+                📊 이번 달 요약
+              </div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px',
+              }}>
+                <StatCard label={`${monthNum}월 평균`} value={avgPct != null ? `${avgPct}%` : '—'} color="#16a34a" />
+                <StatCard label="30일 TOP" value={top ? top.name : '—'} subValue={top ? `${top.count}그루` : ''} color="#0284c7" />
+                <StatCard label="내일 예상" value={predicted != null ? `${predicted}그루` : '—'} color="#a16207" />
+              </div>
+            </div>
+          );
+        })()}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#a0aec0' }}>
@@ -742,6 +833,9 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
           </div>
         ) : (
           <>
+            <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 700, marginBottom: '0.45rem', paddingTop: '0.3rem' }}>
+              📅 일별 기록
+            </div>
             {/* 미래 7일 (모레~+6일) — 토글 ON 시, 가장 먼 미래가 위 */}
             {showFuture && [...futureDates].reverse().map(d => (
               <PlanRow
@@ -787,6 +881,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                 onUpdate={handleUpdateNote}
                 onDelete={handleDeleteNote}
                 currentAuthor={authorName}
+                onWorkerClick={onWorkerClick}
               />
             )}
 
@@ -809,6 +904,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   onUpdate={handleUpdateNote}
                   onDelete={handleDeleteNote}
                   currentAuthor={authorName}
+                  onWorkerClick={onWorkerClick}
                 />
               ))
             }

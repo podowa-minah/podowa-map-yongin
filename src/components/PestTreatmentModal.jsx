@@ -90,6 +90,7 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [existing, setExisting] = useState(null);
   const [history, setHistory] = useState([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
   // 옵션 리스트 — 처음엔 DEFAULT_*, 사용자가 추가/삭제 가능 (app_settings에 영구 저장)
   const [chemicals, setChemicals] = useState(DEFAULT_CHEMICALS);
   const [dilutions, setDilutions] = useState(DEFAULT_DILUTIONS);
@@ -323,6 +324,92 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
             : '과거 방제 기록을 채워넣고 있어요.'}
         </p>
 
+        {/* ── 방제 히스토리 — 상단 (판단 도움) ── */}
+        <div style={{
+          marginBottom: '1rem',
+          background: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: '0.5rem',
+          padding: '0.6rem 0.7rem',
+        }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#78350f', marginBottom: '0.4rem' }}>
+            💊 최근 방제
+            <span style={{ fontSize: '0.7rem', color: '#a3a3a3', fontWeight: 500, marginLeft: '0.3rem' }}>
+              (총 {history.length}회)
+            </span>
+          </div>
+          {loading ? (
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>불러오는 중...</div>
+          ) : history.length === 0 ? (
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af' }}>아직 기록 없음</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {(showAllHistory ? history : history.slice(0, 2)).map(entry => {
+                  const isSelected = entry.date === selectedDate;
+                  return (
+                    <div key={entry.id} style={{
+                      position: 'relative',
+                      background: isSelected ? '#fef3c7' : '#fff',
+                      border: isSelected ? '2px solid #f59e0b' : '1px solid #fde68a',
+                      borderRadius: '0.4rem',
+                    }}>
+                      <button
+                        onClick={() => setSelectedDate(entry.date)}
+                        style={{
+                          textAlign: 'left', background: 'transparent', border: 'none',
+                          padding: '0.45rem 1.8rem 0.45rem 0.6rem',
+                          width: '100%', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '0.4rem',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#92400e', whiteSpace: 'nowrap' }}>
+                          {formatDateShort(entry.date)}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: '#78350f', flex: 1 }}>
+                          {summarizePest(entry.pest_treatment)}
+                        </span>
+                        {entry.author && (
+                          <span style={{ fontSize: '0.68rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                            {entry.author}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleDeletePest(entry)}
+                        aria-label="삭제"
+                        title="삭제 (비번 필요)"
+                        style={{
+                          position: 'absolute', top: '50%', right: 5, transform: 'translateY(-50%)',
+                          width: 19, height: 19, borderRadius: '50%',
+                          border: '1px solid #d6c8a8', background: '#fff',
+                          color: '#9ca3af', cursor: 'pointer', fontSize: '0.68rem',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          lineHeight: 1, padding: 0,
+                        }}
+                      >×</button>
+                    </div>
+                  );
+                })}
+              </div>
+              {history.length > 2 && (
+                <button
+                  onClick={() => setShowAllHistory(v => !v)}
+                  style={{
+                    marginTop: '0.4rem', width: '100%',
+                    padding: '0.35rem', background: 'transparent',
+                    border: '1px dashed #fcd34d', borderRadius: '0.3rem',
+                    color: '#92400e', fontSize: '0.75rem', fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {showAllHistory ? '접기' : `더보기 (+${history.length - 2}건)`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
         {/* 약제 — 버튼 only, 모두 삭제 가능 */}
         <div style={{ marginBottom: '0.8rem' }}>
           <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, marginBottom: '0.4rem' }}>
@@ -448,7 +535,8 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
           </button>
         </div>
 
-        {/* ── 방제 히스토리 ── */}
+        {/* ── 방제 히스토리 (하단 — 제거됨, 상단으로 이동됨) ── */}
+        {false && (
         <div style={{ marginTop: '1.2rem', borderTop: '1px solid rgba(168, 132, 70, 0.25)', paddingTop: '0.9rem' }}>
           <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#374151', marginBottom: '0.5rem' }}>
             💊 전체방제 히스토리
@@ -540,6 +628,7 @@ export default function PestTreatmentModal({ user, onClose, onSaved }) {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>,
     document.body

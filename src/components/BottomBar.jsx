@@ -1,270 +1,139 @@
 // src/components/BottomBar.jsx
-import React, { useState } from 'react';
-import MiniMap from './MiniMap';
-import farmerAnnounce from '../assets/icons/farmer_announce.svg';
+// 하단 액션 바 — 잎/관수/방제/보고서/메뉴 (모바일 탭바 스타일)
+// 보고서 = 현황분석 페이지로 이동, 미작성 시 빨간 dot 알람
 
-const COLLAPSED_STORAGE_KEY = 'bottom_bar_collapsed_until';
+import grasslink from '../assets/icons/grass.svg';
+import grapelink from '../assets/icons/grape.svg';
 
-// 다음 "한국 시간 04:00" 의 UTC ISO 문자열 반환
-function getNextKSTResetISO() {
-  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-  const nowKST = new Date(Date.now() + KST_OFFSET_MS);
-  const y = nowKST.getUTCFullYear();
-  const m = nowKST.getUTCMonth();
-  const d = nowKST.getUTCDate();
-  const h = nowKST.getUTCHours();
-  // 이미 오늘 KST 04:00을 지났으면 내일 04:00이 리셋 시각
-  const targetDate = h >= 4 ? d + 1 : d;
-  const targetUTCms = Date.UTC(y, m, targetDate, 4, 0, 0) - KST_OFFSET_MS;
-  return new Date(targetUTCms).toISOString();
-}
-
-function readInitialCollapsed() {
-  try {
-    const expiry = localStorage.getItem(COLLAPSED_STORAGE_KEY);
-    if (!expiry) return false;
-    if (new Date(expiry).getTime() > Date.now()) return true;
-    // 만료된 값은 청소
-    localStorage.removeItem(COLLAPSED_STORAGE_KEY);
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-export default function BottomBar({ onAnnouncementClick, litTreeIds, pinnedItems = [], viewportInfo, hasRecent = false }) {
-  const [collapsed, setCollapsed] = useState(readInitialCollapsed);
-
-  const handleCollapse = () => {
-    try {
-      localStorage.setItem(COLLAPSED_STORAGE_KEY, getNextKSTResetISO());
-    } catch {}
-    setCollapsed(true);
-  };
-
-  const handleExpand = () => {
-    try {
-      localStorage.removeItem(COLLAPSED_STORAGE_KEY);
-    } catch {}
-    setCollapsed(false);
-  };
-
-  // 빨간 점 뱃지 ("다 확인했어요" 누르기 전까지 표시)
-  const redDot = hasRecent ? (
-    <span style={{
-      display: 'inline-block',
-      width: 8,
-      height: 8,
-      borderRadius: '50%',
-      backgroundColor: '#ef4444',
-      marginLeft: '4px',
-      verticalAlign: 'middle',
-    }} />
-  ) : null;
-
-  // 메가폰 농부 크기: "다 확인했어요" 누르기 전까지 → 크게 + 흔들림
-  const farmerSizeExpanded = 70;
-  const farmerSizeNormal = 45;
-  const farmerSizeCollapsed = hasRecent ? 60 : 40;
-
-  // 접힌 상태
-  if (collapsed) {
-    return (
-      <div
-        className="bottom-bar"
-        style={{
-          backgroundColor: '#fff',
-          borderTop: '1px solid #e0e0e0',
-          WebkitTransform: 'translateZ(0)',
-          transform: 'translateZ(0)',
-        }}
-      >
-        <style>{`
-          @keyframes shake {
-            0%, 100% { transform: rotate(0deg); }
-            15% { transform: rotate(-12deg); }
-            30% { transform: rotate(10deg); }
-            45% { transform: rotate(-8deg); }
-            60% { transform: rotate(6deg); }
-            75% { transform: rotate(-3deg); }
-          }
-        `}</style>
-        <div
-          onClick={handleExpand}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '44px',
-            cursor: 'pointer',
-            userSelect: 'none',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <img
-              src={farmerAnnounce}
-              alt=""
-              style={{
-                width: farmerSizeCollapsed,
-                height: farmerSizeCollapsed,
-                animation: hasRecent ? 'shake 0.8s ease-in-out infinite' : 'none',
-              }}
-            />
-            <span style={{ fontFamily: "'Poor Story', cursive", fontSize: hasRecent ? '1rem' : '0.85rem', color: hasRecent ? '#d97706' : '#666', fontWeight: hasRecent ? 700 : 400 }}>
-              농부님 주목!
-            </span>
-            {redDot}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // 펼친 상태
+export default function BottomBar({
+  activeTab,
+  viewMode,
+  onToggleMap,
+  onOpenIrrigation,
+  onOpenPest,
+  onOpenAnalysis,
+  onOpenMenu,
+  hasJournalToday,
+  irrEval,
+  pestEval,
+}) {
   return (
-    <div
-      className="bottom-bar"
-      style={{
-        backgroundColor: '#fff',
-        borderTop: '1px solid #e0e0e0',
-        WebkitTransform: 'translateZ(0)',
-        transform: 'translateZ(0)',
-      }}
-    >
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateY(-50%) rotate(0deg); }
-          15% { transform: translateY(-50%) rotate(-12deg); }
-          30% { transform: translateY(-50%) rotate(10deg); }
-          45% { transform: translateY(-50%) rotate(-8deg); }
-          60% { transform: translateY(-50%) rotate(6deg); }
-          75% { transform: translateY(-50%) rotate(-3deg); }
+    <nav className="action-bar">
+      {/* 1: 지도 전환 (잎/포도) */}
+      <ActionItem
+        icon={
+          <img
+            src={viewMode === 'farm' ? grasslink : grapelink}
+            alt=""
+            style={{
+              width: 26, height: 26,
+              transform: viewMode === 'farm' ? 'none' : 'rotate(22deg)',
+            }}
+          />
         }
-      `}</style>
+        label={viewMode === 'farm' ? '들풀' : '나무'}
+        active={activeTab === 'map'}
+        onClick={onToggleMap}
+      />
 
-      {/* 손잡이 탭 — 누르면 접기 */}
-      <div
-        onClick={handleCollapse}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '20px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
-        <div style={{
-          width: '40px',
-          height: '4px',
-          borderRadius: '2px',
-          backgroundColor: '#ccc',
-        }} />
+      {/* 2: 관수 */}
+      <ActionItem
+        icon={<WaterIcon lit={irrEval?.isDue} />}
+        label="관수"
+        badge={irrEval?.isDue}
+        litColor="blue"
+        onClick={onOpenIrrigation}
+      />
+
+      {/* 3: 방제 */}
+      <ActionItem
+        icon={<MedicineIcon lit={pestEval?.isDue} />}
+        label="방제"
+        badge={pestEval?.isDue}
+        litColor="amber"
+        onClick={onOpenPest}
+      />
+
+      {/* 4: 밭상태 진단 보고 (핵심 daily task) */}
+      <ActionItem
+        icon={<ReportIcon active={activeTab === 'analysis' || !hasJournalToday} />}
+        label="보고"
+        badge={!hasJournalToday}
+        litColor="red"
+        active={activeTab === 'analysis'}
+        onClick={onOpenAnalysis}
+        highlight
+      />
+
+      {/* 5: 메뉴 */}
+      <ActionItem
+        icon={<MenuIcon />}
+        label="메뉴"
+        onClick={onOpenMenu}
+      />
+    </nav>
+  );
+}
+
+function ActionItem({ icon, label, active, badge, onClick, highlight, litColor }) {
+  // litColor: 'blue' (관수) | 'amber' (방제) | 'red' (보고서) — badge=true일 때 카드 lit 효과
+  const litClass = badge && litColor ? `lit-${litColor}` : '';
+  return (
+    <button
+      className={`action-item ${active ? 'active' : ''} ${highlight ? 'highlight' : ''} ${litClass}`}
+      onClick={onClick}
+    >
+      <div className="action-icon-wrap">
+        {icon}
       </div>
+      <span className="action-label">{label}</span>
+    </button>
+  );
+}
 
-      {/* 콘텐츠 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        padding: '0 12px 6px',
-        gap: '10px',
-      }}>
-        {/* 미니맵 */}
-        <div
-          onClick={handleCollapse}
-          style={{
-            flexShrink: 0,
-            padding: '4px',
-            backgroundColor: '#f5f5f5',
-            borderRadius: '4px',
-            border: '1px solid #e0e0e0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <MiniMap litTreeIds={litTreeIds} viewportInfo={viewportInfo} />
-        </div>
-
-        {/* 게시판 */}
-        <div
-          onClick={onAnnouncementClick}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            border: '1px solid #ccc',
-            borderRadius: '6px',
-            backgroundColor: '#fafafa',
-            cursor: 'pointer',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '4px 10px',
-          }}
-        >
-          {/* 타이틀 */}
-          <div style={{
-            textAlign: 'center',
-            flexShrink: 0,
-            lineHeight: 1,
-          }}>
-            <span style={{
-              position: 'relative',
-              display: 'inline-block',
-              fontFamily: "'Poor Story', cursive",
-              fontSize: hasRecent ? '1.1rem' : '0.95rem',
-              color: hasRecent ? '#d97706' : '#666',
-              fontWeight: hasRecent ? 700 : 400,
-            }}>
-              <img
-                src={farmerAnnounce}
-                alt=""
-                style={{
-                  position: 'absolute',
-                  right: '100%',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: hasRecent ? farmerSizeExpanded : farmerSizeNormal,
-                  height: hasRecent ? farmerSizeExpanded : farmerSizeNormal,
-                  marginRight: '2px',
-                  animation: hasRecent ? 'shake 0.8s ease-in-out infinite' : 'none',
-                  transition: 'width 0.3s, height 0.3s',
-                }}
-              />
-              농부님 주목!
-              {redDot}
-            </span>
-          </div>
-
-          {/* 핀된 항목 */}
-          {pinnedItems.length > 0 && (
-            <div style={{
-              flex: 1,
-              overflow: 'hidden',
-              marginTop: '6px',
-            }}>
-              {pinnedItems.map((item) => (
-                <div key={item.id} style={{
-                  fontFamily: "'Poor Story', cursive",
-                  fontSize: '0.85rem',
-                  color: '#555',
-                  lineHeight: '1.3',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  <span style={{ color: '#999', marginRight: '4px' }}>•</span>
-                  {item.message}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+// 작은 SVG 아이콘들 (미니멀, 일관된 스타일)
+function WaterIcon({ lit }) {
+  const fill = lit ? '#0ea5e9' : '#94a3b8';
+  const stroke = lit ? '#0369a1' : '#64748b';
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+      <path d="M20 4 Q9 16 9 26 Q9 33 20 33 Q31 33 31 26 Q31 16 20 4 Z" fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round"/>
+      <ellipse cx="15" cy="22" rx="2.5" ry="4" fill="#fff" opacity="0.4" />
+    </svg>
+  );
+}
+function MedicineIcon({ lit }) {
+  const fill = lit ? '#fbbf24' : '#94a3b8';
+  const cap = lit ? '#b45309' : '#475569';
+  const stroke = lit ? '#92400e' : '#64748b';
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+      <rect x="13" y="4" width="14" height="6" rx="2" fill={cap}/>
+      <rect x="15" y="9" width="10" height="3" fill={cap} opacity="0.8"/>
+      <path d="M10 16 Q10 13 14 13 L26 13 Q30 13 30 16 L30 32 Q30 35 27 35 L13 35 Q10 35 10 32 Z" fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round"/>
+      <rect x="12" y="18" width="16" height="14" rx="1.5" fill="#fff" opacity="0.85"/>
+      <rect x="18.5" y="20" width="3" height="9" rx="0.5" fill={lit ? '#dc2626' : '#94a3b8'}/>
+      <rect x="15.5" y="23" width="9" height="3" rx="0.5" fill={lit ? '#dc2626' : '#94a3b8'}/>
+    </svg>
+  );
+}
+function ReportIcon({ active }) {
+  const main = active ? '#1f2937' : '#475569';
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+      <rect x="8" y="6" width="24" height="28" rx="3" fill="#fff" stroke={main} strokeWidth="1.8"/>
+      <line x1="13" y1="14" x2="27" y2="14" stroke={main} strokeWidth="1.8" strokeLinecap="round"/>
+      <line x1="13" y1="20" x2="27" y2="20" stroke={main} strokeWidth="1.8" strokeLinecap="round"/>
+      <line x1="13" y1="26" x2="22" y2="26" stroke={main} strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  );
+}
+function MenuIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+      <line x1="10" y1="14" x2="30" y2="14" stroke="#475569" strokeWidth="2.2" strokeLinecap="round"/>
+      <line x1="10" y1="20" x2="30" y2="20" stroke="#475569" strokeWidth="2.2" strokeLinecap="round"/>
+      <line x1="10" y1="26" x2="30" y2="26" stroke="#475569" strokeWidth="2.2" strokeLinecap="round"/>
+    </svg>
   );
 }
