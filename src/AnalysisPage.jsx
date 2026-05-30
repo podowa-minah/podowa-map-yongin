@@ -708,6 +708,9 @@ function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete,
           </div>
         )}
 
+        {/* 사진 썸네일 (env + 최상위 legacy 합쳐서 보여줌) */}
+        <JournalPhotos env={env} entry={entry} />
+
         {/* 상태 배지 */}
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
           {hasIrr && (
@@ -744,6 +747,44 @@ function formatDateLine(iso) {
   const date = new Date(`${iso}T00:00:00+09:00`);
   const dow = ['일','월','화','수','목','금','토'][date.getDay()];
   return `${parseInt(m)}/${parseInt(d)} (${dow})`;
+}
+
+// 영농일지 카드 안 사진 썸네일 줄 — env(새 구조)와 entry top-level(legacy) 사진 모두 표시
+function JournalPhotos({ env = {}, entry = {} }) {
+  // 썸네일이 있으면 썸네일, 없으면 원본으로 fallback
+  const envPics = ((env.thumbnails && env.thumbnails.length) ? env.thumbnails : env.image_urls) || [];
+  const topPics = ((entry.thumbnails && entry.thumbnails.length) ? entry.thumbnails : entry.image_urls) || [];
+  const all = [...envPics, ...topPics].filter(Boolean);
+  if (all.length === 0) return null;
+  const MAX_SHOW = 4;
+  const show = all.slice(0, MAX_SHOW);
+  const extra = all.length - MAX_SHOW;
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: '0.1rem', marginBottom: '0.45rem', flexWrap: 'wrap' }}>
+      {show.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          style={{
+            width: 48, height: 48, objectFit: 'cover',
+            borderRadius: 5, border: '1px solid #e7d9b8',
+            background: '#f3f4f6',
+          }}
+        />
+      ))}
+      {extra > 0 && (
+        <div style={{
+          width: 48, height: 48, borderRadius: 5,
+          background: '#f3f4f6', color: '#6b7280',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.78rem', fontWeight: 700, border: '1px solid #e5e7eb',
+        }}>+{extra}</div>
+      )}
+    </div>
+  );
 }
 
 function Badge({ children, color, bg, border }) {
