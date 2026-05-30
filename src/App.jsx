@@ -467,9 +467,15 @@ export default function App() {
       }
       if (dates.length === 0) return;
 
+      // 라벨 덜 로드된 상태에서 자동저장 돌면 비활성 셀까지 카운트해서 total이 부풀려짐
+      // → 활성 라벨 충분히 들어왔는지 가드 (재발 방지)
+      const activeLabelCount = Object.values(labels || {})
+        .filter(l => l && !l.disabled && l.name).length;
+      if (activeLabelCount < 5) return;
+
       // row 있어도 plan만 있는 (stats=null) 케이스가 있으니 stats 채워줘야 함
       // row 있고 stats도 있으면 skip (덮어쓰지 않음)
-      // row 없으면 insert
+      // 단, total이 활성 나무 수의 1.5배보다 크면 (라벨 덜 로드 시점 stale) 자동 덮어씀
       // → plan/excuse/boast/authors는 절대 건드리지 않음
       const { data: existing } = await supabase
         .from('daily_summaries')
@@ -477,11 +483,15 @@ export default function App() {
         .gte('date', DATA_START);
 
       const existingMap = new Map((existing || []).map(r => [r.date, r]));
+      const STALE_RATIO = 1.5;
 
       for (const d of dates) {
         const existingRow = existingMap.get(d);
-        // 이미 stats 채워진 row는 건드리지 않음
-        if (existingRow && existingRow.total != null) continue;
+        // 신뢰할 만한 row면 skip, total이 비정상적으로 크면 stale로 보고 덮어씀
+        if (existingRow && existingRow.total != null) {
+          const isStale = existingRow.total > activeLabelCount * STALE_RATIO;
+          if (!isStale) continue;
+        }
 
         const stats = computeStatsForDate(treeData, labels, d);
         const payload = {

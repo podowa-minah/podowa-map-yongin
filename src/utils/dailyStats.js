@@ -175,6 +175,9 @@ export function computeStatsForDate(treeData, labels, simDate) {
       const numericId = `${c}-${r}`;
       const lbl = labels[labelId] || {};
       if (lbl.disabled) continue;
+      // 이름 없는 빈 셀은 "나무 자리 아님" — 옛 기록이 남아있어도 통계 제외
+      // (labels 덜 로드된 순간에 빈 셀까지 카운트해서 total이 부풀어오르는 버그 방지)
+      if (!lbl.name) continue;
 
       const records = treeData[numericId] || [];
 
