@@ -1,18 +1,19 @@
 // src/App.jsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense, lazy } from 'react';
 import FarmMap from './FarmMap.jsx';
-import GrassMap from './GrassMap.jsx';
-import GrassModal from './GrassModal.jsx';
-import TreeModal from './TreeModal.jsx';
+// 첫 화면 로딩 속도 — 무거운 모달/페이지는 열릴 때만 받기 (코드 스플리팅)
+const GrassMap = lazy(() => import('./GrassMap.jsx'));
+const GrassModal = lazy(() => import('./GrassModal.jsx'));
+const TreeModal = lazy(() => import('./TreeModal.jsx'));
 import Login from './components/Login.jsx';
-import ExportButton from './components/ExportButton.jsx';
-import ChangePassword from './components/ChangePassword.jsx';
+const ExportButton = lazy(() => import('./components/ExportButton.jsx'));
+const ChangePassword = lazy(() => import('./components/ChangePassword.jsx'));
 import ProgressBar from './components/ProgressBar.jsx';
 import HeaderHero from './components/HeaderHero.jsx';
-import WorkerStatsPopup from './components/WorkerStatsPopup.jsx';
+const WorkerStatsPopup = lazy(() => import('./components/WorkerStatsPopup.jsx'));
 import WeatherDate from './components/WeatherDate.jsx';
-import HistoryPopup from './components/HistoryPopup.jsx';
-import AnnouncementPopup from './components/AnnouncementPopup.jsx';
+const HistoryPopup = lazy(() => import('./components/HistoryPopup.jsx'));
+const AnnouncementPopup = lazy(() => import('./components/AnnouncementPopup.jsx'));
 import BottomBar from './components/BottomBar.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
@@ -26,19 +27,19 @@ import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
 import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
-import IrrigationModal from './components/IrrigationModal';
-import PestTreatmentModal from './components/PestTreatmentModal';
+const IrrigationModal = lazy(() => import('./components/IrrigationModal'));
+const PestTreatmentModal = lazy(() => import('./components/PestTreatmentModal'));
 import { hasJournalData, isBriefingChecked } from './lib/journal';
 import { getFarmDiagnosis } from './lib/diagnosis';
 import { getMissedDaysNeedingReasons } from './lib/historyStats';
 import { loadTreeCache, saveTreeCache, clearTreeCache } from './utils/treeCache';
-import IncompleteReasonPopup from './components/IncompleteReasonPopup';
-import WorkerDrilldownPopup from './components/WorkerDrilldownPopup';
+const IncompleteReasonPopup = lazy(() => import('./components/IncompleteReasonPopup'));
+const WorkerDrilldownPopup = lazy(() => import('./components/WorkerDrilldownPopup'));
 import { getDominantSeason } from './lib/dailyReport';
 import { evaluateCycle } from './lib/treatment-cycles';
 import TabNav from './components/TabNav';
-import AnalysisPage from './AnalysisPage';
-import ScoreReferencePage from './ScoreReferencePage';
+const AnalysisPage = lazy(() => import('./AnalysisPage'));
+const ScoreReferencePage = lazy(() => import('./ScoreReferencePage'));
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -564,6 +565,7 @@ export default function App() {
 
   return (
     <div className="app-wrapper">
+      <Suspense fallback={null}>
       <div className="app-container">
 
         {/* ── 그린 hero (접기 가능 — 맵 더 넓게 보기) ── */}
@@ -756,6 +758,7 @@ export default function App() {
           />
         )}
       </div>
+      </Suspense>
     </div>
   );
 }
