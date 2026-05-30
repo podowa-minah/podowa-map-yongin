@@ -383,6 +383,59 @@
   z-index: 1;
 }
 
+/* 완료율 차오름 — 헤더 안쪽 아래에서부터 따뜻한 주황이 pct% 만큼 채워짐 */
+.hero-section::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--fill-pct, 0%);
+  background: linear-gradient(
+    to top,
+    rgba(245, 158, 11, 0.62) 0%,     /* 하단 — 짙은 주황(amber-500) */
+    rgba(251, 191, 36, 0.42) 60%,    /* 중간 — 부드러운 옐로앰버 */
+    rgba(251, 191, 36, 0.10) 100%    /* 상단 — 옅게 페이드 */
+  );
+  pointer-events: none;
+  z-index: -1;                       /* 헤더 텍스트보다 뒤, 초록 배경보다 앞 */
+  transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease;
+}
+
+/* 100% 완료 시 — 환한 금빛 + 윗부분도 진하게 + 상단 글로우 */
+.hero-section.is-complete::before {
+  background: linear-gradient(
+    to top,
+    rgba(250, 204, 21, 0.85) 0%,    /* 하단 — 진한 골드 */
+    rgba(253, 224, 71, 0.68) 50%,   /* 중간 */
+    rgba(254, 240, 138, 0.55) 100%  /* 상단 — 이전보다 훨씬 진하게 */
+  );
+  box-shadow: inset 0 -3px 18px rgba(250, 204, 21, 0.55);
+}
+
+/* 100% 완료 — 대각선 반짝(shimmer) 효과 */
+.hero-section.is-complete::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.40) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  background-position: 220% 0;
+  pointer-events: none;
+  z-index: -1;
+  animation: completeShimmer 2.8s ease-in-out infinite;
+}
+
+@keyframes completeShimmer {
+  0%        { background-position: 220% 0; }
+  55%, 100% { background-position: -120% 0; }
+}
+
 .app-header-bar.collapsed {
   max-height: 0;
   box-shadow: none;

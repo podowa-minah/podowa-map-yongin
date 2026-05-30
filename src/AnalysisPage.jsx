@@ -209,7 +209,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     if (dayNote) {
       result = await supabase.from('daily_notes').update({ journal_notes }).eq('id', dayNote.id);
     } else {
-      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', journal_notes, author });
+      // content는 NOT NULL — 빈 문자열로 행 만들어두고, 저녁 '저장' 때 한줄평으로 덮어쓰임
+      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', journal_notes, author, content: '' });
     }
     setStartingDay(false);
     if (result?.error) { alert('저장 실패: ' + result.error.message); return; }

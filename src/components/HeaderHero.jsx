@@ -20,8 +20,13 @@ export default function HeaderHero({
   onAnnouncements,
   onIncompleteReasons,
 }) {
+  // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
+  const fillPct = Math.min(100, Math.max(0, pct || 0));
   return (
-    <div className="hero-section">
+    <div
+      className={`hero-section${fillPct >= 100 ? ' is-complete' : ''}`}
+      style={{ '--fill-pct': `${fillPct}%` }}
+    >
       <style>{`
         @keyframes notifShake {
           0%, 100% { transform: rotate(0deg); }
