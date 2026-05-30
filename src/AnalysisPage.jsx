@@ -6,17 +6,20 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { todayKST } from './lib/treatment-cycles';
 import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
-import { getSeasonalTerm, getSeasonalTermInfo } from './lib/seasonalTerms';
+import { getSeasonalTermInfo } from './lib/seasonalTerms';
 import { getMoonPhase } from './lib/moonPhase';
-import { generateOpinions } from './lib/aiOpinion';
+import { generateBriefingOpinions } from './lib/aiOpinion';
 import { scoreBand, avgScore } from './lib/scoring';
-import { buildTrends, avgFromRecords } from './lib/trends';
+import { avgFromRecords } from './lib/trends';
+import { getFarmDiagnosis, getVarietyAverages, getFarmTrend } from './lib/diagnosis';
+import { isBriefingChecked, briefingCheckedTime } from './lib/journal';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
+import FarmDiagnosis from './components/FarmDiagnosis';
 
 const ENV_MAX_PHOTOS = 2;
 
-export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenIrrigation, onOpenPest, onSaved, onOpenScores, onClose }) {
+export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenIrrigation, onOpenPest, onSaved, onOpenScores, onOpenTree, onClose }) {
   const today = todayKST();
   const [selectedDate, setSelectedDate] = useState(today);
   const [dayNote, setDayNote] = useState(null);
@@ -28,9 +31,11 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const [oneLiner, setOneLiner] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [startingDay, setStartingDay] = useState(false);   // "오늘 일 시작" 저장 중
   const [savedFlash, setSavedFlash] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
   const [history, setHistory] = useState([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);   // 영농일지 더보기
 
   // 날씨
   const [weather, setWeather] = useState(null);
@@ -101,10 +106,16 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   }, [treeData, selectedDate]);
 
   const report = useMemo(() => buildDailyReport({ records, labels }), [records, labels]);
-  const trends = useMemo(() => buildTrends({ todayRecords: records, treeData, selectedDate, pastDays: 7 }), [records, treeData, selectedDate]);
   const past5 = useMemo(() => avgFromRecords(treeData, selectedDate, 5), [treeData, selectedDate]);
 
-  const opinions = useMemo(() => generateOpinions({ report, trends, triggers: null, dailyNote: dayNote }), [report, trends, dayNote]);
+  // ── ① 아침 브리핑 (밭 전체, '지금' 기준 — 항상 오늘 고정) ──
+  const isToday = selectedDate === today;
+  const diagnosis = useMemo(() => getFarmDiagnosis(treeData, labels, today), [treeData, labels, today]);
+  const varieties = useMemo(() => getVarietyAverages(treeData, labels), [treeData, labels]);
+  const farmTrend = useMemo(() => getFarmTrend(treeData, today), [treeData, today]);
+  const briefingOpinions = useMemo(() => generateBriefingOpinions({ diagnosis, trend: farmTrend }), [diagnosis, farmTrend]);
+  const briefingChecked = isBriefingChecked(dayNote);
+  const briefingTime = briefingCheckedTime(dayNote);
 
   // 사진 업로드
   async function handleEnvUpload(file) {
@@ -180,6 +191,32 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       setEnvNote(''); setEnvImageUrls([]); setEnvThumbnails([]); setOneLiner('');
     }
     onSaved?.();
+  }
+
+  // ① "오늘 일 시작" = 아침 브리핑 확인 기록 (journal_notes.briefing.checked_at)
+  //   → BottomBar 보고 불이 '깜빡'에서 '고정'으로 바뀜 (보고는 따로 작성)
+  async function handleStartDay() {
+    setStartingDay(true);
+    const author = user?.user_metadata?.nickname || user?.email || '';
+    const journal_notes = {
+      ...(dayNote?.journal_notes || {}),
+      briefing: {
+        ...(dayNote?.journal_notes?.briefing || {}),
+        checked_at: new Date().toISOString(),
+      },
+    };
+    let result;
+    if (dayNote) {
+      result = await supabase.from('daily_notes').update({ journal_notes }).eq('id', dayNote.id);
+    } else {
+      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', journal_notes, author });
+    }
+    setStartingDay(false);
+    if (result?.error) { alert('저장 실패: ' + result.error.message); return; }
+    const { data } = await supabase.from('daily_notes').select('*')
+      .eq('date', selectedDate).eq('type', 'journal').maybeSingle();
+    setDayNote(data || null);
+    onSaved?.();   // App이 briefingChecked 갱신 → 불 상태 변경
   }
 
   // 보고서 완료 = 저장
@@ -353,12 +390,12 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
                 <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{moon.emoji}</span>
               )}
               {moon && (
-                <span style={{ color: '#4b5563', fontWeight: 600 }}>{moon.name}</span>
+                <span style={{ fontSize: '0.935rem', color: '#4b5563', fontWeight: 600 }}>{moon.name}</span>
               )}
               {termInfo && (
                 <>
                   <span style={{ color: '#d6c8a8' }}>·</span>
-                  <span style={{ color: '#4b5563', fontWeight: 600 }}>{termInfo.name}</span>
+                  <span style={{ fontSize: '0.935rem', color: '#4b5563', fontWeight: 600 }}>{termInfo.name}</span>
                   <span style={{ color: '#9ca3af' }}>— {termInfo.meaning}</span>
                 </>
               )}
@@ -367,25 +404,31 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         );
       })()}
 
-      {/* AI 종합의견 */}
-      <Section title="AI 종합의견" right="CLAUDE" C={C}>
-        {opinions.length === 0 ? (
-          <p style={{ fontSize: '0.85rem', color: C.muted }}>의견을 생성할 데이터가 부족해요.</p>
-        ) : (
-          opinions.map((o, i) => (
-            <div key={i} style={{ display: 'flex', gap: '0.6rem', padding: '0.35rem 0' }}>
-              <span style={{
-                fontSize: '0.72rem', padding: '2px 8px',
-                background: '#fffefb', border: '1px solid #d6c8a8',
-                borderRadius: '0.3rem', fontWeight: 600,
-                whiteSpace: 'nowrap', flexShrink: 0, color: '#4b5563',
-                alignSelf: 'flex-start',
-              }}>{o.label}</span>
-              <span style={{ fontSize: '0.92rem', lineHeight: 1.55 }}>{o.text}</span>
-            </div>
-          ))
-        )}
-      </Section>
+      {/* ═══ ① 아침 브리핑 — 밭 전체 진단 (오늘만) ═══ */}
+      {isToday && (
+        <>
+          <ZoneHeader num="①" title="아침 브리핑" subtitle="밭 전체를 보고 하루 시작" C={C} />
+          <FarmDiagnosis
+            diagnosis={diagnosis}
+            varieties={varieties}
+            opinions={briefingOpinions}
+            checked={briefingChecked}
+            checkedTime={briefingTime}
+            saving={startingDay}
+            onStartDay={handleStartDay}
+            onOpenTree={onOpenTree}
+            C={C}
+          />
+        </>
+      )}
+
+      {/* ═══ ② 오늘의 보고 — 하루 마무리 기록 ═══ */}
+      <ZoneHeader
+        num="②"
+        title={isToday ? '오늘의 보고' : `${formatDateLine(selectedDate)} 보고`}
+        subtitle="하루 끝에 작성 · 활동과 한줄평"
+        C={C}
+      />
 
       {/* 오늘 활동 */}
       <Section title="오늘 활동" C={C}>
@@ -430,49 +473,14 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         </ul>
       </Section>
 
-      {/* 밭 전체 분포 (오늘 vs 5일 평균) */}
-      <Section title="밭 전체 분포" right="오늘 vs 5일 평균" C={C}>
+      {/* 오늘 돌본 나무 분포 (오늘 vs 5일 평균) */}
+      <Section title="오늘 돌본 나무 분포" right="오늘 vs 5일 평균" C={C}>
         <MetricBar label="세력" idealLabel="이상점 3 ★" today={report.metrics?.power} past={past5.metrics?.power} idealValue={3} />
         <MetricBar label="균형도" idealLabel="이상점 5 ★" today={report.metrics?.balance} past={past5.metrics?.balance} idealValue={5} />
         <MetricBar label="해충" idealLabel="이상점 0 ★" today={report.metrics?.bugs} past={past5.metrics?.bugs} idealValue={0} reverse />
       </Section>
 
-      {/* 품종별 종합점수 */}
-      <Section title="품종별 종합점수" right="평균 기반" C={C}>
-        {report.varietyScores.length > 0 ? (
-          report.varietyScores.map(v => {
-            const band = scoreBand(v.score);
-            const widthPct = (v.score || 0) / 5 * 100;
-            return (
-              <div key={v.name} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', fontSize: '0.92rem' }}>
-                <div style={{ width: '5rem', flexShrink: 0, fontWeight: 600 }}>{v.name}</div>
-                <div style={{ flex: 1, height: '8px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${widthPct}%`, background: '#1f2937', borderRadius: '4px' }} />
-                </div>
-                <div style={{ width: '2.4rem', textAlign: 'right', flexShrink: 0, fontWeight: 700 }}>
-                  {v.score?.toFixed(1)}
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <p style={{ color: C.muted, fontSize: '0.85rem' }}>품종 라벨이 부족해요.</p>
-        )}
-        {/* 점수 해석 */}
-        <div style={{ marginTop: '1rem', padding: '0.7rem', background: '#fffefb', border: '1px solid #e7d9b8', borderRadius: '0.4rem', fontSize: '0.78rem', color: '#6b7280' }}>
-          <div>○ 4.0 이상 양호</div>
-          <div>○ 3.5–4.0 관찰</div>
-          <div>○ 3.0–3.5 주의</div>
-          <div>○ 3.0 미만 경보</div>
-          <div style={{ marginTop: '0.5rem', fontFamily: 'Arvo, serif' }}>
-            공식: 세력×0.4 + 균형×0.25 + 해충×0.35
-          </div>
-        </div>
-      </Section>
-
       {/* ─── 농부 입력 ─── */}
-      <div style={{ borderTop: `2px dashed ${C.border}`, margin: '2rem 0 1.2rem' }} />
-
       <Section title="환경 메모" right="농부 입력" C={C}>
         <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0 0 0.5rem' }}>
           비, 바람, 토양, 하우스 내·외부 상태 등 자동 집계 안 되는 관찰
@@ -549,154 +557,178 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
           {savedFlash ? '✓ 저장됨' : (saving ? '저장 중...' : '오늘 보고서 마무리하기')}
         </button>
         <p style={{ fontSize: '0.72rem', color: C.muted, textAlign: 'center', marginTop: '0.5rem' }}>
-          저장하면 PODOWA 버튼 불이 꺼져요. 언제든 다시 수정 가능.
+          저장하면 아래 '보고' 불이 꺼져요. 언제든 다시 수정 가능.
         </p>
       </div>
 
-      {/* ─── 과거 리포트 ─── */}
-      <div style={{ borderTop: `2px solid ${C.border}`, margin: '2.5rem 0 1.2rem' }} />
-      <Section title="과거 리포트" right={`최근 ${history.length}건`} C={C}>
+      {/* ═══ ③ 영농일지 — 지난 기록 다시 보기 ═══ */}
+      <ZoneHeader num="③" title="영농일지" subtitle="달·절기·점수까지 한 장으로" C={C} />
+      <Section title="지난 기록" right={`총 ${history.length}건`} C={C}>
         {history.length === 0 ? (
-          <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 리포트가 없어요.</p>
+          <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 일지가 없어요.</p>
         ) : (
-          history.map(entry => {
-            const isSelected = entry.date === selectedDate;
-            const isToday = entry.date === today;
-            // 그 날짜의 trees 평균점수/그루수
-            const recs = [];
-            for (const treeId of Object.keys(treeData)) {
-              const days = treeData[treeId] || [];
-              for (const r of days) {
-                if (r.date === entry.date) recs.push({ id: treeId, ...r });
-              }
-            }
-            const dayScore = avgScore(recs);
-            const env = entry.journal_notes?.env || {};
-            const hasIrr = !!(entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.duration_minutes));
-            const hasPest = !!(entry.pest_treatment && entry.pest_treatment.chemical);
-            const hasEnv = !!(env.note || env.image_urls?.length > 0);
-            // 절기 + 도미넌트 생육시기 자동 계산
-            const histTerm = getSeasonalTerm(entry.date);
-            const histDominantSeason = getDominantSeason(recs);
-            const histHumidity = entry.weather?.humidityMean ?? entry.weather?.currentHumidity ?? null;
-            return (
-              <div
+          <>
+            {(showAllHistory ? history : history.slice(0, 3)).map(entry => (
+              <JournalCard
                 key={entry.id}
-                style={{
-                  position: 'relative',
-                  background: isSelected ? '#fffefb' : '#fff',
-                  border: isSelected ? `2px solid ${C.border}` : '1px solid #e7d9b8',
-                  borderRadius: '0.45rem',
-                  marginBottom: '0.4rem',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <button
-                  onClick={(e) => handleDeleteReport(entry, e)}
-                  aria-label="이 리포트 삭제"
-                  title="삭제 (비번 필요)"
-                  style={{
-                    position: 'absolute',
-                    top: 6, right: 6,
-                    width: 22, height: 22, borderRadius: '50%',
-                    border: '1px solid #e5e7eb',
-                    background: '#fff', color: '#9ca3af',
-                    cursor: 'pointer', fontSize: '0.72rem',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    lineHeight: 1, padding: 0, zIndex: 1,
-                  }}
-                >×</button>
+                entry={entry}
+                treeData={treeData}
+                today={today}
+                selectedDate={selectedDate}
+                onSelect={() => setSelectedDate(entry.date)}
+                onDelete={(e) => handleDeleteReport(entry, e)}
+                C={C}
+              />
+            ))}
+            {history.length > 3 && (
               <button
-                onClick={() => setSelectedDate(entry.date)}
+                onClick={() => setShowAllHistory(v => !v)}
                 style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '0.7rem 2rem 0.7rem 0.85rem',
-                  background: 'transparent', border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
+                  width: '100%', marginTop: '0.5rem', padding: '0.6rem',
+                  background: '#fffefb', border: `1px solid ${C.accentBorder}`,
+                  borderRadius: '0.5rem', color: '#6b7280', cursor: 'pointer',
+                  fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: C.headlineFont, fontWeight: 700, fontSize: '0.95rem', color: C.text }}>
-                    {formatDateLine(entry.date)}
-                  </span>
-                  {isToday && (
-                    <span style={{
-                      fontSize: '0.65rem', fontWeight: 700, color: '#92400e',
-                      background: '#fde68a', padding: '1px 6px', borderRadius: '3px',
-                    }}>오늘</span>
-                  )}
-                  {entry.author && (
-                    <span style={{ fontSize: '0.7rem', color: C.muted, marginLeft: 'auto' }}>
-                      {entry.author}
-                    </span>
-                  )}
-                </div>
-                {/* 날씨 · 습도 · 절기 · 생육시기 — 같은 폰트 같은 줄 */}
-                <div style={{
-                  fontFamily: C.headlineFont,
-                  fontSize: '0.76rem',
-                  color: C.muted,
-                  marginBottom: '0.35rem',
-                  lineHeight: 1.4,
-                }}>
-                  {entry.weather?.code != null && entry.weather.tempMax != null && (
-                    <>{WEATHER_LABEL[entry.weather.code] || ''} {entry.weather.tempMax}°/{entry.weather.tempMin}°</>
-                  )}
-                  {histHumidity != null && <> · 습도 {histHumidity}%</>}
-                  {histTerm && <> · {histTerm}</>}
-                  {histDominantSeason && <> · {histDominantSeason}</>}
-                </div>
-
-                {/* 한줄평 */}
-                {entry.content && (
-                  <div style={{ fontSize: '0.85rem', color: C.text, marginBottom: '0.3rem', lineHeight: 1.45 }}>
-                    "{entry.content}"
-                  </div>
-                )}
-
-                {/* 환경 메모 (한줄로 요약) */}
-                {env.note && (
-                  <div style={{ fontSize: '0.78rem', color: '#0c4a6e', marginBottom: '0.3rem', lineHeight: 1.4 }}>
-                    <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>
-                    {env.note}
-                  </div>
-                )}
-
-                {/* 상태 배지 — 전체 정보 표시 */}
-                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
-                  {hasIrr && (
-                    <Badge color="#0284c7" bg="#eff6ff" border="#bfdbfe">
-                      관수 · {entry.irrigation.blocks?.join('·')}동 · {entry.irrigation.duration_minutes}분
-                      {entry.irrigation.note && ` · ${entry.irrigation.note}`}
-                    </Badge>
-                  )}
-                  {hasPest && (
-                    <Badge color="#92400e" bg="#fffbeb" border="#fde68a">
-                      방제 · {entry.pest_treatment.chemical}
-                      {entry.pest_treatment.dilution && ` · ${entry.pest_treatment.dilution}`}
-                      {entry.pest_treatment.method && ` · ${entry.pest_treatment.method}`}
-                      {entry.pest_treatment.note && ` · ${entry.pest_treatment.note}`}
-                    </Badge>
-                  )}
-                  {hasEnv && (
-                    <Badge color="#0c4a6e" bg="#eff6ff" border="#bfdbfe">
-                      환경 메모
-                    </Badge>
-                  )}
-                  {recs.length > 0 && (
-                    <Badge color="#374151" bg="#f3f4f6" border="#d1d5db">
-                      {recs.length}그루
-                      {dayScore != null && !isNaN(dayScore) && ` · ${dayScore.toFixed(1)}점`}
-                    </Badge>
-                  )}
-                </div>
+                {showAllHistory ? '접기 ▴' : `더보기 (${history.length - 3}건 더) ▾`}
               </button>
-              </div>
-            );
-          })
+            )}
+          </>
         )}
       </Section>
+    </div>
+  );
+}
+
+// 🍇 영농일지 카드 — 달이름 + 절기뜻 + 생육시기 + 종합점수 배지
+function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete, C }) {
+  const isSelected = entry.date === selectedDate;
+  const isToday = entry.date === today;
+
+  // 그 날짜의 trees 기록 → 평균점수 / 그루수
+  const recs = [];
+  for (const treeId of Object.keys(treeData)) {
+    for (const r of (treeData[treeId] || [])) {
+      if (r.date === entry.date) recs.push({ id: treeId, ...r });
+    }
+  }
+  const dayScore = avgScore(recs);
+  const hasScore = dayScore != null && !isNaN(dayScore);
+  const band = hasScore ? scoreBand(dayScore) : null;
+
+  const env = entry.journal_notes?.env || {};
+  const hasIrr = !!(entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.duration_minutes));
+  const hasPest = !!(entry.pest_treatment && entry.pest_treatment.chemical);
+
+  // 달 + 절기(뜻) + 생육시기
+  const moon = getMoonPhase(entry.date);
+  const termInfo = getSeasonalTermInfo(entry.date);
+  const season = getDominantSeason(recs);
+  const humidity = entry.weather?.humidityMean ?? entry.weather?.currentHumidity ?? null;
+
+  return (
+    <div style={{
+      position: 'relative',
+      background: isSelected ? '#fffefb' : '#fff',
+      border: isSelected ? `2px solid ${C.border}` : '1px solid #e7d9b8',
+      borderRadius: '0.55rem',
+      marginBottom: '0.5rem',
+      transition: 'all 0.15s',
+    }}>
+      <button
+        onClick={onDelete}
+        aria-label="이 일지 삭제"
+        title="삭제 (비번 필요)"
+        style={{
+          position: 'absolute', top: 6, right: 6,
+          width: 22, height: 22, borderRadius: '50%',
+          border: '1px solid #e5e7eb', background: '#fff', color: '#9ca3af',
+          cursor: 'pointer', fontSize: '0.72rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          lineHeight: 1, padding: 0, zIndex: 1,
+        }}
+      >×</button>
+      <button
+        onClick={onSelect}
+        style={{
+          display: 'block', width: '100%', textAlign: 'left',
+          padding: '0.75rem 2rem 0.75rem 0.85rem',
+          background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        {/* 날짜 + 종합점수 배지 */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: C.headlineFont, fontWeight: 700, fontSize: '0.95rem', color: C.text }}>
+            {formatDateLine(entry.date)}
+          </span>
+          {moon && <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{moon.emoji}</span>}
+          {moon && <span style={{ fontSize: '0.74rem', color: '#6b7280', fontWeight: 600 }}>{moon.name}</span>}
+          {isToday && (
+            <span style={{
+              fontSize: '0.65rem', fontWeight: 700, color: '#92400e',
+              background: '#fde68a', padding: '1px 6px', borderRadius: '3px',
+            }}>오늘</span>
+          )}
+          {band && (
+            <span style={{
+              fontSize: '0.72rem', padding: '1px 8px', marginLeft: 'auto',
+              background: band.color + '18', color: band.color,
+              border: `1px solid ${band.color}50`, borderRadius: '999px', fontWeight: 700,
+            }}>{dayScore.toFixed(1)} · {band.label}</span>
+          )}
+        </div>
+
+        {/* 절기(뜻) + 생육시기 + 날씨 */}
+        <div style={{ fontFamily: C.headlineFont, fontSize: '0.76rem', color: C.muted, marginBottom: '0.35rem', lineHeight: 1.45 }}>
+          {termInfo && (
+            <><b style={{ color: '#4b5563', fontWeight: 600 }}>{termInfo.name}</b> {termInfo.meaning}</>
+          )}
+          {season && <> · {season}</>}
+        </div>
+        <div style={{ fontFamily: C.headlineFont, fontSize: '0.74rem', color: C.muted, marginBottom: '0.35rem', lineHeight: 1.4 }}>
+          {entry.weather?.code != null && entry.weather.tempMax != null && (
+            <>{WEATHER_LABEL[entry.weather.code] || ''} {entry.weather.tempMax}°/{entry.weather.tempMin}°</>
+          )}
+          {humidity != null && <> · 습도 {humidity}%</>}
+          {entry.author && <span style={{ marginLeft: 6 }}>· {entry.author}</span>}
+        </div>
+
+        {/* 한줄평 */}
+        {entry.content && (
+          <div style={{ fontSize: '0.85rem', color: C.text, marginBottom: '0.3rem', lineHeight: 1.45 }}>
+            "{entry.content}"
+          </div>
+        )}
+
+        {/* 환경 메모 */}
+        {env.note && (
+          <div style={{ fontSize: '0.78rem', color: '#0c4a6e', marginBottom: '0.3rem', lineHeight: 1.4 }}>
+            <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>{env.note}
+          </div>
+        )}
+
+        {/* 상태 배지 */}
+        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+          {hasIrr && (
+            <Badge color="#0284c7" bg="#eff6ff" border="#bfdbfe">
+              관수 · {entry.irrigation.blocks?.join('·')}동 · {entry.irrigation.duration_minutes}분
+              {entry.irrigation.note && ` · ${entry.irrigation.note}`}
+            </Badge>
+          )}
+          {hasPest && (
+            <Badge color="#92400e" bg="#fffbeb" border="#fde68a">
+              방제 · {entry.pest_treatment.chemical}
+              {entry.pest_treatment.dilution && ` · ${entry.pest_treatment.dilution}`}
+              {entry.pest_treatment.method && ` · ${entry.pest_treatment.method}`}
+            </Badge>
+          )}
+          {recs.length > 0 && (
+            <Badge color="#374151" bg="#f3f4f6" border="#d1d5db">
+              {recs.length}그루 기록
+            </Badge>
+          )}
+        </div>
+      </button>
     </div>
   );
 }
@@ -747,29 +779,138 @@ function Section({ title, right, C, children }) {
   );
 }
 
+// ①②③ 구역 헤더 — 큰 번호 + 제목 + 부제 (농부 뇌구조 구분용)
+function ZoneHeader({ num, title, subtitle, C }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '0.7rem',
+      margin: '2.2rem 0 1rem',
+      paddingBottom: '0.5rem',
+      borderBottom: `2.5px solid ${C.border}`,
+    }}>
+      <span style={{
+        flexShrink: 0,
+        width: 34, height: 34, borderRadius: '50%',
+        background: C.border, color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: C.headlineFont, fontSize: '1.05rem', fontWeight: 700,
+      }}>{num}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: C.headlineFont, fontSize: '1.25rem', fontWeight: 700, color: C.text, lineHeight: 1.15 }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: '0.74rem', color: C.muted, marginTop: '1px' }}>{subtitle}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // 오늘 vs 과거 평균 바 (가로)
 function MetricBar({ label, idealLabel, today, past, idealValue, reverse }) {
   const max = 5;
-  const todayPct = today != null ? (today / max) * 100 : 0;
-  const pastPct  = past  != null ? (past  / max) * 100 : 0;
+  // NaN/Infinity 방어
+  const safe = (v) => (v != null && Number.isFinite(v)) ? v : null;
+  const todayN = safe(today);
+  const pastN  = safe(past);
+  const todayPct = todayN != null ? (todayN / max) * 100 : 0;
+  const pastPct  = pastN  != null ? (pastN  / max) * 100 : 0;
+  const idealPct = idealValue != null ? (idealValue / max) * 100 : null;
+
+  // 톤앤매너 — 크림 테마에 어울리는 따뜻한 색
+  const colors = {
+    todayBar: 'linear-gradient(90deg, #15803d 0%, #047857 100%)',  // 진한 에메랄드 (헤더와 톤 매치)
+    pastBar:  '#b8a169',                                            // 따뜻한 머스타드 골드
+    barBg:    '#ede4ce',                                            // 부드러운 베이지 크림
+    pastBg:   '#f5efe0',                                            // 더 옅은 크림
+    ideal:    '#d97706',                                            // 따뜻한 오렌지 — 이상점 마커
+    text:     '#5f4a1f',                                            // 진한 카키
+    muted:    '#a89968',                                            // 톤다운 모카
+  };
+
+  // 오늘값 표시 — NaN/null이면 "기록없음"
+  const todayLabel = todayN != null ? todayN.toFixed(1) : '기록없음';
+  const pastLabel  = pastN  != null ? pastN.toFixed(1)  : '기록없음';
+
   return (
-    <div style={{ marginBottom: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-        <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>
-          {label} <span style={{ color: '#9ca3af', fontSize: '0.78rem', fontWeight: 400 }}>({idealLabel})</span>
+    <div style={{ marginBottom: '1.1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.92rem', color: colors.text }}>
+          {label} <span style={{ color: colors.muted, fontSize: '0.75rem', fontWeight: 500 }}>({idealLabel})</span>
         </div>
-        <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-          {(today ?? '—').toString().slice(0, 3)} 오늘
+        <div style={{ fontSize: '0.78rem', color: colors.text, fontWeight: 600 }}>
+          <span style={{ color: colors.muted, fontWeight: 400 }}>오늘 </span>
+          {todayLabel}
         </div>
       </div>
-      <div style={{ position: 'relative', height: '11px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.3rem' }}>
-        <div style={{ height: '100%', width: `${todayPct}%`, background: '#1f2937', borderRadius: '4px' }} />
+
+      {/* 오늘 바 (큰) */}
+      <div style={{
+        position: 'relative',
+        height: '12px',
+        background: colors.barBg,
+        borderRadius: '6px',
+        overflow: 'hidden',
+        marginBottom: '0.3rem',
+        boxShadow: 'inset 0 1px 2px rgba(120, 90, 30, 0.08)',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${Math.min(100, todayPct)}%`,
+          background: colors.todayBar,
+          borderRadius: '6px',
+          transition: 'width 0.4s ease',
+        }} />
+        {/* 이상점 표시 — 작은 마커 */}
+        {idealPct != null && (
+          <div
+            title={`이상점 ${idealValue}`}
+            style={{
+              position: 'absolute',
+              top: '-2px',
+              left: `calc(${idealPct}% - 1px)`,
+              width: '2px',
+              height: '16px',
+              background: colors.ideal,
+              borderRadius: '1px',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.7)',
+            }}
+          />
+        )}
       </div>
-      <div style={{ position: 'relative', height: '5px', background: '#fafaf7', borderRadius: '3px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pastPct}%`, background: '#9ca3af', borderRadius: '3px' }} />
+
+      {/* 5일 평균 바 (작은) */}
+      <div style={{
+        position: 'relative',
+        height: '5px',
+        background: colors.pastBg,
+        borderRadius: '3px',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${Math.min(100, pastPct)}%`,
+          background: colors.pastBar,
+          borderRadius: '3px',
+          transition: 'width 0.4s ease',
+        }} />
       </div>
-      <div style={{ fontSize: '0.68rem', color: '#9ca3af', fontStyle: 'italic', marginTop: '2px' }}>
-        5일 평균 {past != null ? past.toFixed(1) : '—'}
+      <div style={{
+        fontSize: '0.7rem',
+        color: colors.muted,
+        marginTop: '3px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+      }}>
+        <span style={{
+          display: 'inline-block',
+          width: '8px', height: '4px',
+          background: colors.pastBar,
+          borderRadius: '2px',
+        }} />
+        5일 평균 <b style={{ color: colors.text, fontWeight: 600 }}>{pastLabel}</b>
       </div>
     </div>
   );

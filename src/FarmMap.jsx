@@ -35,7 +35,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), onViewportChange }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), onViewportChange }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -315,6 +315,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           const records = treeData[numericId] || [];
           const { treeLevel, bugLevel, clockLevel, anyOn, anyOverdue } = computeTriggers(records);
           const hasTodayInput = records.some(r => r.date === getToday());
+          const isWatch = watchTreeIds.has(numericId);   // 오늘 유심히 볼 나무(이상치)
 
           if (isDisabled) {
             return (
@@ -379,6 +380,24 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   backgroundColor: fakeDoneTreeIds.has(numericId) ? '#f97316' : doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
                   zIndex: 1,
                 }} />
+              )}
+              {/* 유심히 볼 나무(이상치) - 좌측상단 주황 점 + 글로우. 브리핑 '유심히'와 동일 */}
+              {isWatch && (
+                <span
+                  title="유심히 볼 나무"
+                  style={{
+                    position: 'absolute',
+                    top: 1,
+                    left: 1,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    backgroundColor: '#f97316',
+                    border: '1.5px solid #fff',
+                    boxShadow: '0 0 0 1px #c2410c, 0 0 4px rgba(249,115,22,0.95)',
+                    zIndex: 2,
+                  }}
+                />
               )}
               {/* 아이콘 영역 */}
               <div

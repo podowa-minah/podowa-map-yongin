@@ -83,3 +83,44 @@ export function generateOpinions({ report, trends, triggers, dailyNote }) {
 
   return opinions;
 }
+
+// ── 아침 브리핑용 의견 (밭 전체 진단 기반) ──────────────
+//   diagnosis: getFarmDiagnosis 결과
+//   trend: getFarmTrend 결과
+export function generateBriefingOpinions({ diagnosis, trend }) {
+  const out = [];
+  if (!diagnosis || diagnosis.scoredCount === 0) {
+    out.push({ type: 'state', label: '밭 상태', text: '아직 점수 기록이 부족해요.' });
+    return out;
+  }
+
+  // 1. 현재 밭 상태
+  const band = scoreBand(diagnosis.score);
+  out.push({
+    type: 'state', label: '밭 상태',
+    text: `현재 밭 ${diagnosis.score.toFixed(1)}점 (${band.label}) · ${diagnosis.scoredCount}/${diagnosis.totalCount}그루 평가`,
+  });
+
+  // 2. 추세 (세력/균형/해충 방향)
+  if (trend) {
+    const parts = [];
+    if (trend.power?.dir)   parts.push(`세력 ${trend.power.dir > 0 ? '↑ 강해짐' : '↓ 약해짐'}`);
+    if (trend.balance?.dir) parts.push(`균형 ${trend.balance.dir > 0 ? '↑ 좋아짐' : '↓ 흐트러짐'}`);
+    if (trend.bugs?.dir)    parts.push(`해충 ${trend.bugs.dir > 0 ? '↑ 늘어남' : '↓ 줄어듦'}`);
+    if (parts.length > 0) {
+      out.push({ type: 'trend', label: `${trend.days}일 추세`, text: parts.join(' · ') });
+    }
+  }
+
+  // 3. 유심히 볼 나무
+  if (diagnosis.watchTrees.length > 0) {
+    const top = diagnosis.watchTrees.slice(0, 3)
+      .map(w => `${w.id}${w.name ? ' ' + w.name : ''}`).join(', ');
+    const more = diagnosis.watchTotal > 3 ? ` 외 ${diagnosis.watchTotal - 3}그루` : '';
+    out.push({ type: 'watch', label: '유심히', text: `${top}${more} — 오늘 꼭 살펴보세요` });
+  } else {
+    out.push({ type: 'watch', label: '유심히', text: '오늘 특별히 처지는 나무는 없어요 👍' });
+  }
+
+  return out;
+}

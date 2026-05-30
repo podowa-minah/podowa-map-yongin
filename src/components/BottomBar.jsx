@@ -14,6 +14,7 @@ export default function BottomBar({
   onOpenAnalysis,
   onOpenMenu,
   hasJournalToday,
+  briefingChecked,
   irrEval,
   pestEval,
 }) {
@@ -55,11 +56,13 @@ export default function BottomBar({
       />
 
       {/* 4: 밭상태 진단 보고 (핵심 daily task) */}
+      {/* 불 3상태: 깜빡(브리핑 안읽음) → 고정(브리핑 확인·보고 미작성) → 꺼짐(보고 완료) */}
       <ActionItem
         icon={<ReportIcon active={activeTab === 'analysis' || !hasJournalToday} />}
         label="보고"
         badge={!hasJournalToday}
         litColor="red"
+        blink={!hasJournalToday && !briefingChecked}
         active={activeTab === 'analysis'}
         onClick={onOpenAnalysis}
         highlight
@@ -75,12 +78,13 @@ export default function BottomBar({
   );
 }
 
-function ActionItem({ icon, label, active, badge, onClick, highlight, litColor }) {
+function ActionItem({ icon, label, active, badge, onClick, highlight, litColor, blink }) {
   // litColor: 'blue' (관수) | 'amber' (방제) | 'red' (보고서) — badge=true일 때 카드 lit 효과
   const litClass = badge && litColor ? `lit-${litColor}` : '';
+  const blinkClass = blink ? 'lit-blink' : '';
   return (
     <button
-      className={`action-item ${active ? 'active' : ''} ${highlight ? 'highlight' : ''} ${litClass}`}
+      className={`action-item ${active ? 'active' : ''} ${highlight ? 'highlight' : ''} ${litClass} ${blinkClass}`}
       onClick={onClick}
     >
       <div className="action-icon-wrap">

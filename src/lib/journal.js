@@ -88,3 +88,22 @@ export function getTodayJournal(rows) {
   const today = todayKST();
   return rows.find(r => r.date === today) || null;
 }
+
+// 아침 브리핑(밭 전체 진단) 확인 여부 — journal_notes.briefing.checked_at
+//   "오늘 일 시작" 누르면 checked_at 기록됨 → 보고 버튼 깜빡 멈춤
+export function isBriefingChecked(row) {
+  return !!(row?.journal_notes?.briefing?.checked_at);
+}
+
+// checked_at 시각 (HH:MM, KST) — 표시용
+export function briefingCheckedTime(row) {
+  const ts = row?.journal_notes?.briefing?.checked_at;
+  if (!ts) return null;
+  try {
+    const d = new Date(ts);
+    const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+    return `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
+  } catch {
+    return null;
+  }
+}

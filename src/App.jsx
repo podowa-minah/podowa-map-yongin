@@ -28,8 +28,10 @@ import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
 import IrrigationModal from './components/IrrigationModal';
 import PestTreatmentModal from './components/PestTreatmentModal';
-import { hasJournalData } from './lib/journal';
+import { hasJournalData, isBriefingChecked } from './lib/journal';
+import { getFarmDiagnosis } from './lib/diagnosis';
 import { getMissedDaysNeedingReasons } from './lib/historyStats';
+import { loadTreeCache, saveTreeCache, clearTreeCache } from './utils/treeCache';
 import IncompleteReasonPopup from './components/IncompleteReasonPopup';
 import WorkerDrilldownPopup from './components/WorkerDrilldownPopup';
 import { getDominantSeason } from './lib/dailyReport';
@@ -85,6 +87,7 @@ export default function App() {
   // 영농일지 — Podowa 버튼 클릭 시 열림. 오늘 일지 있으면 불 꺼짐
   // (영농일지 모달 제거됨 — 현황분석 페이지로 통합)
   const [journalHasToday, setJournalHasToday] = useState(false);
+  const [briefingCheckedToday, setBriefingCheckedToday] = useState(false);  // 아침 브리핑 확인 여부 → 불 깜빡/고정
   const [journalRefreshKey, setJournalRefreshKey] = useState(0);
   const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
@@ -148,6 +151,15 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    // ── stale-while-revalidate ──
+    // 1. 캐시 즉시 표시 → 첫 페인트 빠르게 (새로고침/재로그인 시 큰 효과)
+    // 2. 백그라운드 fresh fetch가 끝나면 자연스럽게 교체
+    const cached = loadTreeCache(user.id);
+    if (cached && Object.keys(cached).length > 0) {
+      setTreeData(cached);
+      setDataLoading(false);  // 화면 렌더 해금
+    }
+
     function subscribeRows() {
       return supabase
         .channel('farm-tracker-channel')
@@ -184,7 +196,18 @@ export default function App() {
     return () => supabase.removeChannel(channel);
   }, [user]);
 
+  // treeData 변경 시 캐시 저장 (1초 debounce — 연속 realtime 업데이트 묶음)
+  useEffect(() => {
+    if (!user?.id || dataLoading) return;
+    if (Object.keys(treeData).length === 0) return;
+    const timer = setTimeout(() => {
+      saveTreeCache(user.id, treeData);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [treeData, user, dataLoading]);
+
   const handleLogout = async () => {
+    if (user?.id) clearTreeCache(user.id);
     await supabase.auth.signOut();
     setUser(null);
     setTreeData({});
@@ -289,6 +312,7 @@ export default function App() {
         .limit(1);
       if (!alive) return;
       setJournalHasToday(hasJournalData(data?.[0]));
+      setBriefingCheckedToday(isBriefingChecked(data?.[0]));
     })();
     return () => { alive = false; };
   }, [user, journalRefreshKey]);
@@ -514,6 +538,13 @@ export default function App() {
     return getDominantSeason(todayRecs) || getDominantSeason(yRecs) || '';
   }, [treeData]);
 
+  // 유심히 볼 나무(이상치) id Set — 맵에서 강조 표시 (브리핑과 같은 진단 함수)
+  const watchTreeIds = useMemo(() => {
+    const tIso = getKSTToday();
+    const diag = getFarmDiagnosis(treeData, labels, tIso);
+    return new Set((diag.watchTrees || []).map(w => w.id));
+  }, [treeData, labels]);
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
@@ -596,7 +627,7 @@ export default function App() {
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} onViewportChange={setViewportInfo} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} onViewportChange={setViewportInfo} />
             ) : (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             )
@@ -608,6 +639,7 @@ export default function App() {
               onOpenPest={() => setShowPestTreatment(true)}
               onSaved={() => { setJournalRefreshKey(k => k + 1); setTreatmentRefreshKey(k => k + 1); }}
               onOpenScores={() => setActiveTab('scores')}
+              onOpenTree={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
               onClose={() => setActiveTab(previousTab || 'map')}
             />
           )}
@@ -628,6 +660,7 @@ export default function App() {
           onOpenAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
           onOpenMenu={() => setHeaderOpen((v) => !v)}
           hasJournalToday={journalHasToday}
+          briefingChecked={briefingCheckedToday}
           irrEval={irrEval}
           pestEval={pestEval}
         />
