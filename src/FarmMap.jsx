@@ -97,11 +97,12 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
     const padding = 2;
     const initScale = Math.max(0.8, Math.min((cw - padding * 2) / gridW, 3.5));
     scaleRef.current = initScale;
-    // 가로 중앙 정렬, 세로는 약간 위에서 시작
+    // 가로 중앙 정렬, 세로는 격자 위 입구 띠(30px in grid coords)가 화면에 보이도록 시작
     const scaledW = gridW * initScale;
+    const GATE_OFFSET = 30;            // GateMark 높이(26) + 위 여백(4) — 격자 위 공간
     posRef.current = {
       x: Math.max(0, (cw - scaledW) / 2),
-      y: 2,
+      y: GATE_OFFSET * initScale + 4,  // 어떤 줌에서도 입구가 윗쪽 4px 부근에 보이게
     };
     applyTransform();
   }, [applyTransform, gridW]);
@@ -302,6 +303,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           transformOrigin: "0 0",
           willChange: "transform",
           width: gridW,
+          position: "relative",        // 문(GateMark) absolute 자식 위치 기준
         }}
       >
         {Array.from({ length: rows * cols }, (_, idx) => {
@@ -482,6 +484,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
             </div>
           );
         })}
+
+        {/* 입구 문 — 3-1, 4-1 자리 위 (남쪽 입구). 격자와 함께 줌됨 */}
+        <GateMark cellW={cellW} cellH={cellH} gapX={gapX} />
       </div>
 
       {editId && (
@@ -495,3 +500,47 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
     </div>
   );
 }
+
+// ── 입구 표지 (3-1, 4-1 자리 위, 격자 바깥) ────────────
+// 격자 위쪽에 위치 — 3-1, 4-1 셀은 정상 사용 가능. 격자와 함께 줌됨.
+// 좌·우 기둥 + 상단 간판("입구") + "남" 화살표 ↓
+function GateMark({ cellW, cellH, gapX }) {
+  const w = 2 * cellW + gapX;          // cols 3-4 합한 너비 = 94
+  const h = 26;                         // 입구 띠 높이 (격자 위)
+  const left = 2 * (cellW + gapX);      // col 3 시작 x = 100
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left,
+        top: -(h + 4),                  // 격자 위 4px 여백 두고
+        width: w,
+        height: h,
+        pointerEvents: 'none',
+        zIndex: 5,
+      }}
+      aria-label="남쪽 입구"
+    >
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height="100%">
+        {/* 좌·우 기둥 (간판 받침) */}
+        <rect x="3"     y="12" width="4" height="13" fill="#8b6f47" stroke="#5e3a1a" strokeWidth="0.5" />
+        <rect x={w - 7} y="12" width="4" height="13" fill="#8b6f47" stroke="#5e3a1a" strokeWidth="0.5" />
+        {/* 상단 간판 — 따뜻한 나무톤 그라데이션 느낌 */}
+        <rect x="2" y="2" width={w - 4} height="11" rx="2.2"
+              fill="#d4b285" stroke="#5e3a1a" strokeWidth="0.9" />
+        {/* 간판 상단 음영 */}
+        <rect x="3" y="3" width={w - 6} height="3" rx="1.5" fill="#b8915a" opacity="0.7" />
+        {/* "입구" 텍스트 — 크고 굵게 */}
+        <text x={w / 2} y="10.5" textAnchor="middle"
+              fontSize="7.5" fontWeight="900" fill="#3a2410"
+              fontFamily="system-ui, -apple-system, sans-serif"
+              letterSpacing="0.5">
+          ↓ 입구
+        </text>
+        {/* 간판 옆 "남" 작은 표시 */}
+        <text x="3" y="20" fontSize="3.8" fontWeight="700" fill="#7a3e10">남쪽</text>
+      </svg>
+    </div>
+  );
+}
+
