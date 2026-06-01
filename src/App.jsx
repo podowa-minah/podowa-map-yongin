@@ -153,6 +153,25 @@ export default function App() {
     setGrassRecords(prev => ({ ...prev, [treeId]: data || [] }));
   };
 
+  // 첫 페인트 후 idle 타임에 자주 쓰는 lazy 모달 미리 받아두기 — 첫 클릭 버벅임 방지
+  useEffect(() => {
+    if (!user) return;
+    const preload = () => {
+      import('./components/PestTreatmentModal');
+      import('./components/IrrigationModal');
+      import('./components/HistoryPopup.jsx');
+      import('./components/AnnouncementPopup.jsx');
+      import('./AnalysisPage');
+      import('./TreeModal.jsx');
+    };
+    const ric = window.requestIdleCallback;
+    const id = ric ? ric(preload, { timeout: 3000 }) : setTimeout(preload, 1500);
+    return () => {
+      if (ric) cancelIdleCallback?.(id);
+      else clearTimeout(id);
+    };
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
 
