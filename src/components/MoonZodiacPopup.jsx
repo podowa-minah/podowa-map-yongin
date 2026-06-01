@@ -70,6 +70,23 @@ export default function MoonZodiacPopup({ open, onClose, moon, termInfo, zodiac,
           </div>
         )}
 
+        {/* 절기란? — 2~3줄 간단 설명 */}
+        {termInfo && (
+          <div style={mappingBox}>
+            <div style={mappingTitle}>절기란?</div>
+            <div style={introText}>
+              <b>동아시아 전통 농력</b>. 태양의 위치에 따라 1년을 <b>24개</b>로 나눠
+              약 15일마다 계절·기후를 세분화한 거예요. 양력과 거의 일치해서 옛부터 농사 시기의 기준이었어요.
+              {termInfo.name && (
+                <>
+                  <br/>
+                  오늘 <b>{termInfo.name}</b>은 "{termInfo.meaning}"는 뜻으로, 이 시기 작물 상태의 표준 기준점이 됩니다.
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 바이오다이내믹 설명 + 매핑 — 시스템 이해 */}
         <div style={mappingBox}>
           <div style={mappingTitle}>{FRAMEWORK_NAME}란?</div>
