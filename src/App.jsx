@@ -45,6 +45,7 @@ const ScoreReferencePage = lazy(() => import('./ScoreReferencePage'));
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
+  const [freshTreeLoaded, setFreshTreeLoaded] = useState(false);   // 서버 fresh fetch 완료 여부 — lit 깜빡임 방지용
   const [selectedTree, setSelectedTree] = useState(null);
   const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass'
   const [grassRecords, setGrassRecords] = useState({});
@@ -121,6 +122,7 @@ export default function App() {
 
     const grouped = {};
     data.forEach((row) => { (grouped[row.id] ??= []).push(row); });
+    setFreshTreeLoaded(true);
     setTreeData(grouped);
     setDataLoading(false);
   };
@@ -214,6 +216,7 @@ export default function App() {
     await supabase.auth.signOut();
     setUser(null);
     setTreeData({});
+    setFreshTreeLoaded(false);
   };
 
   // ── 공지사항 프리페치 + 핀 fetch + 실시간 구독 ──
@@ -648,7 +651,7 @@ export default function App() {
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} onViewportChange={setViewportInfo} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
             ) : (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             )

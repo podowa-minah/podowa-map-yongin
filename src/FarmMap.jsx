@@ -35,7 +35,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), onViewportChange }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -59,8 +59,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
   const { labels, upsert } = useLabels();
   const [editId, setEditId] = useState(null);
 
-  // 라벨이 충분히 로드되기 전엔 lit 표시 보류 (캐시-즉시-treeData / 라벨-나중 race 깜빡임 방지)
+  // 라벨 + 서버 fresh fetch 둘 다 완료돼야 lit 표시 (캐시-즉시-treeData / 라벨-나중 race 깜빡임 방지)
   const labelsReady = Object.keys(labels || {}).length >= 5;
+  const litReady = labelsReady && freshDataLoaded;
 
   const gridW = cols * cellW + (cols - 1) * gapX;
   const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
@@ -341,7 +342,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
 
           // 할일(색깔 있는 셀) = 진하게 띄움 / 완료(흰 셀) = 차분하게
           const isNamedCard = !!lbl.name;
-          const hasTodo = signalOn && anyOn && labelsReady;   // 라벨 안 들어왔으면 lit 보류 — 깜빡임 방지
+          const hasTodo = signalOn && anyOn && litReady;   // 라벨+fresh fetch 둘 다 완료 후에만 lit (깜빡임 방지)
           const cardShadow = (hasTodo && anyOverdue)
             // 빨강 (긴급 할일) — 둥둥 떠 보이게
             ? "0 0 0 1.5px rgba(220, 80, 60, 0.7), 0 5px 12px rgba(220, 80, 60, 0.30), 0 2px 4px rgba(220, 80, 60, 0.20)"
