@@ -8,6 +8,10 @@ import { todayKST } from './lib/treatment-cycles';
 import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
 import { getSeasonalTermInfo } from './lib/seasonalTerms';
 import { getMoonPhase } from './lib/moonPhase';
+import { getMoonZodiac, FRAMEWORK_NAME } from './lib/zodiacMoon';
+import MoonZodiacPopup from './components/MoonZodiacPopup';
+import Constellation from './components/Constellation';
+import DayTypeIcon from './components/DayTypeIcon';
 import { generateBriefingOpinions } from './lib/aiOpinion';
 import { scoreBand, avgScore } from './lib/scoring';
 import { avgFromRecords } from './lib/trends';
@@ -36,6 +40,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
   const [history, setHistory] = useState([]);
   const [showAllHistory, setShowAllHistory] = useState(false);   // 영농일지 더보기
+  const [moonPopupOpen, setMoonPopupOpen] = useState(false);    // 오늘의 하늘 상세 팝업
 
   // 날씨
   const [weather, setWeather] = useState(null);
@@ -339,10 +344,11 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         )}
       </header>
 
-      {/* 생육시기 + 날씨 + 절기(뜻) + 달모양 통합 스트립 */}
+      {/* 생육시기 + 날씨 + 오늘의 하늘 카드 */}
       {(() => {
         const termInfo = getSeasonalTermInfo(selectedDate);
         const moon = getMoonPhase(selectedDate);
+        const zodiac = getMoonZodiac(selectedDate);
         return (
           <div style={{
             marginBottom: '1.8rem',
@@ -351,7 +357,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
             border: `1.5px solid ${C.border}`,
             borderRadius: '0.5rem',
           }}>
-            {/* 생육시기 — 가장 큰 글씨 */}
+            {/* 생육시기 */}
             <div style={{
               fontFamily: C.headlineFont,
               fontSize: '1.35rem',
@@ -370,7 +376,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
                 fontSize: '0.88rem',
                 color: '#4b5563',
                 lineHeight: 1.5,
-                marginBottom: '0.25rem',
+                marginBottom: '0.7rem',
               }}>
                 백암면 · {WEATHER_LABEL[weather.code] || ''} {weather.tempMax}°/{weather.tempMin}°
                 {(weather.humidityMean != null || weather.currentHumidity != null) && (
@@ -379,28 +385,44 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
               </div>
             )}
 
-            {/* 절기 + 뜻 + 달 — 한 줄 */}
-            <div style={{
-              fontFamily: C.headlineFont,
-              fontSize: '0.85rem',
-              color: '#6b7280',
-              lineHeight: 1.5,
-              display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap',
-            }}>
-              {moon && (
-                <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{moon.emoji}</span>
-              )}
-              {moon && (
-                <span style={{ fontSize: '0.935rem', color: '#4b5563', fontWeight: 600 }}>{moon.name}</span>
-              )}
-              {termInfo && (
-                <>
-                  <span style={{ color: '#d6c8a8' }}>·</span>
-                  <span style={{ fontSize: '0.935rem', color: '#4b5563', fontWeight: 600 }}>{termInfo.name}</span>
-                  <span style={{ color: '#9ca3af' }}>— {termInfo.meaning}</span>
-                </>
-              )}
-            </div>
+            {/* 오늘의 하늘 — 깔끔 카드, 누르면 상세 팝업 */}
+            {(moon || termInfo || zodiac) && (
+              <button
+                onClick={() => setMoonPopupOpen(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.85rem',
+                  width: '100%', textAlign: 'left',
+                  padding: '0.65rem 0.85rem',
+                  background: '#fffaed',
+                  border: `1px solid ${C.border}80`,
+                  borderRadius: '0.5rem',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+                aria-label="오늘의 하늘 상세"
+              >
+                {moon && <span style={{ fontSize: '1.8rem', lineHeight: 1, flexShrink: 0 }}>{moon.emoji}</span>}
+                <div style={{ flex: 1, fontSize: '0.84rem', color: '#374151', lineHeight: 1.65 }}>
+                  {moon && <div><b style={skyLabel}>달</b> {moon.name}</div>}
+                  {termInfo && <div><b style={skyLabel}>절기</b> {termInfo.name} <span style={{ color: '#9ca3af' }}>— {termInfo.meaning}</span></div>}
+                  {zodiac && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <b style={skyLabel}>별자리</b>
+                      <Constellation signName={zodiac.name} size={22} />
+                      <span>{zodiac.name}</span>
+                    </div>
+                  )}
+                  {zodiac && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <b style={skyLabel}>{FRAMEWORK_NAME}</b>
+                      <DayTypeIcon type={zodiac.dayType} size={16} />
+                      <span>{zodiac.dayLabel}</span>
+                    </div>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.85rem', color: '#a89968', flexShrink: 0 }}>ⓘ</span>
+              </button>
+            )}
           </div>
         );
       })()}
@@ -597,6 +619,16 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
           </>
         )}
       </Section>
+
+      {/* 오늘의 하늘 상세 팝업 */}
+      <MoonZodiacPopup
+        open={moonPopupOpen}
+        onClose={() => setMoonPopupOpen(false)}
+        moon={getMoonPhase(selectedDate)}
+        termInfo={getSeasonalTermInfo(selectedDate)}
+        zodiac={getMoonZodiac(selectedDate)}
+        dateLabel={formatDateLine(selectedDate)}
+      />
     </div>
   );
 }
@@ -621,8 +653,9 @@ function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete,
   const hasIrr = !!(entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.duration_minutes));
   const hasPest = !!(entry.pest_treatment && entry.pest_treatment.chemical);
 
-  // 달 + 절기(뜻) + 생육시기
+  // 달 + 별자리·생명역동 일자 + 절기(뜻) + 생육시기
   const moon = getMoonPhase(entry.date);
+  const zodiac = getMoonZodiac(entry.date);
   const termInfo = getSeasonalTermInfo(entry.date);
   const season = getDominantSeason(recs);
   const humidity = entry.weather?.humidityMean ?? entry.weather?.currentHumidity ?? null;
@@ -664,6 +697,18 @@ function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete,
           </span>
           {moon && <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{moon.emoji}</span>}
           {moon && <span style={{ fontSize: '0.74rem', color: '#6b7280', fontWeight: 600 }}>{moon.name}</span>}
+          {zodiac && (
+            <span
+              title={`${zodiac.name}자리 · ${zodiac.dayLabel} — ${zodiac.dayShort}`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                fontSize: '0.7rem', color: '#4b5563', fontWeight: 600,
+              }}
+            >
+              <Constellation signName={zodiac.name} size={16} lineOpacity={0.35} />
+              <DayTypeIcon type={zodiac.dayType} size={13} />
+            </span>
+          )}
           {isToday && (
             <span style={{
               fontSize: '0.65rem', fontWeight: 700, color: '#92400e',
@@ -957,6 +1002,13 @@ function MetricBar({ label, idealLabel, today, past, idealValue, reverse }) {
     </div>
   );
 }
+
+// 오늘의 하늘 카드 — 라벨 스타일 (바이오다이내믹 들어가게 5.4rem)
+const skyLabel = {
+  display: 'inline-block', width: '5.4rem', flexShrink: 0,
+  fontSize: '0.75rem', color: '#92845c', fontWeight: 700,
+  whiteSpace: 'nowrap',
+};
 
 const editBtnStyle = {
   marginLeft: '0.4rem',

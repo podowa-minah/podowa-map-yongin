@@ -59,6 +59,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
   const { labels, upsert } = useLabels();
   const [editId, setEditId] = useState(null);
 
+  // 라벨이 충분히 로드되기 전엔 lit 표시 보류 (캐시-즉시-treeData / 라벨-나중 race 깜빡임 방지)
+  const labelsReady = Object.keys(labels || {}).length >= 5;
+
   const gridW = cols * cellW + (cols - 1) * gapX;
   const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
 
@@ -338,7 +341,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
 
           // 할일(색깔 있는 셀) = 진하게 띄움 / 완료(흰 셀) = 차분하게
           const isNamedCard = !!lbl.name;
-          const hasTodo = signalOn && anyOn;        // 색깔 있음 = 할 일
+          const hasTodo = signalOn && anyOn && labelsReady;   // 라벨 안 들어왔으면 lit 보류 — 깜빡임 방지
           const cardShadow = (hasTodo && anyOverdue)
             // 빨강 (긴급 할일) — 둥둥 떠 보이게
             ? "0 0 0 1.5px rgba(220, 80, 60, 0.7), 0 5px 12px rgba(220, 80, 60, 0.30), 0 2px 4px rgba(220, 80, 60, 0.20)"
@@ -537,8 +540,7 @@ function GateMark({ cellW, cellH, gapX }) {
               letterSpacing="0.5">
           ↓ 입구
         </text>
-        {/* 간판 옆 "남" 작은 표시 */}
-        <text x="3" y="20" fontSize="3.8" fontWeight="700" fill="#7a3e10">남쪽</text>
+        {/* (남쪽 표시 임시 제거) */}
       </svg>
     </div>
   );

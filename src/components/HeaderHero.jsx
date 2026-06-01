@@ -15,6 +15,7 @@ export default function HeaderHero({
   kindDots = 0,
   fakeDots = 0,
   missedCount = 0,
+  streak = 0,                      // 🔥 연속 출근 일수
   onGoAnalysis,
   onFarmerClick,
   onAnnouncements,
@@ -72,6 +73,7 @@ export default function HeaderHero({
               <span className="user-greeting">농부</span> {userName}
             </div>
           )}
+          {/* (🔥 연속 출근 streak 표시 임시 제거) */}
           {/* 농부님 주목 알림 배너 */}
           <button
             className={`notif-banner ${hasRecentAnnouncement ? 'has-recent' : ''}`}

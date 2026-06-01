@@ -31,6 +31,8 @@ const IrrigationModal = lazy(() => import('./components/IrrigationModal'));
 const PestTreatmentModal = lazy(() => import('./components/PestTreatmentModal'));
 import { hasJournalData, isBriefingChecked } from './lib/journal';
 import { getFarmDiagnosis } from './lib/diagnosis';
+import { getActiveStreak } from './lib/streak';
+import FarmVisitor from './components/FarmVisitor';
 import { getMissedDaysNeedingReasons } from './lib/historyStats';
 import { loadTreeCache, saveTreeCache, clearTreeCache } from './utils/treeCache';
 const IncompleteReasonPopup = lazy(() => import('./components/IncompleteReasonPopup'));
@@ -556,6 +558,12 @@ export default function App() {
     return new Set((diag.watchTrees || []).map(w => w.id));
   }, [treeData, labels]);
 
+  // 🔥 연속 출근 streak — 헤더 배지
+  const streak = useMemo(
+    () => getActiveStreak(treeData, getKSTToday(), historySummaries || []),
+    [treeData, historySummaries],
+  );
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
@@ -590,6 +598,7 @@ export default function App() {
             kindDots={greenDots - completed}
             fakeDots={fakeDoneCount}
             missedCount={missedDaysNeedingReasons.length}
+            streak={streak}
             onGoAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
             onFarmerClick={() => setShowLogPopup(true)}
             onAnnouncements={() => setShowAnnouncements(true)}
@@ -769,6 +778,9 @@ export default function App() {
         )}
       </div>
       </Suspense>
+
+      {/* 🦋🐝 농장 방문자 — 하루 한 번 무작위 시점에 화면 가로지름 */}
+      <FarmVisitor />
     </div>
   );
 }

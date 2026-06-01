@@ -4,6 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import { getSeasonalTerm, getSeasonalTermInfo } from '../lib/seasonalTerms';
 import { getMoonPhase } from '../lib/moonPhase';
+import { getMoonZodiac } from '../lib/zodiacMoon';
+import MoonZodiacPopup from './MoonZodiacPopup';
+import Constellation from './Constellation';
+import DayTypeIcon from './DayTypeIcon';
 
 const WEATHER_EMOJI = {
   0: '☀️',
@@ -25,6 +29,7 @@ const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function WeatherDate({ onClick, currentSeason }) {
   const [weather, setWeather] = useState(null);
+  const [moonOpen, setMoonOpen] = useState(false);
 
   const now = new Date();
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -35,6 +40,7 @@ export default function WeatherDate({ onClick, currentSeason }) {
   const isoDate = `${kst.getUTCFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const termInfo = getSeasonalTermInfo(isoDate);
   const moon = getMoonPhase(isoDate);
+  const zodiac = getMoonZodiac(isoDate);
 
   useEffect(() => {
     async function fetchWeather() {
@@ -79,20 +85,53 @@ export default function WeatherDate({ onClick, currentSeason }) {
         )}
       </div>
 
-      {/* 2줄: 달이름 + 절기 + 뜻 (기본 폰트, 작게) */}
-      {(moon || termInfo) && (
-        <div className="info-card-seasonal">
+      {/* 2줄: 달·별자리·절기 — 누르면 상세 팝업 */}
+      {(moon || termInfo || zodiac) && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setMoonOpen(true); }}
+          className="info-card-seasonal"
+          style={{
+            background: 'none', border: 'none', padding: 0,
+            cursor: 'pointer', textAlign: 'left',
+            fontFamily: 'inherit', display: 'flex', alignItems: 'center',
+            gap: '0.35rem', flexWrap: 'wrap',
+          }}
+          aria-label="달·별자리 상세 보기"
+        >
           {moon && (
             <>
               <span style={{ fontSize: '0.95rem' }}>{moon.emoji}</span>
-              <span className="moon-name">{moon.name}</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4b5563' }}>{moon.name}</span>
             </>
           )}
-          {moon && termInfo && <span className="sep">·</span>}
-          {termInfo && <span className="name">{termInfo.name}</span>}
-          {termInfo && <span className="meaning">— {termInfo.meaning}</span>}
-        </div>
+          {zodiac && (
+            <>
+              <span className="sep">·</span>
+              <Constellation signName={zodiac.name} size={20} />
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4b5563' }}>{zodiac.name}</span>
+              <span className="sep">·</span>
+              <DayTypeIcon type={zodiac.dayType} size={14} />
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4b5563' }}>{zodiac.dayLabel}</span>
+            </>
+          )}
+          {(moon || zodiac) && termInfo && <span className="sep">·</span>}
+          {termInfo && (
+            <>
+              <span style={{ fontSize: '0.66rem', color: '#9ca3af', fontWeight: 600, letterSpacing: '0.3px' }}>절기</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#4b5563' }}>{termInfo.name}</span>
+              <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>— {termInfo.meaning}</span>
+            </>
+          )}
+          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#9ca3af' }}>ⓘ</span>
+        </button>
       )}
+
+      <MoonZodiacPopup
+        open={moonOpen}
+        onClose={() => setMoonOpen(false)}
+        moon={moon} termInfo={termInfo} zodiac={zodiac}
+        dateLabel={`${month}/${day} (${dayName})`}
+      />
     </div>
   );
 }

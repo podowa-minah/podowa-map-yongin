@@ -441,6 +441,19 @@
   box-shadow: none;
 }
 
+/* 🦋🐝 농장 방문자 — 하루 한 번 화면 가로지름 */
+@keyframes visitorFlyAcross {
+  0%   { transform: translateX(-40px) translateY(0); opacity: 0; }
+  8%   { opacity: 1; }
+  50%  { transform: translateX(50vw) translateY(-14px); }
+  92%  { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 40px)) translateY(0); opacity: 0; }
+}
+@keyframes visitorWingFlap {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.4); }
+}
+
 .app-header-bar.collapsed + .info-card-sticky {
   margin-top: 0;                       /* hero 접혔을 때 곡선 마진 제거 */
   border-radius: 0;
