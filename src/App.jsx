@@ -357,6 +357,8 @@ export default function App() {
         const numericId = `${c}-${r}`;
         const lbl = labels[labelId] || {};
         if (lbl.disabled) continue;
+        // 이름 없는 빈 셀은 "나무 자리 아님" — 옛 기록 잔여물에도 헤더 184/47 깜빡임 방지
+        if (!lbl.name) continue;
 
         const records = treeData[numericId] || [];
         const todayRecords = records.filter(rec => rec.date === kstToday);
