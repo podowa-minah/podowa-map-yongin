@@ -28,68 +28,69 @@ function getQuackAudio() {
   return _quackAudio;
 }
 
-// 🎉 정답! "ta-da!" — 메이저 코드 버스트 + 옥타브 스파클 (게임 정답 느낌)
-// 약 0.4초, 밝고 신남
+// 🎉 정답! "딩동댕~!" — 4단 상승 + 마지막 sparkle (게임쇼 정답 느낌)
+// 약 0.65초, 밝고 신남
 export function playSuccess() {
   const ctx = getCtx();
   if (!ctx) return;
   try {
     if (ctx.state === 'suspended') ctx.resume();
     const now = ctx.currentTime;
-    const VOL = 0.4;
+    const VOL = 0.5;
 
-    // 1) "ta!" — C-E-G 메이저 트라이어드를 한 번에 짧게 (브라스/벨 톤)
-    const chord1 = [523.25, 659.25, 783.99];  // C5, E5, G5
-    chord1.forEach((freq) => {
-      const t = now;
-      const dur = 0.12;
-      // 톱니 + 사인 — 풍부한 브라스 톤
-      const saw = ctx.createOscillator();
-      saw.type = 'sawtooth'; saw.frequency.value = freq;
+    // 4단 상승 벨톤 (C5 → E5 → G5 → C6)
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const t = now + i * 0.075;
+      // 마지막 음은 길게 빛남
+      const dur = i === notes.length - 1 ? 0.55 : 0.18;
+
+      // 1) 메인 sine (벨톤)
       const sine = ctx.createOscillator();
       sine.type = 'sine'; sine.frequency.value = freq;
 
-      // 필터로 부드럽게
-      const lpf = ctx.createBiquadFilter();
-      lpf.type = 'lowpass'; lpf.frequency.value = 4500; lpf.Q.value = 1.5;
+      // 2) 2nd 하모닉 triangle (밝은 빛)
+      const tri = ctx.createOscillator();
+      tri.type = 'triangle'; tri.frequency.value = freq * 2;
+      const triG = ctx.createGain(); triG.gain.value = 0.28;
 
-      const sawG = ctx.createGain(); sawG.gain.value = 0.25;
-      const sineG = ctx.createGain(); sineG.gain.value = 0.45;
+      // 3) 마지막 음만 살짝 비브라토 (반짝임)
+      let lfo, lfoG;
+      if (i === notes.length - 1) {
+        lfo = ctx.createOscillator();
+        lfo.frequency.value = 7;
+        lfoG = ctx.createGain(); lfoG.gain.value = 5;
+        lfo.connect(lfoG); lfoG.connect(sine.frequency);
+      }
 
+      // 4) 볼륨 envelope — 빠른 어택, 자연스러운 디케이
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.exponentialRampToValueAtTime(VOL, t + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-      saw.connect(sawG); sawG.connect(lpf);
-      sine.connect(sineG); sineG.connect(lpf);
-      lpf.connect(gain); gain.connect(ctx.destination);
-      saw.start(t); sine.start(t);
-      saw.stop(t + dur + 0.01); sine.stop(t + dur + 0.01);
+      sine.connect(gain);
+      tri.connect(triG); triG.connect(gain);
+      gain.connect(ctx.destination);
+
+      sine.start(t); tri.start(t);
+      if (lfo) lfo.start(t);
+      sine.stop(t + dur + 0.02); tri.stop(t + dur + 0.02);
+      if (lfo) lfo.stop(t + dur + 0.02);
     });
 
-    // 2) "da~!" — 한 옥타브 위 메이저 트라이어드, 살짝 늦게, 더 길게 (sparkle)
-    const chord2 = [1046.5, 1318.5, 1568];     // C6, E6, G6
-    chord2.forEach((freq, i) => {
-      const t = now + 0.10;
-      const dur = 0.32;
-
+    // 마지막에 살짝 더 높은 sparkle (E6 + G6) — 빛나는 마무리
+    [1318.5, 1568].forEach((freq, i) => {
+      const t = now + 0.32 + i * 0.04;
+      const dur = 0.4;
       const sine = ctx.createOscillator();
       sine.type = 'sine'; sine.frequency.value = freq;
-      // 살짝 비브라토
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 6;
-      const lfoG = ctx.createGain(); lfoG.gain.value = 4;
-      lfo.connect(lfoG); lfoG.connect(sine.frequency);
-
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(VOL * (0.7 - i * 0.1), t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(VOL * 0.5, t + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
       sine.connect(gain); gain.connect(ctx.destination);
-      sine.start(t); lfo.start(t);
-      sine.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
+      sine.start(t); sine.stop(t + dur + 0.02);
     });
   } catch (err) {
     console.warn('[playSuccess] failed:', err);
