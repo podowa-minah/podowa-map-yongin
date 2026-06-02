@@ -589,15 +589,12 @@ export default function App() {
     [treeData, historySummaries],
   );
 
-  // 🦆 오리 말풍선 — 오늘의 전달사항 (최신 안 읽은 공지 > 진행률별 기본 멘트)
+  // 🦆 오리 말풍선 — 최신 공지 > 진행률별 기본 멘트
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
   const duckMessage = useMemo(() => {
-    const dismissed = dismissedAt || '1970-01-01T00:00:00.000Z';
-    const recentUnread = (prefetchedAnnouncements || []).find(
-      a => !a.deleted && a.created_at > dismissed
-    );
-    if (recentUnread?.content) {
-      const text = recentUnread.content.trim().split('\n')[0];
+    const latest = (prefetchedAnnouncements || []).find(a => !a.deleted);
+    if (latest?.message) {
+      const text = latest.message.trim().split('\n')[0];
       return text.length > 26 ? text.slice(0, 24) + '…' : text;
     }
     if (_pctNow === 100) return '오늘 다 완료! 🎉';
@@ -606,7 +603,31 @@ export default function App() {
     if (_pctNow >= 20)   return '오늘도 화이팅!';
     if (_pctNow > 0)     return '시작이 반!';
     return '오늘도 화이팅!';
-  }, [prefetchedAnnouncements, dismissedAt, _pctNow]);
+  }, [prefetchedAnnouncements, _pctNow]);
+
+  // 🦆 오리 메시지 빠른 입력 — announcements에 insert + 재조회
+  const authorNameForDuck = user?.user_metadata?.nickname || (user?.email ? user.email.split('@')[0] : '농부');
+  async function handleSubmitDuckMessage(text) {
+    const trimmed = (text || '').trim();
+    if (!trimmed) return false;
+    try {
+      const { error } = await supabase
+        .from('announcements')
+        .insert({ message: trimmed, author: authorNameForDuck });
+      if (error) { console.error('duck msg insert:', error); return false; }
+      // 재조회
+      const { data } = await supabase
+        .from('announcements')
+        .select('*')
+        .eq('deleted', false)
+        .order('created_at', { ascending: false });
+      if (data) setPrefetchedAnnouncements(data);
+      return true;
+    } catch (e) {
+      console.error('duck msg failed:', e);
+      return false;
+    }
+  }
 
   // 🎊 100% 완료 — 처음 100% 도달 시 빵빠레 효과음
   const prevPctRef = useRef(_pctNow);
@@ -653,6 +674,7 @@ export default function App() {
             missedCount={missedDaysNeedingReasons.length}
             streak={streak}
             duckMessage={duckMessage}
+            onSubmitDuckMessage={handleSubmitDuckMessage}
             onGoAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
             onFarmerClick={() => setShowLogPopup(true)}
             onAnnouncements={() => setShowAnnouncements(true)}

@@ -19,6 +19,7 @@ export default function HeaderHero({
   missedCount = 0,
   streak = 0,                      // 🔥 연속 출근 일수
   duckMessage = '오늘도 화이팅!',     // 🦆 오리 말풍선 — 항상 표시되는 오늘의 전달사항
+  onSubmitDuckMessage,                // (text) => Promise<bool> — 새 메시지 저장
   onGoAnalysis,
   onFarmerClick,
   onAnnouncements,
@@ -29,8 +30,28 @@ export default function HeaderHero({
   const handleDuckClick = (e) => {
     e.stopPropagation();
     playQuack();
-    setDuckWiggle((n) => n + 1);   // re-mount animation
+    setDuckWiggle((n) => n + 1);
   };
+
+  // ✏️ 메시지 빠른 입력
+  const [editingMsg, setEditingMsg] = useState(false);
+  const [msgInput, setMsgInput] = useState('');
+  const [msgSending, setMsgSending] = useState(false);
+  const msgInputRef = useRef(null);
+  useEffect(() => {
+    if (editingMsg && msgInputRef.current) msgInputRef.current.focus();
+  }, [editingMsg]);
+  async function submitMsg() {
+    const trimmed = msgInput.trim();
+    if (!trimmed || msgSending) return;
+    setMsgSending(true);
+    const ok = onSubmitDuckMessage ? await onSubmitDuckMessage(trimmed) : false;
+    setMsgSending(false);
+    if (ok) {
+      setMsgInput('');
+      setEditingMsg(false);
+    }
+  }
   // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
   const fillPct = Math.min(100, Math.max(0, pct || 0));
   return (
@@ -164,32 +185,104 @@ export default function HeaderHero({
         </div>
       </div>
 
-      {/* 🦆 오리 말풍선 — 오늘의 전달사항. 누르면 꽥꽥. 항상 표시 */}
-      <div
-        key={`duck-bubble-${duckWiggle}`}
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          right: '54px',
-          bottom: '54px',
-          maxWidth: '160px',
-          background: '#fffefb',
-          color: '#1f2937',
-          padding: '5px 10px',
-          borderRadius: '12px',
-          fontSize: '0.72rem',
-          fontWeight: 700,
-          lineHeight: 1.3,
-          boxShadow: '0 2px 6px rgba(0,0,0,0.22), 0 0 0 1.5px #1f2937',
-          animation: duckWiggle > 0 ? 'duckBubbleWiggle 0.5s ease' : undefined,
-          zIndex: 3,
-          pointerEvents: 'none',
-          fontFamily: 'inherit',
-          letterSpacing: '0.2px',
-          wordBreak: 'keep-all',
-          textAlign: 'center',
-        }}
-      >
+      {/* 🦆 오리 말풍선 — 오늘의 전달사항 (입력 모드 OR 표시 모드) */}
+      {editingMsg ? (
+        <div
+          style={{
+            position: 'absolute',
+            right: '54px',
+            bottom: '54px',
+            width: '200px',
+            background: '#fffefb',
+            color: '#1f2937',
+            padding: '6px 8px',
+            borderRadius: '12px',
+            boxShadow: '0 3px 8px rgba(0,0,0,0.28), 0 0 0 1.5px #1f2937',
+            zIndex: 4,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <input
+            ref={msgInputRef}
+            value={msgInput}
+            onChange={(e) => setMsgInput(e.target.value.slice(0, 80))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitMsg();
+              if (e.key === 'Escape') { setEditingMsg(false); setMsgInput(''); }
+            }}
+            placeholder="오늘 한 마디..."
+            maxLength={80}
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              fontSize: '0.72rem',
+              fontFamily: 'inherit',
+              background: 'transparent',
+              color: '#1f2937',
+              padding: '2px 4px',
+            }}
+          />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); submitMsg(); }}
+            disabled={!msgInput.trim() || msgSending}
+            style={{
+              border: 'none',
+              background: msgInput.trim() ? '#1f2937' : '#9ca3af',
+              color: '#fff',
+              borderRadius: 6,
+              padding: '3px 8px',
+              fontSize: '0.66rem',
+              fontWeight: 700,
+              cursor: msgInput.trim() ? 'pointer' : 'not-allowed',
+              fontFamily: 'inherit',
+            }}
+          >
+            {msgSending ? '...' : '↵'}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setEditingMsg(false); setMsgInput(''); }}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: '#9ca3af',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              padding: '0 2px',
+              fontFamily: 'inherit',
+            }}
+          >×</button>
+        </div>
+      ) : (
+        <div
+          key={`duck-bubble-${duckWiggle}`}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: '54px',
+            bottom: '54px',
+            maxWidth: '160px',
+            background: '#fffefb',
+            color: '#1f2937',
+            padding: '5px 10px',
+            borderRadius: '12px',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            lineHeight: 1.3,
+            boxShadow: '0 2px 6px rgba(0,0,0,0.22), 0 0 0 1.5px #1f2937',
+            animation: duckWiggle > 0 ? 'duckBubbleWiggle 0.5s ease' : undefined,
+            zIndex: 3,
+            pointerEvents: 'none',
+            fontFamily: 'inherit',
+            letterSpacing: '0.2px',
+            wordBreak: 'keep-all',
+            textAlign: 'center',
+          }}
+        >
         {duckMessage}
         {/* tail (bubble pointing to duck) */}
         <span style={{
@@ -213,6 +306,34 @@ export default function HeaderHero({
           borderTop: '5px solid #fffefb',
         }} />
       </div>
+      )}
+
+      {/* ✏️ 메시지 빠른 입력 버튼 — 말풍선 위쪽에 작게 */}
+      {!editingMsg && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setEditingMsg(true); }}
+          aria-label="오리 메시지 적기"
+          title="오리 한 마디 적기"
+          style={{
+            position: 'absolute',
+            right: '50px',
+            bottom: '90px',
+            width: 22, height: 22,
+            border: 'none',
+            background: 'rgba(255,255,255,0.92)',
+            color: '#1f2937',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            zIndex: 4,
+            fontSize: '0.7rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.22), 0 0 0 1.2px #1f2937',
+            WebkitTapHighlightColor: 'transparent',
+            padding: 0,
+          }}
+        >✏️</button>
+      )}
 
       {/* 🦆 흰 오리 — 우측 하단. 누르면 꽥꽥 🔊 + 말풍선 */}
       <button
