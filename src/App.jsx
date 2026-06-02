@@ -605,23 +605,35 @@ export default function App() {
     return '오늘도 화이팅!';
   }, [prefetchedAnnouncements, _pctNow]);
 
-  // 🦆 오리 메시지 빠른 입력 — announcements에 insert + 재조회
+  // 🦆 오리 메시지 빠른 입력 — 새 거 올리면 기존 활성 거 자동으로 히스토리로 (deleted=true)
   const authorNameForDuck = user?.user_metadata?.nickname || (user?.email ? user.email.split('@')[0] : '농부');
   async function handleSubmitDuckMessage(text) {
     const trimmed = (text || '').trim();
     if (!trimmed) return false;
     try {
+      // 1) 기존 활성 메시지 모두 히스토리로 넘김 (deleted=true, pin도 해제)
+      const { data: actives } = await supabase
+        .from('announcements')
+        .select('id')
+        .eq('deleted', false);
+      if (actives && actives.length) {
+        await supabase
+          .from('announcements')
+          .update({ deleted: true, pinned: false })
+          .in('id', actives.map(a => a.id));
+      }
+      // 2) 새 메시지 insert
       const { error } = await supabase
         .from('announcements')
         .insert({ message: trimmed, author: authorNameForDuck });
       if (error) { console.error('duck msg insert:', error); return false; }
-      // 재조회
+      // 3) 재조회
       const { data } = await supabase
         .from('announcements')
         .select('*')
         .eq('deleted', false)
         .order('created_at', { ascending: false });
-      if (data) setPrefetchedAnnouncements(data);
+      setPrefetchedAnnouncements(data || []);
       return true;
     } catch (e) {
       console.error('duck msg failed:', e);
