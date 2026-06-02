@@ -605,27 +605,25 @@ export default function App() {
     return '오늘도 화이팅!';
   }, [prefetchedAnnouncements, _pctNow]);
 
-  // 🦆 오리 메시지 빠른 입력 — 새 거 올리면 기존 활성 거 자동으로 히스토리로 (deleted=true)
+  // 🦆 오리 메시지 빠른 입력
+  // - 오리 메시지는 author 앞에 '🦆 ' 마커로 구분
+  // - 새 거 올리면 **이전 오리 메시지만** archive (일반 공지는 그대로 둠)
+  const DUCK_AUTHOR_PREFIX = '🦆 ';
   const authorNameForDuck = user?.user_metadata?.nickname || (user?.email ? user.email.split('@')[0] : '농부');
   async function handleSubmitDuckMessage(text) {
     const trimmed = (text || '').trim();
     if (!trimmed) return false;
     try {
-      // 1) 기존 활성 메시지 모두 히스토리로 넘김 (deleted=true, pin도 해제)
-      const { data: actives } = await supabase
+      // 1) 이전 오리 메시지(author '🦆 '로 시작)만 archive
+      await supabase
         .from('announcements')
-        .select('id')
-        .eq('deleted', false);
-      if (actives && actives.length) {
-        await supabase
-          .from('announcements')
-          .update({ deleted: true, pinned: false })
-          .in('id', actives.map(a => a.id));
-      }
-      // 2) 새 메시지 insert
+        .update({ deleted: true, pinned: false })
+        .eq('deleted', false)
+        .like('author', `${DUCK_AUTHOR_PREFIX}%`);
+      // 2) 새 오리 메시지 insert (author에 🦆 마커)
       const { error } = await supabase
         .from('announcements')
-        .insert({ message: trimmed, author: authorNameForDuck });
+        .insert({ message: trimmed, author: `${DUCK_AUTHOR_PREFIX}${authorNameForDuck}` });
       if (error) { console.error('duck msg insert:', error); return false; }
       // 3) 재조회
       const { data } = await supabase
