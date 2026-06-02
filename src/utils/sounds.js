@@ -80,6 +80,99 @@ export function playSuccess() {
   }
 }
 
+// 🎊 100% 완료 — 더 화려한 빵빠레! ta-da! → 아르페지오 → 큰 코드 → sparkle
+// 약 1.3초, 진짜 축하 느낌
+export function playCelebration() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  try {
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const VOL = 0.5;
+
+    // Phase 1: 첫 "ta!" 트라이어드 (브라스)
+    [523.25, 659.25, 783.99].forEach((freq) => {
+      const t = now;
+      const dur = 0.14;
+      const saw = ctx.createOscillator();
+      saw.type = 'sawtooth'; saw.frequency.value = freq;
+      const sine = ctx.createOscillator();
+      sine.type = 'sine'; sine.frequency.value = freq;
+      const lpf = ctx.createBiquadFilter();
+      lpf.type = 'lowpass'; lpf.frequency.value = 4500; lpf.Q.value = 1.5;
+      const sawG = ctx.createGain(); sawG.gain.value = 0.3;
+      const sineG = ctx.createGain(); sineG.gain.value = 0.5;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(VOL, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      saw.connect(sawG); sawG.connect(lpf);
+      sine.connect(sineG); sineG.connect(lpf);
+      lpf.connect(gain); gain.connect(ctx.destination);
+      saw.start(t); sine.start(t);
+      saw.stop(t + dur + 0.01); sine.stop(t + dur + 0.01);
+    });
+
+    // Phase 2: 상승 아르페지오 C-E-G-C-E-G (옥타브 더 위로)
+    const arp = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568];
+    arp.forEach((freq, i) => {
+      const t = now + 0.18 + i * 0.075;
+      const dur = 0.18;
+      const sine = ctx.createOscillator();
+      sine.type = 'sine'; sine.frequency.value = freq;
+      const tri = ctx.createOscillator();
+      tri.type = 'triangle'; tri.frequency.value = freq * 2;
+      const triG = ctx.createGain(); triG.gain.value = 0.18;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(VOL * 0.7, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      sine.connect(gain); tri.connect(triG); triG.connect(gain);
+      gain.connect(ctx.destination);
+      sine.start(t); tri.start(t);
+      sine.stop(t + dur + 0.01); tri.stop(t + dur + 0.01);
+    });
+
+    // Phase 3: 마지막 큰 메이저 코드 (긴 잔향)
+    const finalChord = [523.25, 659.25, 783.99, 1046.5];   // C-E-G-C
+    finalChord.forEach((freq, i) => {
+      const t = now + 0.68;
+      const dur = 0.55;
+      const sine = ctx.createOscillator();
+      sine.type = 'sine'; sine.frequency.value = freq;
+      const saw = ctx.createOscillator();
+      saw.type = 'sawtooth'; saw.frequency.value = freq;
+      const sawG = ctx.createGain(); sawG.gain.value = 0.15;
+      const lpf = ctx.createBiquadFilter();
+      lpf.type = 'lowpass'; lpf.frequency.value = 3500; lpf.Q.value = 1;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(VOL * (0.85 - i * 0.08), t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      sine.connect(lpf); saw.connect(sawG); sawG.connect(lpf);
+      lpf.connect(gain); gain.connect(ctx.destination);
+      sine.start(t); saw.start(t);
+      sine.stop(t + dur + 0.02); saw.stop(t + dur + 0.02);
+    });
+
+    // Phase 4: 마지막 sparkle 한 톤 (옥타브 더 위)
+    [2093, 2637].forEach((freq, i) => {
+      const t = now + 0.95 + i * 0.06;
+      const dur = 0.45;
+      const sine = ctx.createOscillator();
+      sine.type = 'sine'; sine.frequency.value = freq;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(VOL * 0.45, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      sine.connect(gain); gain.connect(ctx.destination);
+      sine.start(t); sine.stop(t + dur + 0.02);
+    });
+  } catch (err) {
+    console.warn('[playCelebration] failed:', err);
+  }
+}
+
 // 🦆 꽥꽥 — 노이즈 어택 + 다중 oscillator + 빠른 AM/FM modulation으로 진짜 오리에 가깝게
 // 볼륨 최대 (0.85, 거의 클립 직전)
 export function playQuack() {

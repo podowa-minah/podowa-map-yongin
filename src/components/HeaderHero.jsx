@@ -18,21 +18,18 @@ export default function HeaderHero({
   fakeDots = 0,
   missedCount = 0,
   streak = 0,                      // 🔥 연속 출근 일수
+  duckMessage = '오늘도 화이팅!',     // 🦆 오리 말풍선 — 항상 표시되는 오늘의 전달사항
   onGoAnalysis,
   onFarmerClick,
   onAnnouncements,
   onIncompleteReasons,
 }) {
-  // 🦆 오리 말풍선 — 누르면 잠깐 떴다 사라짐
-  const [quackBubble, setQuackBubble] = useState(false);
-  const quackTimerRef = useRef(null);
-  useEffect(() => () => { if (quackTimerRef.current) clearTimeout(quackTimerRef.current); }, []);
+  // 🦆 오리 말풍선 — 항상 표시. 누르면 꽥꽥 + 살짝 출렁
+  const [duckWiggle, setDuckWiggle] = useState(0);
   const handleDuckClick = (e) => {
     e.stopPropagation();
     playQuack();
-    setQuackBubble(true);
-    if (quackTimerRef.current) clearTimeout(quackTimerRef.current);
-    quackTimerRef.current = setTimeout(() => setQuackBubble(false), 1500);
+    setDuckWiggle((n) => n + 1);   // re-mount animation
   };
   // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
   const fillPct = Math.min(100, Math.max(0, pct || 0));
@@ -73,12 +70,11 @@ export default function HeaderHero({
           60%           { transform: translateY(-3px) rotate(8deg); }
           80%           { transform: translateY(0) rotate(0deg); }
         }
-        @keyframes quackBubblePop {
-          0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
-          25%  { opacity: 1; transform: translateY(-2px) scale(1.1); }
-          45%  { transform: translateY(0) scale(1); }
-          85%  { opacity: 1; }
-          100% { opacity: 0; transform: translateY(-4px) scale(0.95); }
+        @keyframes duckBubbleWiggle {
+          0%, 100% { transform: rotate(0deg) scale(1); }
+          25%      { transform: rotate(-3deg) scale(1.06); }
+          50%      { transform: rotate(2deg) scale(1.04); }
+          75%      { transform: rotate(-1deg) scale(1.02); }
         }
       `}</style>
 
@@ -168,53 +164,55 @@ export default function HeaderHero({
         </div>
       </div>
 
-      {/* 🦆 Push! 말풍선 — 오리 누르면 잠깐 뜸 (작게) */}
-      {quackBubble && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            right: '50px',
-            bottom: '56px',
-            background: '#fffefb',
-            color: '#1f2937',
-            padding: '2px 6px',
-            borderRadius: '8px',
-            fontSize: '0.6rem',
-            fontWeight: 800,
-            boxShadow: '0 2px 5px rgba(0,0,0,0.22), 0 0 0 1.2px #1f2937',
-            animation: 'quackBubblePop 1.5s ease forwards',
-            zIndex: 3,
-            pointerEvents: 'none',
-            whiteSpace: 'nowrap',
-            fontFamily: 'inherit',
-            letterSpacing: '0.2px',
-          }}
-        >
-          Push!
-          {/* tail */}
-          <span style={{
-            position: 'absolute',
-            bottom: -4,
-            right: 8,
-            width: 0,
-            height: 0,
-            borderLeft: '4px solid transparent',
-            borderRight: '4px solid transparent',
-            borderTop: '5px solid #1f2937',
-          }} />
-          <span style={{
-            position: 'absolute',
-            bottom: -2,
-            right: 9,
-            width: 0,
-            height: 0,
-            borderLeft: '3px solid transparent',
-            borderRight: '3px solid transparent',
-            borderTop: '4px solid #fffefb',
-          }} />
-        </div>
-      )}
+      {/* 🦆 오리 말풍선 — 오늘의 전달사항. 누르면 꽥꽥. 항상 표시 */}
+      <div
+        key={`duck-bubble-${duckWiggle}`}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          right: '54px',
+          bottom: '54px',
+          maxWidth: '160px',
+          background: '#fffefb',
+          color: '#1f2937',
+          padding: '5px 10px',
+          borderRadius: '12px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          lineHeight: 1.3,
+          boxShadow: '0 2px 6px rgba(0,0,0,0.22), 0 0 0 1.5px #1f2937',
+          animation: duckWiggle > 0 ? 'duckBubbleWiggle 0.5s ease' : undefined,
+          zIndex: 3,
+          pointerEvents: 'none',
+          fontFamily: 'inherit',
+          letterSpacing: '0.2px',
+          wordBreak: 'keep-all',
+          textAlign: 'center',
+        }}
+      >
+        {duckMessage}
+        {/* tail (bubble pointing to duck) */}
+        <span style={{
+          position: 'absolute',
+          bottom: -5,
+          right: 10,
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderTop: '6px solid #1f2937',
+        }} />
+        <span style={{
+          position: 'absolute',
+          bottom: -2.5,
+          right: 11,
+          width: 0,
+          height: 0,
+          borderLeft: '4px solid transparent',
+          borderRight: '4px solid transparent',
+          borderTop: '5px solid #fffefb',
+        }} />
+      </div>
 
       {/* 🦆 흰 오리 — 우측 하단. 누르면 꽥꽥 🔊 + 말풍선 */}
       <button

@@ -33,6 +33,7 @@ import { hasJournalData, isBriefingChecked } from './lib/journal';
 import { getFarmDiagnosis } from './lib/diagnosis';
 import { getActiveStreak } from './lib/streak';
 import FarmVisitor from './components/FarmVisitor';
+import { playCelebration } from './utils/sounds';
 import { getMissedDaysNeedingReasons } from './lib/historyStats';
 import { loadTreeCache, saveTreeCache, clearTreeCache } from './utils/treeCache';
 const IncompleteReasonPopup = lazy(() => import('./components/IncompleteReasonPopup'));
@@ -588,6 +589,34 @@ export default function App() {
     [treeData, historySummaries],
   );
 
+  // 🦆 오리 말풍선 — 오늘의 전달사항 (최신 안 읽은 공지 > 진행률별 기본 멘트)
+  const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const duckMessage = useMemo(() => {
+    const dismissed = dismissedAt || '1970-01-01T00:00:00.000Z';
+    const recentUnread = (prefetchedAnnouncements || []).find(
+      a => !a.deleted && a.created_at > dismissed
+    );
+    if (recentUnread?.content) {
+      const text = recentUnread.content.trim().split('\n')[0];
+      return text.length > 26 ? text.slice(0, 24) + '…' : text;
+    }
+    if (_pctNow === 100) return '오늘 다 완료! 🎉';
+    if (_pctNow >= 80)   return '거의 다 왔어요!';
+    if (_pctNow >= 50)   return '잘하고 있어요!';
+    if (_pctNow >= 20)   return '오늘도 화이팅!';
+    if (_pctNow > 0)     return '시작이 반!';
+    return '오늘도 화이팅!';
+  }, [prefetchedAnnouncements, dismissedAt, _pctNow]);
+
+  // 🎊 100% 완료 — 처음 100% 도달 시 빵빠레 효과음
+  const prevPctRef = useRef(_pctNow);
+  useEffect(() => {
+    if (prevPctRef.current < 100 && _pctNow === 100) {
+      playCelebration();
+    }
+    prevPctRef.current = _pctNow;
+  }, [_pctNow]);
+
   if (loading || (user && dataLoading)) {
     return (
       <div className="loading-container">
@@ -623,6 +652,7 @@ export default function App() {
             fakeDots={fakeDoneCount}
             missedCount={missedDaysNeedingReasons.length}
             streak={streak}
+            duckMessage={duckMessage}
             onGoAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
             onFarmerClick={() => setShowLogPopup(true)}
             onAnnouncements={() => setShowAnnouncements(true)}
