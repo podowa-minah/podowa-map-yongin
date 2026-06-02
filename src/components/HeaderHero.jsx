@@ -1,9 +1,11 @@
 // src/components/HeaderHero.jsx
 // 그린 hero — PODOWA + 사용자 이름 + 알림 배너 + 큰 % + 농부
 
+import { useState, useRef, useEffect } from 'react';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
+import { playQuack } from '../utils/sounds';
 
 export default function HeaderHero({
   pct = 0,
@@ -21,6 +23,17 @@ export default function HeaderHero({
   onAnnouncements,
   onIncompleteReasons,
 }) {
+  // 🦆 오리 말풍선 — 누르면 잠깐 떴다 사라짐
+  const [quackBubble, setQuackBubble] = useState(false);
+  const quackTimerRef = useRef(null);
+  useEffect(() => () => { if (quackTimerRef.current) clearTimeout(quackTimerRef.current); }, []);
+  const handleDuckClick = (e) => {
+    e.stopPropagation();
+    playQuack();
+    setQuackBubble(true);
+    if (quackTimerRef.current) clearTimeout(quackTimerRef.current);
+    quackTimerRef.current = setTimeout(() => setQuackBubble(false), 1500);
+  };
   // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
   const fillPct = Math.min(100, Math.max(0, pct || 0));
   return (
@@ -59,6 +72,13 @@ export default function HeaderHero({
           0%, 100%      { transform: translateY(0) rotate(0deg); }
           60%           { transform: translateY(-3px) rotate(8deg); }
           80%           { transform: translateY(0) rotate(0deg); }
+        }
+        @keyframes quackBubblePop {
+          0%   { opacity: 0; transform: translateY(10px) scale(0.6); }
+          25%  { opacity: 1; transform: translateY(-2px) scale(1.1); }
+          45%  { transform: translateY(0) scale(1); }
+          85%  { opacity: 1; }
+          100% { opacity: 0; transform: translateY(-4px) scale(0.95); }
         }
       `}</style>
 
@@ -148,17 +168,70 @@ export default function HeaderHero({
         </div>
       </div>
 
-      {/* 🦆 흰 오리 — 우측 하단 (노란 웹발이 포인트!) */}
-      <div
-        aria-hidden="true"
+      {/* 🦆 꽥꽥 말풍선 — 오리 누르면 잠깐 뜸 */}
+      {quackBubble && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            right: '52px',
+            bottom: '60px',
+            background: '#fffefb',
+            color: '#1f2937',
+            padding: '5px 11px',
+            borderRadius: '14px',
+            fontSize: '0.92rem',
+            fontWeight: 800,
+            boxShadow: '0 3px 10px rgba(0,0,0,0.25), 0 0 0 2px #1f2937',
+            animation: 'quackBubblePop 1.5s ease forwards',
+            zIndex: 3,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            fontFamily: 'inherit',
+          }}
+        >
+          꽥꽥!
+          {/* tail (bubble pointing to duck) */}
+          <span style={{
+            position: 'absolute',
+            bottom: -6,
+            right: 14,
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '8px solid #1f2937',
+          }} />
+          <span style={{
+            position: 'absolute',
+            bottom: -3,
+            right: 15,
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '6px solid #fffefb',
+          }} />
+        </div>
+      )}
+
+      {/* 🦆 흰 오리 — 우측 하단. 누르면 꽥꽥 🔊 + 말풍선 */}
+      <button
+        type="button"
+        onClick={handleDuckClick}
+        aria-label="오리 — 누르면 꽥꽥"
         style={{
           position: 'absolute',
           right: '14px',
-          bottom: '20px',           /* 흰 카드 윗 모서리에 발 딱 붙음 (-20px overlap 맞춤) */
+          bottom: '20px',
           width: '49px',
           height: '49px',
-          pointerEvents: 'none',
+          padding: 0,
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
           zIndex: 2,
+          WebkitTapHighlightColor: 'transparent',
         }}
       >
         <svg
@@ -276,7 +349,7 @@ export default function HeaderHero({
             <circle cx="57" cy="30" r="2.6" fill="#fda4af" opacity="0.4" />
           </g>
         </svg>
-      </div>
+      </button>
     </div>
   );
 }
