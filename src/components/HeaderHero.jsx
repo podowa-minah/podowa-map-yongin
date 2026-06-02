@@ -168,49 +168,50 @@ export default function HeaderHero({
         </div>
       </div>
 
-      {/* 🦆 꽥꽥 말풍선 — 오리 누르면 잠깐 뜸 */}
+      {/* 🦆 Push! 말풍선 — 오리 누르면 잠깐 뜸 (작게) */}
       {quackBubble && (
         <div
           aria-hidden="true"
           style={{
             position: 'absolute',
-            right: '52px',
-            bottom: '60px',
+            right: '50px',
+            bottom: '56px',
             background: '#fffefb',
             color: '#1f2937',
-            padding: '5px 11px',
-            borderRadius: '14px',
-            fontSize: '0.92rem',
+            padding: '2px 6px',
+            borderRadius: '8px',
+            fontSize: '0.6rem',
             fontWeight: 800,
-            boxShadow: '0 3px 10px rgba(0,0,0,0.25), 0 0 0 2px #1f2937',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.22), 0 0 0 1.2px #1f2937',
             animation: 'quackBubblePop 1.5s ease forwards',
             zIndex: 3,
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
             fontFamily: 'inherit',
+            letterSpacing: '0.2px',
           }}
         >
-          꽥꽥!
-          {/* tail (bubble pointing to duck) */}
+          Push!
+          {/* tail */}
           <span style={{
             position: 'absolute',
-            bottom: -6,
-            right: 14,
+            bottom: -4,
+            right: 8,
             width: 0,
             height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: '8px solid #1f2937',
+            borderLeft: '4px solid transparent',
+            borderRight: '4px solid transparent',
+            borderTop: '5px solid #1f2937',
           }} />
           <span style={{
             position: 'absolute',
-            bottom: -3,
-            right: 15,
+            bottom: -2,
+            right: 9,
             width: 0,
             height: 0,
-            borderLeft: '5px solid transparent',
-            borderRight: '5px solid transparent',
-            borderTop: '6px solid #fffefb',
+            borderLeft: '3px solid transparent',
+            borderRight: '3px solid transparent',
+            borderTop: '4px solid #fffefb',
           }} />
         </div>
       )}

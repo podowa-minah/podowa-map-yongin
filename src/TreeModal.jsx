@@ -9,6 +9,7 @@ import grasslink from './assets/icons/grass.svg';
 import SaveCelebration from './components/SaveCelebration';
 import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
+import { playSuccess } from './utils/sounds';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -574,8 +575,9 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
       return;
     }
 
-    // 저장 성공 → 농부 축하 애니메이션 띄우고 잠시 후 모달 닫기
+    // 저장 성공 → 농부 축하 애니메이션 + 정답! 효과음
     setShowSaveCelebration(true);
+    playSuccess();
     setTimeout(() => {
       onClose();
     }, 1400);
