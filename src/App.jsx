@@ -461,6 +461,9 @@ export default function App() {
         const numericId = `${c}-${r}`;
         const lbl = labels[labelId] || {};
         if (lbl.disabled) continue;
+        // 이름 없는 빈 셀은 카운트 안 함 — 옛 기록 잔여로 내일 예상 부풀어 오르는 버그 방지
+        // (오늘 통계도 같은 가드 적용됨 - commit cf03c54)
+        if (!lbl.name) continue;
 
         // 내일 기준 이전 기록 = 오늘까지의 기록 (불 켜진 나무는 오늘 입력 가정)
         const records = treeData[numericId] || [];
