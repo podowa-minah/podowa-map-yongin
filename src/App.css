@@ -402,6 +402,11 @@
   transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s ease;
 }
 
+/* 첫 로드 시 fill 차오르는 애니메이션 X — 데이터 들어온 자리에 바로 박힘 */
+.hero-section.no-fill-anim::before {
+  transition: none;
+}
+
 /* 100% 완료 시 — 환한 금빛 + 윗부분도 진하게 + 상단 글로우 */
 .hero-section.is-complete::before {
   background: linear-gradient(

@@ -54,9 +54,22 @@ export default function HeaderHero({
   }
   // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
   const fillPct = Math.min(100, Math.max(0, pct || 0));
+  // 첫 로드 시 노랗게 차오르는 애니메이션 X — 데이터 들어온 직후 한 번은 transition 끔
+  const [fillAnimEnabled, setFillAnimEnabled] = useState(false);
+  useEffect(() => {
+    if (pct != null && !fillAnimEnabled) {
+      // 2 rAF로 fill이 그 자리에 박힌 다음 transition 켜기
+      const id1 = requestAnimationFrame(() => {
+        const id2 = requestAnimationFrame(() => setFillAnimEnabled(true));
+        return () => cancelAnimationFrame(id2);
+      });
+      return () => cancelAnimationFrame(id1);
+    }
+  }, [pct, fillAnimEnabled]);
+  const isStatsLoading = pct == null;
   return (
     <div
-      className={`hero-section${fillPct >= 100 ? ' is-complete' : ''}`}
+      className={`hero-section${fillPct >= 100 ? ' is-complete' : ''}${!fillAnimEnabled ? ' no-fill-anim' : ''}`}
       style={{ '--fill-pct': `${fillPct}%` }}
     >
       <style>{`
@@ -153,11 +166,11 @@ export default function HeaderHero({
           onClick={onFarmerClick}
         />
         <div style={{ flex: 1 }}>
-          <div className="hero-stat-num">
-            {pct == null ? <span style={{ opacity: 0.5 }}>—</span> : pct}<span className="pct-sign">%</span>
+          <div className="hero-stat-num" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
+            {pct ?? 0}<span className="pct-sign">%</span>
           </div>
-          <div className="hero-stat-label">
-            오늘 작업 진행 · {total == null ? '—' : `${completed}/${total}그루`}
+          <div className="hero-stat-label" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
+            오늘 작업 진행 · {completed ?? 0}/{total ?? 0}그루
           </div>
           {/* 점 indicator — 헛돌봄(주황)/착한돌봄(파랑)/정돌봄(초록) */}
           {(greenDots > 0 || kindDots > 0 || fakeDots > 0) && (
