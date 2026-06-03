@@ -362,10 +362,12 @@ export default function App() {
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
 
-    // 라벨 충분히 로드 안 된 상태에선 stats 계산 보류 (헤더 0/0 깜빡임 방지)
+    // 라벨 + treeData(서버 신선 fetch까지) 둘 다 들어왔을 때만 stats 계산
+    // 캐시만 있을 땐 label race로 0/0 떴다가 진짜 값으로 점프하는 깜빡임 발생 → 보류
     const activeLabelCount = Object.values(labels || {})
       .filter(l => l && !l.disabled && l.name).length;
-    if (activeLabelCount < 5) {
+    const hasTreeData = Object.keys(treeData || {}).length > 0;
+    if (activeLabelCount < 5 || !hasTreeData || !freshTreeLoaded) {
       return {
         completed: null, total: null, greenDots: null,
         litTreeIds: new Set(), doneTreeIds: new Set(), fakeDoneTreeIds: new Set(),
@@ -498,7 +500,7 @@ export default function App() {
       tomorrowTotal,
       statsReady: true,
     };
-  }, [treeData, labels]);
+  }, [treeData, labels, freshTreeLoaded]);
 
   // ── 어제치 daily_summary 자동 저장 (앱 로딩 시) ──
   useEffect(() => {
