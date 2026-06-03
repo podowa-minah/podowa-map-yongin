@@ -154,10 +154,10 @@ export default function HeaderHero({
         />
         <div style={{ flex: 1 }}>
           <div className="hero-stat-num">
-            {pct}<span className="pct-sign">%</span>
+            {pct == null ? <span style={{ opacity: 0.5 }}>—</span> : pct}<span className="pct-sign">%</span>
           </div>
           <div className="hero-stat-label">
-            오늘 작업 진행 · {completed}/{total}그루
+            오늘 작업 진행 · {total == null ? '—' : `${completed}/${total}그루`}
           </div>
           {/* 점 indicator — 헛돌봄(주황)/착한돌봄(파랑)/정돌봄(초록) */}
           {(greenDots > 0 || kindDots > 0 || fakeDots > 0) && (

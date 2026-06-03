@@ -357,10 +357,22 @@ export default function App() {
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
   // 분자: 그 중 오늘 입력해서 불 끈 나무
   // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
-  const { completed, total, greenDots, litTreeIds, doneTreeIds, fakeDoneTreeIds, fakeDoneCount, todayWorkers, tomorrowTotal } = useMemo(() => {
+  const { completed, total, greenDots, litTreeIds, doneTreeIds, fakeDoneTreeIds, fakeDoneCount, todayWorkers, tomorrowTotal, statsReady } = useMemo(() => {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
+
+    // 라벨 충분히 로드 안 된 상태에선 stats 계산 보류 (헤더 0/0 깜빡임 방지)
+    const activeLabelCount = Object.values(labels || {})
+      .filter(l => l && !l.disabled && l.name).length;
+    if (activeLabelCount < 5) {
+      return {
+        completed: null, total: null, greenDots: null,
+        litTreeIds: new Set(), doneTreeIds: new Set(), fakeDoneTreeIds: new Set(),
+        fakeDoneCount: null, todayWorkers: [], tomorrowTotal: null,
+        statsReady: false,
+      };
+    }
 
     const ROWS = 25, COLS = 8;
     let doneTrees = 0;
@@ -474,6 +486,7 @@ export default function App() {
       fakeDoneCount: fakeDoneTrees,
       todayWorkers,
       tomorrowTotal,
+      statsReady: true,
     };
   }, [treeData, labels]);
 
@@ -661,7 +674,8 @@ export default function App() {
     return <Login onLogin={setUser} />;
   }
 
-  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  // statsReady 아니면 pct=null → 헤더가 "0/0" 대신 placeholder 표시
+  const pct = !statsReady ? null : (total > 0 ? Math.round((completed / total) * 100) : 0);
   const userName = user?.user_metadata?.nickname || (user?.email ? user.email.split('@')[0] : '');
   const hasRecentAnnouncement = prefetchedAnnouncements?.some(a => !dismissedAt || a.created_at > dismissedAt) || false;
 
