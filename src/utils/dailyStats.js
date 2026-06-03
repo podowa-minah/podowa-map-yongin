@@ -245,6 +245,8 @@ export function computeTomorrowPrediction(treeData, labels, litTreeIds) {
   const tomorrow = offsetDate(today, 1);
 
   // 현재 불 켜진 나무에 오늘 기록 추가 (가짜)
+  // ⚠️ 빈 문자열이면 evaluateSignals가 무시함 → 사이클 리셋 안 되고 시뮬 부풀어 오름
+  // 각 메트릭 마지막 유효 값으로 채워야 사이클 리셋됨
   const augmented = {};
   for (const key of Object.keys(treeData)) {
     augmented[key] = [...treeData[key]];
@@ -252,8 +254,12 @@ export function computeTomorrowPrediction(treeData, labels, litTreeIds) {
   for (const numericId of litTreeIds) {
     if (!augmented[numericId]) augmented[numericId] = [];
     if (!augmented[numericId].some(r => r.date === today)) {
+      const sortedRecs = [...augmented[numericId]].sort((a, b) => b.date.localeCompare(a.date));
+      const lastPower = sortedRecs.find(r => r.power != null && r.power !== '')?.power ?? '3';
+      const lastBalance = sortedRecs.find(r => r.balance != null && r.balance !== '')?.balance ?? '3';
+      const lastBugs = sortedRecs.find(r => r.bugs != null && r.bugs !== '')?.bugs ?? '0';
       augmented[numericId].push({
-        date: today, power: '', balance: '', bugs: '', producer: '',
+        date: today, power: lastPower, balance: lastBalance, bugs: lastBugs, producer: '',
       });
     }
   }

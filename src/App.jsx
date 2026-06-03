@@ -469,8 +469,15 @@ export default function App() {
         const records = treeData[numericId] || [];
         const hasToday = records.some(rec => rec.date === kstToday);
         const assumeToday = !hasToday && litSet.has(numericId);
+        // ⚠️ 가짜 "오늘 완료" 기록에 실제 값 채워야 evaluateSignals가 사이클 리셋함
+        // (빈 문자열이면 evaluateSignals가 이전 값만 보고 신호 안 꺼짐 → 시뮬 부풀어 오름)
+        // 각 메트릭 마지막 유효 값을 그대로 사용 (사용자가 같은 패턴으로 입력한다고 가정)
+        const sortedRecs = [...records].sort((a, b) => b.date.localeCompare(a.date));
+        const lastPower = sortedRecs.find(r => r.power != null && r.power !== '')?.power ?? '3';
+        const lastBalance = sortedRecs.find(r => r.balance != null && r.balance !== '')?.balance ?? '3';
+        const lastBugs = sortedRecs.find(r => r.bugs != null && r.bugs !== '')?.bugs ?? '0';
         const allRecs = assumeToday
-          ? [...records, { date: kstToday, power: '', balance: '', bugs: '' }]
+          ? [...records, { date: kstToday, power: lastPower, balance: lastBalance, bugs: lastBugs }]
           : records;
 
         const recsBefore = allRecs.filter(rec => rec.date < tomorrowStr);
