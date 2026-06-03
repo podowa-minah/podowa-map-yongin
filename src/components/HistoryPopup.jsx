@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
-import { monthAvgCompletion, topWorkers, predictTomorrowWorkload } from '../lib/historyStats';
+import { monthAvgCompletion, topWorkers } from '../lib/historyStats';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import farmerCrySVG from '../assets/icons/farmer_cry.svg';
 import farmerProudSVG from '../assets/icons/farmer_proud.svg';
@@ -804,7 +804,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
           const monthNum = kst.getUTCMonth() + 1;
           const avgPct = monthAvgCompletion(allSummaries, monthYear, monthNum);
           const top = topWorkers(allSummaries, 30, 1)[0];
-          const predicted = predictTomorrowWorkload(allSummaries, 7);
+          // 내일 예상 = 오늘 다 완료했을 때 내일 켜질 그루수 (시뮬레이션 — 아래 일별 기록의 '오늘 완료 가정' 값과 동일)
           return (
             <div style={{
               padding: '0.7rem 0.8rem',
@@ -821,7 +821,12 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
               }}>
                 <StatCard label={`${monthNum}월 평균`} value={avgPct != null ? `${avgPct}%` : '—'} color="#16a34a" />
                 <StatCard label="30일 TOP" value={top ? top.name : '—'} subValue={top ? `${top.count}그루` : ''} color="#0284c7" />
-                <StatCard label="내일 예상" value={predicted != null ? `${predicted}그루` : '—'} color="#a16207" />
+                <StatCard
+                  label="내일 예상"
+                  value={tomorrowTotal != null ? `${tomorrowTotal}그루` : '—'}
+                  subValue="오늘 다 완료 가정"
+                  color="#a16207"
+                />
               </div>
             </div>
           );
