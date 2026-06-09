@@ -61,6 +61,40 @@ export function logsByItem(completions = []) {
   return map;
 }
 
+// 영농일지 연동 — completions + items → { 'YYYY-MM-DD': [{title, cat, color, tint, count}, ...] }
+//   "했어요" 완료를 날짜별로 묶어 영농일지 카드에 칩으로 보여주기 위함.
+//   진실은 manual_completions 한 곳뿐 — 여기서 읽어 계산만 한다(중복 저장 없음, §10).
+//   같은 날 같은 항목을 여러 번 했으면 count로 합친다. archived 항목 제목도 보이게 전체 items를 받는다.
+export function missionsByDate(completions = [], items = []) {
+  const meta = {};
+  for (const it of items) meta[it.id] = { title: it.title, cat: it.category };
+  const byDate = {};
+  for (const c of completions) {
+    const date = c.done_on;
+    if (!date) continue;
+    if (!byDate[date]) byDate[date] = {};
+    if (!byDate[date][c.item_id]) {
+      const m = meta[c.item_id] || {};
+      const cat = m.cat;
+      byDate[date][c.item_id] = {
+        title: m.title || '미션',
+        cat: cat || null,
+        color: (cat && CATS[cat]) ? CATS[cat].color : '#2f6b3c',
+        tint: (cat && CATS[cat]) ? CATS[cat].tint : '#e9f4ec',
+        count: 0,
+      };
+    }
+    byDate[date][c.item_id].count += 1;
+  }
+  const out = {};
+  for (const d in byDate) {
+    out[d] = ORDER
+      .flatMap((k) => Object.values(byDate[d]).filter((x) => x.cat === k))
+      .concat(Object.values(byDate[d]).filter((x) => !x.cat || !ORDER.includes(x.cat)));
+  }
+  return out;
+}
+
 // 한 달 항목들의 진행률 (한 번이라도 한 항목 = 완료)
 export function monthProgress(items = [], logs = {}) {
   const total = items.length;

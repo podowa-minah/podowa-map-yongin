@@ -17,6 +17,7 @@ import { scoreBand, avgScore } from './lib/scoring';
 import { avgFromRecords } from './lib/trends';
 import { getFarmDiagnosis, getVarietyAverages, getFarmTrend } from './lib/diagnosis';
 import { isBriefingChecked, briefingCheckedTime } from './lib/journal';
+import { missionsByDate } from './lib/manual';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
 import FarmDiagnosis from './components/FarmDiagnosis';
@@ -39,6 +40,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const [savedFlash, setSavedFlash] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
   const [history, setHistory] = useState([]);
+  const [missionMap, setMissionMap] = useState({});   // {날짜: [미션칩…]} — manual_completions에서 계산
   const [showAllHistory, setShowAllHistory] = useState(false);   // 영농일지 더보기
   const [moonPopupOpen, setMoonPopupOpen] = useState(false);    // 오늘의 하늘 상세 팝업
 
@@ -57,6 +59,20 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         .limit(60);
       if (!alive) return;
       setHistory(data || []);
+    })();
+    return () => { alive = false; };
+  }, [historyKey]);
+
+  // 이달의 포도 미션 "했어요" 완료 → 날짜별 묶음 (영농일지 칩용, 진실은 manual_completions 한 곳)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [{ data: comps }, { data: its }] = await Promise.all([
+        supabase.from('manual_completions').select('item_id,done_on').order('done_on', { ascending: false }).limit(500),
+        supabase.from('manual_items').select('id,title,category'),
+      ]);
+      if (!alive) return;
+      setMissionMap(missionsByDate(comps || [], its || []));
     })();
     return () => { alive = false; };
   }, [historyKey]);
@@ -598,6 +614,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
                 treeData={treeData}
                 today={today}
                 selectedDate={selectedDate}
+                missions={missionMap[entry.date] || []}
                 onSelect={() => setSelectedDate(entry.date)}
                 onDelete={(e) => handleDeleteReport(entry, e)}
                 C={C}
@@ -634,9 +651,10 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
 }
 
 // 🍇 영농일지 카드 — 달이름 + 절기뜻 + 생육시기 + 종합점수 배지
-function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete, C }) {
+function JournalCard({ entry, treeData, today, selectedDate, missions = [], onSelect, onDelete, C }) {
   const isSelected = entry.date === selectedDate;
   const isToday = entry.date === today;
+  const missionMonth = parseInt(entry.date.split('-')[1], 10);   // '6월 미션' 틀 라벨용
 
   // 그 날짜의 trees 기록 → 평균점수 / 그루수
   const recs = [];
@@ -777,6 +795,28 @@ function JournalCard({ entry, treeData, today, selectedDate, onSelect, onDelete,
             </Badge>
           )}
         </div>
+
+        {/* 이달의 포도 미션 — 그날 '했어요' 완료를 'N월 미션' 틀로 묶어 보여줌 */}
+        {missions.length > 0 && (
+          <div style={{
+            marginTop: '0.5rem',
+            border: `1px solid ${C.accentBorder}`,
+            borderRadius: '0.5rem',
+            background: '#fcfbf7',
+            padding: '0.45rem 0.55rem 0.55rem',
+          }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#5a5446', marginBottom: '0.4rem' }}>
+              {missionMonth}월 미션
+            </div>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+              {missions.map((m, i) => (
+                <Badge key={i} color={m.color} bg={m.tint} border={m.color + '55'}>
+                  {m.title}{m.count > 1 ? ` ×${m.count}` : ''}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </button>
     </div>
   );
