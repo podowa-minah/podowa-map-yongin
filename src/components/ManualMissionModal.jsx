@@ -64,7 +64,12 @@ const CSS = `
 .pmm-wrap .catbody > .item:first-child{margin-top:0;}
 .pmm-wrap .item.done{background:var(--ctint,#eef3ec);}
 .pmm-wrap .item .body{flex:1; min-width:0;}
-.pmm-wrap .item .txt{font-size:14px; font-weight:600; cursor:pointer; color:#7c7666;}
+.pmm-wrap .item .txt{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; cursor:pointer; color:#7c7666;}
+.pmm-wrap .item .txt .tt{flex:1; min-width:0;}
+.pmm-wrap .item .tip{flex:0 0 auto; display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; color:#9a8f76; background:#f1ece0; border:1px solid #e3dcc9; border-radius:999px; padding:2px 8px; white-space:nowrap;}
+.pmm-wrap .item.open .tip{color:#2f6b3c; background:#e9f4ec; border-color:#bfe0c6;}
+.pmm-wrap .item .tip .arw{font-size:9px; transition:transform .2s ease;}
+.pmm-wrap .item.open .tip .arw{transform:rotate(180deg);}
 .pmm-wrap .item.done .txt{color:#3a382f;}
 .pmm-wrap .item .detail{display:none; font-size:12px; color:#6b6456; margin-top:5px; padding:7px 9px; background:rgba(255,255,255,.65); border-radius:8px;}
 .pmm-wrap .item.open .detail{display:block;}
@@ -376,7 +381,16 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
               return (
                 <div key={it.id} className={'item' + (isDone ? ' done' : '') + (isOpen ? ' open' : '')}>
                   <div className="body">
-                    <div className="txt" onClick={() => toggleOpen(it.id)}>{isDone ? '✓ ' : ''}{it.title}</div>
+                    <div
+                      className="txt"
+                      onClick={() => it.detail && toggleOpen(it.id)}
+                      style={it.detail ? undefined : { cursor: 'default' }}
+                    >
+                      <span className="tt">{isDone ? '✓ ' : ''}{it.title}</span>
+                      {it.detail && (
+                        <span className="tip">💡 노하우<span className="arw">▾</span></span>
+                      )}
+                    </div>
                     {it.detail && <div className="detail">{it.detail}</div>}
                     {isDone ? (
                       <div className="stamps">
