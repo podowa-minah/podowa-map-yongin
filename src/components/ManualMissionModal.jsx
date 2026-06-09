@@ -11,7 +11,7 @@ import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import {
-  CATS, STAGE, STRIP_MONTHS,
+  CATS, ORDER, STAGE, STRIP_MONTHS,
   logsByItem, monthProgress, groupByCategory, itemsByMonth, yearOverview, parseGuides,
   personColor, shortDate, shortName,
 } from '../lib/manual';
@@ -98,6 +98,15 @@ const CSS = `
 .pmm-wrap .erow input.det{font-size:12px; color:#6b6456;}
 .pmm-wrap .erow .del{border:none; background:#f6e9e6; color:#b5524a; font-weight:700; font-size:11px; border-radius:8px; padding:7px 9px; cursor:pointer; flex:0 0 auto;}
 .pmm-wrap .addbtn{display:block; width:calc(100% - 32px); margin:4px 16px 0; padding:11px; border:1.5px dashed var(--green-line); background:var(--green-bg); color:#2f6b3c; font-weight:800; font-size:13px; border-radius:12px; cursor:pointer;}
+.pmm-wrap .ecat{margin:12px 16px 0; background:#fff; border:1px solid var(--line); border-top:4px solid var(--c,#ccc); border-radius:14px; overflow:hidden;}
+.pmm-wrap .ecat-head{display:flex; align-items:center; gap:8px; padding:10px 13px 8px; font-weight:800; font-size:14px; color:#3a382f;}
+.pmm-wrap .ecat-head .ecat-dot{width:10px; height:10px; border-radius:4px; background:var(--c); flex:0 0 auto;}
+.pmm-wrap .ecat-head .ecat-cnt{margin-left:auto; font-size:12px; color:#9a917f; font-weight:800;}
+.pmm-wrap .ecat .erow{margin:0 11px 8px;}
+.pmm-wrap .emove{display:flex; flex-direction:column; gap:3px; flex:0 0 auto;}
+.pmm-wrap .emove .mv{width:30px; height:22px; border:1px solid var(--line); background:#faf7f0; color:#6b6456; border-radius:7px; font-size:11px; line-height:1; cursor:pointer; padding:0;}
+.pmm-wrap .emove .mv:disabled{opacity:.3; cursor:default;}
+.pmm-wrap .ecat-add{display:block; width:calc(100% - 22px); margin:2px 11px 11px; padding:9px; border:1.5px dashed var(--c,#cfcabb); background:#faf8f3; color:#6b6456; font-weight:700; font-size:12px; border-radius:10px; cursor:pointer;}
 .pmm-wrap .savebar{position:sticky; bottom:0; background:var(--bg); padding:12px 16px; display:flex; gap:8px; border-top:1px solid var(--line); margin-top:12px;}
 .pmm-wrap .savebar .btn{flex:1; padding:13px;}
 .pmm-wrap .foot{text-align:center; font-size:11px; color:#b3ac9d; margin:22px 16px 0;}
@@ -241,7 +250,10 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
     }
   }
   function enterEdit() {
-    const ordered = (byMonth[sel] || []).slice().sort((a, b) => (a.sort_order - b.sort_order));
+    // 범주(ORDER) 순으로 묶고, 같은 범주 안에서는 sort_order 순으로 정렬
+    const rank = (c) => { const i = ORDER.indexOf(c); return i < 0 ? 99 : i; };
+    const ordered = (byMonth[sel] || []).slice().sort((a, b) =>
+      (rank(a.category) - rank(b.category)) || (a.sort_order - b.sort_order));
     setDraft(ordered.map((it) => ({ id: it.id, cat: it.category, title: it.title, detail: it.detail || '', _key: it.id })));
     setDraftGuide(guides[sel] || '');
     setEdit(true);
@@ -250,7 +262,28 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
     setDraft((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: val } : r)));
   }
   function delRow(i) { setDraft((prev) => prev.filter((_, idx) => idx !== i)); }
-  function addRow() { setDraft((prev) => [...prev, { cat: 'grow', title: '', detail: '', _key: `new-${Date.now()}` }]); }
+  // 항목 추가 — 누른 범주의 같은 범주 마지막 줄 다음에 끼워 넣는다(그룹 유지)
+  function addRow(cat = 'grow') {
+    setDraft((prev) => {
+      const arr = prev.slice();
+      let at = arr.length;
+      for (let k = arr.length - 1; k >= 0; k--) { if (arr[k].cat === cat) { at = k + 1; break; } }
+      arr.splice(at, 0, { cat, title: '', detail: '', _key: `new-${Date.now()}` });
+      return arr;
+    });
+  }
+  // 순서 바꾸기 — 같은 범주 안에서 가장 가까운 이웃과 자리 교환 (dir: -1 위, +1 아래)
+  function moveRow(i, dir) {
+    setDraft((prev) => {
+      const arr = prev.slice();
+      const cat = arr[i].cat;
+      let j = i + dir;
+      while (j >= 0 && j < arr.length && arr[j].cat !== cat) j += dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return arr;
+    });
+  }
 
   async function saveEdit() {
     setSaving(true);
@@ -437,6 +470,7 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
                 onChangeGuide={setDraftGuide}
                 onChangeRow={changeRow}
                 onDelRow={delRow}
+                onMoveRow={moveRow}
                 onAddRow={addRow}
                 onCancel={() => { setEdit(false); setDraft(null); }}
                 onSave={saveEdit}
