@@ -27,6 +27,7 @@ import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
 import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
+import ManualMissionCard from './components/ManualMissionCard';
 const IrrigationModal = lazy(() => import('./components/IrrigationModal'));
 const PestTreatmentModal = lazy(() => import('./components/PestTreatmentModal'));
 import { hasJournalData, isBriefingChecked } from './lib/journal';
@@ -756,6 +757,9 @@ export default function App() {
             {heroCollapsed ? '▼' : '▲'}
           </button>
         </div>
+
+        {/* ── 이달의 포도 미션 진입 (맵 화면 우하단 플로팅 — 레이아웃 높이 0) ── */}
+        {activeTab === 'map' && <ManualMissionCard user={user} />}
 
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
