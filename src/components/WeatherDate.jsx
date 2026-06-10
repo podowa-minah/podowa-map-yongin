@@ -27,7 +27,7 @@ const WEATHER_EMOJI = {
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function WeatherDate({ onClick, currentSeason }) {
+export default function WeatherDate({ onClick, currentSeason, onOpenGuide }) {
   const [weather, setWeather] = useState(null);
   const [moonOpen, setMoonOpen] = useState(false);
 
@@ -80,7 +80,21 @@ export default function WeatherDate({ onClick, currentSeason }) {
         {currentSeason && (
           <>
             <span className="sep">·</span>
-            <span className="season-now">현재 {currentSeason}</span>
+            {onOpenGuide ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenGuide(); }}
+                className="season-now"
+                style={{
+                  fontFamily: 'inherit', margin: 0, cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: '0.15rem',
+                }}
+                aria-label="품종별 재배 가이드 열기"
+              >
+                현재 {currentSeason}<span aria-hidden="true">›</span>
+              </button>
+            ) : (
+              <span className="season-now">현재 {currentSeason}</span>
+            )}
           </>
         )}
       </div>

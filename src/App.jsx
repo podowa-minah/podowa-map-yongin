@@ -44,6 +44,8 @@ import { evaluateCycle } from './lib/treatment-cycles';
 import TabNav from './components/TabNav';
 const AnalysisPage = lazy(() => import('./AnalysisPage'));
 const ScoreReferencePage = lazy(() => import('./ScoreReferencePage'));
+const VarietyGuideModal = lazy(() => import('./components/VarietyGuideModal'));
+import { monthOfStageName } from './lib/variety-guide';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -75,6 +77,8 @@ export default function App() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showVarietyGuide, setShowVarietyGuide] = useState(false);
+  const [varietyGuideMonth, setVarietyGuideMonth] = useState(null);
   const [historySummaries, setHistorySummaries] = useState(null);
   const [latestAnnouncement, setLatestAnnouncement] = useState([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
@@ -602,6 +606,13 @@ export default function App() {
     return getDominantSeason(todayRecs) || getDominantSeason(yRecs) || '';
   }, [treeData]);
 
+  // '현재 착과기' 배지 → 품종별 재배 가이드 열기 (현재 생육단계 → 대표 월로 점프, 없으면 이번 달)
+  const openVarietyGuide = () => {
+    const calMonth = new Date(Date.now() + 9 * 3600 * 1000).getUTCMonth() + 1;
+    setVarietyGuideMonth(monthOfStageName(currentDominantSeason) || calMonth);
+    setShowVarietyGuide(true);
+  };
+
   // 유심히 볼 나무(이상치) id Set — 맵에서 강조 표시 (브리핑과 같은 진단 함수)
   const watchTreeIds = useMemo(() => {
     const tIso = getKSTToday();
@@ -748,6 +759,7 @@ export default function App() {
           <WeatherDate
             onClick={() => setShowHistory(true)}
             currentSeason={currentDominantSeason}
+            onOpenGuide={openVarietyGuide}
           />
           <button
             className="hero-toggle"
@@ -863,6 +875,14 @@ export default function App() {
                 setDismissedAt('1970-01-01T00:00:00.000Z');
               }
             }}
+          />
+        )}
+
+        {showVarietyGuide && (
+          <VarietyGuideModal
+            user={user}
+            initialMonth={varietyGuideMonth}
+            onClose={() => setShowVarietyGuide(false)}
           />
         )}
 
