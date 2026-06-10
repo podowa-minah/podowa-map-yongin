@@ -14,6 +14,7 @@ export default function PinchZoomPane({
   maxScale = 5,
   className = '',
   style = {},
+  onScale,            // (scale) => void — 확대 배율 변할 때 부모에 알림 (선명도 적응 등)
 }) {
   const containerRef = useRef(null);   // viewport (고정 높이 · overflow hidden)
   const contentRef = useRef(null);     // 실제로 커지는 안쪽 (transform 대상)
@@ -24,6 +25,8 @@ export default function PinchZoomPane({
   const dragStartPos = useRef({ x: 0, y: 0 });
   const pointerStart = useRef({ x: 0, y: 0 });
   const wasDragRef = useRef(false);
+  const onScaleRef = useRef(onScale);
+  useEffect(() => { onScaleRef.current = onScale; }, [onScale]);
 
   const apply = useCallback(() => {
     const c = containerRef.current, g = contentRef.current;
@@ -38,6 +41,7 @@ export default function PinchZoomPane({
     p.y = Math.max(Math.min(mY, p.y), -sh + ch - mY);
     posRef.current = p;
     g.style.transform = `translate(${p.x}px, ${p.y}px) scale(${s})`;
+    if (onScaleRef.current) onScaleRef.current(s);
   }, []);
 
   // 초기 정렬 (좌상단 · 배율 1) + 리사이즈 대응

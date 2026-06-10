@@ -115,6 +115,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   const [tab, setTab] = useState('band');     // 'band' | 'cluster'
   const [sheet, setSheet] = useState(null);   // {type:'cell',vid,m} | {type:'cluster',vid} | null
   const [lightbox, setLightbox] = useState(null);  // 확대해서 볼 사진 URL | null
+  const [zoomHi, setZoomHi] = useState(false);     // 표를 충분히 확대하면 칸 사진을 원본(선명)으로
   const [toast, setToast] = useState('');
   // ── 편집(관리자) ──
   const [admin, setAdmin] = useState(false);
@@ -138,6 +139,12 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
 
   const idx = useMemo(() => indexGuides(guides), [guides]);
   const byId = useMemo(() => Object.fromEntries(varieties.map((v) => [v.id, v])), [varieties]);
+
+  // 표를 2.5배 이상 당기면 보이는 칸만 원본으로 교체 → 확대 시 선명. (같은 값이면 리렌더 안 함)
+  const handleScale = useCallback((s) => {
+    const hi = s >= 2.5;
+    setZoomHi((v) => (v === hi ? v : hi));
+  }, []);
 
   function showToast(m) {
     setToast(m);
@@ -226,7 +233,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
     return (
       <div>
         {/* 포도맵처럼 — 두 손가락 핀치줌 · 끌어서 이동 (앱 전역 user-scalable=no 우회) */}
-        <PinchZoomPane height="58vh" maxScale={6}>
+        <PinchZoomPane height="58vh" maxScale={6} onScale={handleScale}>
           <div className="pvg-band">
             <div className="pvg-mhead">
               {MONTH_STAGES.map((s) => (
@@ -255,7 +262,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
                           : setSheet({ type: 'cell', vid: v.id, m: s.m })}
                         aria-label={`${v.name} ${s.m}월 ${s.stage}`}
                       >
-                        {pv.thumb && <img className="pvg-ph" src={pv.thumb} alt="" loading="lazy" decoding="async" />}
+                        {pv.thumb && <img className="pvg-ph" src={(zoomHi && fullImg) ? fullImg : pv.thumb} alt="" loading="lazy" decoding="async" />}
                         {pv.hasVideo && <span className="pvg-vbadge">▶</span>}
                       </button>
                     );
