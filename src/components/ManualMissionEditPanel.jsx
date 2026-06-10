@@ -65,7 +65,7 @@ export default function ManualMissionEditPanel({
                   <input
                     className="det"
                     value={it.detail}
-                    placeholder="자세한 노하우 (선택)"
+                    placeholder="자세한 가이드 (선택)"
                     onChange={(e) => onChangeRow(it._i, 'detail', e.target.value)}
                   />
                 </div>

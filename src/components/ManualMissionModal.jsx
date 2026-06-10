@@ -388,7 +388,7 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
                     >
                       <span className="tt">{isDone ? '✓ ' : ''}{it.title}</span>
                       {it.detail && (
-                        <span className="tip">💡 노하우<span className="arw">▾</span></span>
+                        <span className="tip">💡 가이드<span className="arw">▾</span></span>
                       )}
                     </div>
                     {it.detail && <div className="detail">{it.detail}</div>}
@@ -454,7 +454,7 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
             <span className="who">👤 {shortName(authorName)}</span>
             <button className="xclose" onClick={onClose} aria-label="닫기" title="닫기">✕</button>
           </div>
-          <p className="hint">＊ 달을 눌러 이동, 항목 글씨를 누르면 노하우가 펼쳐져요.</p>
+          <p className="hint">＊ 달을 눌러 이동, 항목 글씨를 누르면 가이드가 펼쳐져요.</p>
         </div>
 
         <div className="modes">
