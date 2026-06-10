@@ -5,7 +5,7 @@
 // - 편집(품종 추가/수정·사진 올리기)은 다음 단계. 여기선 읽기 전용 표시.
 // 톤앤매너·포털 규약은 ManualMissionModal과 동일 (prefix: pvg-).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
@@ -86,6 +86,13 @@ table.pvg-ct tbody tr:active .vcol{background:#f3eede;}
 .pvg-empty{padding:30px 16px; text-align:center; color:#a39a88; font-size:13px;}
 .pvg-manage{display:block; width:calc(100% - 32px); margin:4px 16px 8px; padding:12px; border:1.5px dashed #e3cf94; background:#fff7e6; color:#8a6d2a; font-weight:800; font-size:13px; border-radius:12px; cursor:pointer;}
 .pvg-toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#2f6b3c; color:#fff; padding:10px 18px; border-radius:24px; font-size:13px; font-weight:700; z-index:10002; box-shadow:0 6px 20px #2f6b3c55;}
+.pvg-gal img{cursor:zoom-in;}
+.pvg-lightbox{position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:10010; display:flex; align-items:center; justify-content:center; padding:16px; animation:pvg-fade .15s ease;}
+@keyframes pvg-fade{from{opacity:0;} to{opacity:1;}}
+.pvg-lightbox img{max-width:96vw; max-height:90vh; object-fit:contain; border-radius:8px; box-shadow:0 10px 50px rgba(0,0,0,.5); touch-action:none; transform-origin:center center; will-change:transform;}
+.pvg-lightbox .lbx{position:absolute; top:14px; right:16px; width:38px; height:38px; border-radius:50%; border:none; background:rgba(255,255,255,.18); color:#fff; font-size:18px; font-weight:700; cursor:pointer; line-height:1; padding:0; z-index:2;}
+.pvg-lightbox .lbhint{position:absolute; top:18px; left:16px; right:64px; text-align:left; color:rgba(255,255,255,.7); font-size:12px; pointer-events:none;}
+.pvg-lightbox .lbmore{position:absolute; bottom:24px; left:50%; transform:translateX(-50%); border:none; background:rgba(255,255,255,.95); color:#2f6b3c; font:inherit; font-weight:800; font-size:14px; padding:12px 20px; border-radius:24px; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.4);}
 `;
 
 // 송이관리 표 컬럼 묶음 (헤더 2줄 구성)
@@ -106,6 +113,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('band');     // 'band' | 'cluster'
   const [sheet, setSheet] = useState(null);   // {type:'cell',vid,m} | {type:'cluster',vid} | null
+  const [lightbox, setLightbox] = useState(null);  // 확대해서 볼 사진 URL | null
   const [toast, setToast] = useState('');
   // ── 편집(관리자) ──
   const [admin, setAdmin] = useState(false);
@@ -125,6 +133,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   }, []);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
+  useEffect(() => { resetZoom(); }, [lightbox]);  // 새 사진 열 때마다 확대 초기화
 
   const idx = useMemo(() => indexGuides(guides), [guides]);
   const byId = useMemo(() => Object.fromEntries(varieties.map((v) => [v.id, v])), [varieties]);
@@ -157,6 +166,46 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
     showToast('저장했어요');
   }
 
+  // ── 사진 확대 화면 핀치-줌 (앱 전역 user-scalable=no 라서 자체 구현) ──
+  //   두 손가락: 확대/축소 · 한 손가락(확대 상태): 이동 · 두 번 톡: 토글
+  const lbImgRef = useRef(null);
+  const zoomRef = useRef({ scale: 1, tx: 0, ty: 0, sd: 0, ss: 1, st: null, moved: false, tap: 0 });
+  function applyZoom() {
+    const g = zoomRef.current;
+    if (lbImgRef.current) lbImgRef.current.style.transform = `translate(${g.tx}px,${g.ty}px) scale(${g.scale})`;
+  }
+  function resetZoom() {
+    zoomRef.current = { scale: 1, tx: 0, ty: 0, sd: 0, ss: 1, st: null, moved: false, tap: 0 };
+    applyZoom();
+  }
+  function touchDist(a, b) { return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+  function onLbStart(e) {
+    const g = zoomRef.current; g.moved = false;
+    if (e.touches.length === 2) { g.sd = touchDist(e.touches[0], e.touches[1]); g.ss = g.scale; }
+    else if (e.touches.length === 1) { g.st = { x: e.touches[0].clientX - g.tx, y: e.touches[0].clientY - g.ty }; }
+  }
+  function onLbMove(e) {
+    const g = zoomRef.current;
+    if (e.touches.length === 2) {
+      const s = Math.max(1, Math.min(5, g.ss * (touchDist(e.touches[0], e.touches[1]) / (g.sd || 1))));
+      g.scale = s; g.moved = true;
+      if (s === 1) { g.tx = 0; g.ty = 0; }
+      applyZoom();
+    } else if (e.touches.length === 1 && g.scale > 1 && g.st) {
+      g.tx = e.touches[0].clientX - g.st.x; g.ty = e.touches[0].clientY - g.st.y; g.moved = true;
+      applyZoom();
+    }
+  }
+  function onLbEnd(e) {
+    const g = zoomRef.current;
+    if (g.scale <= 1.02) { g.scale = 1; g.tx = 0; g.ty = 0; applyZoom(); }
+    if (!g.moved && e.touches.length === 0) {            // 두 번 톡 → 확대/축소 토글
+      const now = Date.now();
+      if (now - g.tap < 300) { g.scale = g.scale > 1 ? 1 : 2.5; if (g.scale === 1) { g.tx = 0; g.ty = 0; } applyZoom(); g.tap = 0; }
+      else g.tap = now;
+    }
+  }
+
   const nextVarietySort = varieties.reduce((mx, x) => Math.max(mx, x.sort_order || 0), 0) + 1;
   // 칸 편집 패널엔 사진·영상 행만 (글-전용 가이드 행은 제외)
   const editCellEntries = editTarget?.mode === 'cell'
@@ -185,12 +234,16 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
                   const entries = idx[v.id]?.[s.m] || [];
                   const pv = cellPreview(entries);
                   const color = colorOfStage(s.sc);
+                  // 사진 있는 칸 → 탭하면 곧장 크게(맵처럼). 없으면 상세 시트.
+                  const fullImg = entries.find((e) => e.image_urls?.length)?.image_urls?.[0] || null;
                   return (
                     <button
                       key={s.m}
                       className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
                       style={{ background: pv.thumb ? '#fff' : color, borderColor: color }}
-                      onClick={() => setSheet({ type: 'cell', vid: v.id, m: s.m })}
+                      onClick={() => fullImg
+                        ? setLightbox({ url: fullImg, vid: v.id, m: s.m })
+                        : setSheet({ type: 'cell', vid: v.id, m: s.m })}
                       aria-label={`${v.name} ${s.m}월 ${s.stage}`}
                     >
                       {pv.thumb && <img className="pvg-ph" src={pv.thumb} alt="" loading="lazy" />}
@@ -307,7 +360,9 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
                 )}
                 {(e.image_urls?.length > 0) && (
                   <div className="pvg-gal">
-                    {e.image_urls.map((u, i) => <img key={i} src={u} alt="" loading="lazy" />)}
+                    {e.image_urls.map((u, i) => (
+                      <img key={i} src={u} alt="" loading="lazy" onClick={() => setLightbox({ url: u })} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -417,6 +472,36 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
               <button onClick={checkGate} style={{ flex: 1, padding: 11, borderRadius: 10, border: 'none', background: '#2f6b3c', color: '#fff', fontWeight: 800, fontFamily: 'inherit', fontSize: 14, cursor: 'pointer' }}>확인</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {lightbox && (
+        <div className="pvg-lightbox" onClick={() => setLightbox(null)}>
+          <img
+            ref={lbImgRef}
+            src={lightbox.url}
+            alt=""
+            className="lbimg"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={onLbStart}
+            onTouchMove={onLbMove}
+            onTouchEnd={onLbEnd}
+          />
+          <button className="lbx" onClick={() => setLightbox(null)} aria-label="닫기">✕</button>
+          <div className="lbhint">두 손가락으로 확대 · 두 번 톡 확대/축소 · 바깥/✕ 닫기</div>
+          {lightbox.vid && (
+            <button
+              className="lbmore"
+              onClick={(e) => {
+                e.stopPropagation();
+                const t = { type: 'cell', vid: lightbox.vid, m: lightbox.m };
+                setLightbox(null);
+                setSheet(t);
+              }}
+            >
+              이 시기 자세히 · 사진·가이드 ›
+            </button>
+          )}
         </div>
       )}
 
