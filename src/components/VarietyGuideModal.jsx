@@ -14,6 +14,7 @@ import {
   indexGuides, cellPreview, mdLabel,
 } from '../lib/variety-guide';
 import VarietyGuideEditPanel from './VarietyGuideEditPanel';
+import PinchZoomPane from './PinchZoomPane';
 
 const CSS = `
 .pvg-backdrop{position:fixed; inset:0; background:rgba(34,46,36,.6); z-index:9999; display:flex; align-items:flex-start; justify-content:center; overflow:auto; -webkit-overflow-scrolling:touch; padding:3vh 0;}
@@ -205,6 +206,12 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
       else g.tap = now;
     }
   }
+  // 사진 닫기 → 칸에서 바로 연 사진이면 '이 시기 가이드'(시트)로 돌아간다 (그냥 끄지 않음)
+  function closeLightbox() {
+    const lb = lightbox;
+    setLightbox(null);
+    if (lb?.vid) setSheet({ type: 'cell', vid: lb.vid, m: lb.m });
+  }
 
   const nextVarietySort = varieties.reduce((mx, x) => Math.max(mx, x.sort_order || 0), 0) + 1;
   // 칸 편집 패널엔 사진·영상 행만 (글-전용 가이드 행은 제외)
@@ -218,49 +225,52 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   function renderBand() {
     return (
       <div>
-        <div className="pvg-band">
-          <div className="pvg-mhead">
-            {MONTH_STAGES.map((s) => (
-              <div key={s.m} className={'pvg-mh' + (s.m === curMonth ? ' now' : '')}>
-                {s.ab}<b>{s.m}</b>
+        {/* 포도맵처럼 — 두 손가락 핀치줌 · 끌어서 이동 (앱 전역 user-scalable=no 우회) */}
+        <PinchZoomPane height="58vh" maxScale={6}>
+          <div className="pvg-band">
+            <div className="pvg-mhead">
+              {MONTH_STAGES.map((s) => (
+                <div key={s.m} className={'pvg-mh' + (s.m === curMonth ? ' now' : '')}>
+                  {s.ab}<b>{s.m}</b>
+                </div>
+              ))}
+            </div>
+            {varieties.map((v) => (
+              <div className="pvg-brow" key={v.id}>
+                <div className="pvg-vl">{v.name}{v.subtype && <small>{v.subtype}</small>}</div>
+                <div className="pvg-track">
+                  {MONTH_STAGES.map((s) => {
+                    const entries = idx[v.id]?.[s.m] || [];
+                    const pv = cellPreview(entries);
+                    const color = colorOfStage(s.sc);
+                    // 사진 있는 칸 → 탭하면 곧장 크게(맵처럼). 없으면 상세 시트.
+                    const fullImg = entries.find((e) => e.image_urls?.length)?.image_urls?.[0] || null;
+                    return (
+                      <button
+                        key={s.m}
+                        className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
+                        style={{ background: pv.thumb ? '#fff' : color, borderColor: color }}
+                        onClick={() => fullImg
+                          ? setLightbox({ url: fullImg, vid: v.id, m: s.m })
+                          : setSheet({ type: 'cell', vid: v.id, m: s.m })}
+                        aria-label={`${v.name} ${s.m}월 ${s.stage}`}
+                      >
+                        {pv.thumb && <img className="pvg-ph" src={pv.thumb} alt="" loading="lazy" decoding="async" />}
+                        {pv.hasVideo && <span className="pvg-vbadge">▶</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
-          {varieties.map((v) => (
-            <div className="pvg-brow" key={v.id}>
-              <div className="pvg-vl">{v.name}{v.subtype && <small>{v.subtype}</small>}</div>
-              <div className="pvg-track">
-                {MONTH_STAGES.map((s) => {
-                  const entries = idx[v.id]?.[s.m] || [];
-                  const pv = cellPreview(entries);
-                  const color = colorOfStage(s.sc);
-                  // 사진 있는 칸 → 탭하면 곧장 크게(맵처럼). 없으면 상세 시트.
-                  const fullImg = entries.find((e) => e.image_urls?.length)?.image_urls?.[0] || null;
-                  return (
-                    <button
-                      key={s.m}
-                      className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
-                      style={{ background: pv.thumb ? '#fff' : color, borderColor: color }}
-                      onClick={() => fullImg
-                        ? setLightbox({ url: fullImg, vid: v.id, m: s.m })
-                        : setSheet({ type: 'cell', vid: v.id, m: s.m })}
-                      aria-label={`${v.name} ${s.m}월 ${s.stage}`}
-                    >
-                      {pv.thumb && <img className="pvg-ph" src={pv.thumb} alt="" loading="lazy" />}
-                      {pv.hasVideo && <span className="pvg-vbadge">▶</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        </PinchZoomPane>
         <div className="pvg-legend">
           {MONTH_STAGES.filter((s, i, a) => a.findIndex((x) => x.sc === s.sc) === i).map((s) => (
             <span className="pvg-lg" key={s.sc}><i style={{ background: colorOfStage(s.sc) }} />{s.stage}</span>
           ))}
         </div>
-        <div className="pvg-foot">칸을 누르면 그 시기 사진·영상·가이드를 봐요. 빈 칸은 아직 안 채운 시기.</div>
+        <div className="pvg-foot">두 손가락으로 넓게 보고 · 칸을 누르면 그 시기 사진·영상·가이드. 빈 칸은 아직 안 채운 시기.</div>
       </div>
     );
   }
@@ -361,7 +371,8 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
                 {(e.image_urls?.length > 0) && (
                   <div className="pvg-gal">
                     {e.image_urls.map((u, i) => (
-                      <img key={i} src={u} alt="" loading="lazy" onClick={() => setLightbox({ url: u })} />
+                      // 목록은 가벼운 썸네일, 확대(라이트박스)만 원본 — 로딩 속도 ↑
+                      <img key={i} src={e.thumbnails?.[i] || u} alt="" loading="lazy" decoding="async" onClick={() => setLightbox({ url: u })} />
                     ))}
                   </div>
                 )}
@@ -476,7 +487,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
       )}
 
       {lightbox && (
-        <div className="pvg-lightbox" onClick={() => setLightbox(null)}>
+        <div className="pvg-lightbox" onClick={closeLightbox}>
           <img
             ref={lbImgRef}
             src={lightbox.url}
@@ -487,21 +498,14 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
             onTouchMove={onLbMove}
             onTouchEnd={onLbEnd}
           />
-          <button className="lbx" onClick={() => setLightbox(null)} aria-label="닫기">✕</button>
-          <div className="lbhint">두 손가락으로 확대 · 두 번 톡 확대/축소 · 바깥/✕ 닫기</div>
-          {lightbox.vid && (
-            <button
-              className="lbmore"
-              onClick={(e) => {
-                e.stopPropagation();
-                const t = { type: 'cell', vid: lightbox.vid, m: lightbox.m };
-                setLightbox(null);
-                setSheet(t);
-              }}
-            >
-              이 시기 자세히 · 사진·가이드 ›
-            </button>
-          )}
+          {/* onTouchEnd preventDefault: 닫은 직후 유령 탭이 뒤(시트)를 끄는 것 방지 */}
+          <button
+            className="lbx"
+            onClick={closeLightbox}
+            onTouchEnd={(e) => { e.preventDefault(); closeLightbox(); }}
+            aria-label="닫기"
+          >‹</button>
+          <div className="lbhint">두 손가락으로 확대 · 두 번 톡 확대/축소 · ‹ 누르면 가이드로</div>
         </div>
       )}
 

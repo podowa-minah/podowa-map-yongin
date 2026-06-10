@@ -90,6 +90,8 @@ export default function VarietyGuideEditPanel({ target, existingEntries = [], ne
   const [imgs, setImgs] = useState([]);       // {url, thumb}
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [editId, setEditId] = useState(null);   // 한 줄 메모 수정 중인 기존 항목 id
+  const [editTitle, setEditTitle] = useState('');
 
   const setC = (k, val) => setCs((p) => ({ ...p, [k]: val }));
 
@@ -219,6 +221,17 @@ export default function VarietyGuideEditPanel({ target, existingEntries = [], ne
     onSaved();
   }
 
+  // 이미 올린 사진 묶음의 한 줄 메모(title)만 고쳐 덮어쓰기 (사진은 그대로)
+  async function saveTitle(entry) {
+    setBusy(true); setErr('');
+    const res = await supabase.from('variety_guides')
+      .update({ title: editTitle.trim() || null }).eq('id', entry.id);
+    setBusy(false);
+    if (res.error) { setErr('메모 저장 실패: ' + res.error.message); return; }
+    setEditId(null);
+    onSaved();
+  }
+
   async function deleteEntry(entry) {
     if (!window.confirm('이 사진/가이드 한 장을 지울까요? (되돌릴 수 없어요)')) return;
     setBusy(true); setErr('');
@@ -265,11 +278,27 @@ export default function VarietyGuideEditPanel({ target, existingEntries = [], ne
                 {existingEntries.map((e) => (
                   <div className="pvge-entry" key={e.id}>
                     {(e.thumbnails?.[0] || e.image_urls?.[0]) && <img className="th" src={e.thumbnails?.[0] || e.image_urls?.[0]} alt="" />}
-                    <div className="meta">
-                      <div className="et">{mdLabel(e.created_at)}{e.title ? ' · ' + e.title : ''}</div>
-                      <div className="ed">{`사진 ${(e.image_urls || []).length}장${e.video_url ? ' · 영상' : ''}`}</div>
-                    </div>
-                    <button className="del" onClick={() => deleteEntry(e)} disabled={busy}>삭제</button>
+                    {editId === e.id ? (
+                      <>
+                        <input
+                          className="pvge-in" style={{ flex: 1, minWidth: 0, fontSize: 13, padding: '7px 9px' }}
+                          value={editTitle} placeholder="한 줄 메모" autoFocus
+                          onChange={(ev) => setEditTitle(ev.target.value)}
+                          onKeyDown={(ev) => { if (ev.key === 'Enter') saveTitle(e); }}
+                        />
+                        <button className="del" style={{ color: '#6b6456', background: '#efe8da' }} onClick={() => setEditId(null)} disabled={busy}>취소</button>
+                        <button className="del" style={{ color: '#fff', background: '#2f6b3c' }} onClick={() => saveTitle(e)} disabled={busy}>저장</button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="meta">
+                          <div className="et">{mdLabel(e.created_at)}{e.title ? ' · ' + e.title : ''}</div>
+                          <div className="ed">{`사진 ${(e.image_urls || []).length}장${e.video_url ? ' · 영상' : ''}`}</div>
+                        </div>
+                        <button className="del" style={{ color: '#6b6456', background: '#efe8da' }} onClick={() => { setEditId(e.id); setEditTitle(e.title || ''); }} disabled={busy}>메모</button>
+                        <button className="del" onClick={() => deleteEntry(e)} disabled={busy}>삭제</button>
+                      </>
+                    )}
                   </div>
                 ))}
               </>
