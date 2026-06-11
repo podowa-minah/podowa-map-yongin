@@ -9,6 +9,7 @@
 //   - 진단: power/balance/bugs → calcTreeScore → scoreBand (scoring.js 재사용)
 
 import { calcTreeScore, scoreBand, powerScore, POWER_IDEAL } from './scoring';
+import { markLabelsOf } from './cluster-thinning';
 
 // 안전 숫자 변환 (scoring.js 내부 toNumOrNull 과 동일 규칙 — DB가 text 컬럼이라 "?" 등 섞임)
 function toNum(v) {
@@ -139,7 +140,8 @@ export function workOfRow(row) {
     return QUALITY_KEYS.filter((q) => state[q]).map((q) => `${q} ${state[q]}점`);
   }
   const labels = WORK_LABELS[season] || [];
-  return labels.filter((_, i) => state[`option${i + 1}`]);
+  // 체크된 작업 + 송이크기정리/알솎이 "최종완료" 마커도 가이드에 함께 표시.
+  return [...labels.filter((_, i) => state[`option${i + 1}`]), ...markLabelsOf(state)];
 }
 
 // 한 기록 → 진단 ({score, band:{label,color}, reasons:[…]} | null)

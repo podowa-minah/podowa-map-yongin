@@ -35,7 +35,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -355,6 +355,14 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 // 빈 칸 — 거의 평평
                 : "0 0 0 1px #e0d4b5, 0 0px 1px rgba(120, 90, 40, 0.04)";
 
+          // 송이크기정리/알솎이 "최종완료" 강조 테두리 — 알솎이(파랑) 우선, 송이크기정리(노랑).
+          //   전밭이 알솎이까지 끝나면 App이 Set을 비워줘서 자동으로 사라짐.
+          const markRingColor = thinningTreeIds.has(numericId) ? '#2563eb'
+            : clusterTrimTreeIds.has(numericId) ? '#eab308' : null;
+          const finalShadow = markRingColor
+            ? `0 0 0 2.5px ${markRingColor}, ${cardShadow}`
+            : cardShadow;
+
           return (
             <div
               key={id}
@@ -365,7 +373,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                boxShadow: cardShadow,
+                boxShadow: finalShadow,
                 borderRadius: 5,
                 backgroundColor: hasTodo ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : '#fffefb',
                 overflow: "hidden",            // 둥근 모서리 안쪽까지 잘림

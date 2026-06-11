@@ -10,6 +10,7 @@ import SaveCelebration from './components/SaveCelebration';
 import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
 import { playSuccess } from './utils/sounds';
+import { CLUSTER_MARK, THINNING_MARK, markLabelsOf } from './lib/cluster-thinning';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -179,9 +180,9 @@ function getCheckedOptionLabels(row) {
   if (!row?.season) return '';
   const labels = SEASON_OPTION_LABELS[row.season] || [];
   const state = row.season_data?.[row.season] || {};
-  return labels
-    .filter((_, i) => state[`option${i + 1}`])
-    .join(', ');
+  const checked = labels.filter((_, i) => state[`option${i + 1}`]);
+  // 송이크기정리/알솎이 "최종완료" 마커도 히스토리에 함께 남긴다.
+  return [...checked, ...markLabelsOf(state)].join(', ');
 }
 
 // ---------- MAIN COMPONENT ---------- //
@@ -1156,16 +1157,43 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             {[...Array(SEASON_CHECKBOX_COUNTS[currentSeason])].map((_, i) => {
               const optionKey = `option${i + 1}`;
               const labelText = SEASON_OPTION_LABELS[currentSeason]?.[i] ?? `Option ${i + 1}`;
+              // 송이크기정리·알솎이 옆에는 "최종완료" 칸을 나란히 둔다.
+              //   송이크기정리 = 노랑, 알솎이 = 파랑 (맵 테두리 색과 동일)
+              const markKey = labelText === '송이크기정리' ? CLUSTER_MARK
+                : labelText === '알솎이' ? THINNING_MARK : null;
+              const markColor = markKey === CLUSTER_MARK ? '#eab308' : '#2563eb';
+              const markOn = markKey ? !!treeData.season_data[currentSeason]?.[markKey] : false;
               return (
-                <label key={optionKey} style={{ display: 'block', fontSize: '1rem', margin: '0.3rem 0' }}>
-                  <input
-                    type="checkbox"
-                    checked={treeData.season_data[currentSeason]?.[optionKey] || false}
-                    onChange={(e) => handleCheckboxChange(currentSeason, optionKey, e.target.checked)}
-                    style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem', accentColor: '#16a34a' }}
-                  />
-                  {labelText}
-                </label>
+                <div key={optionKey} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', margin: '0.3rem 0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', flex: '1 1 auto', margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={treeData.season_data[currentSeason]?.[optionKey] || false}
+                      onChange={(e) => handleCheckboxChange(currentSeason, optionKey, e.target.checked)}
+                      style={{ width: '1.5rem', height: '1.5rem', marginRight: '0.5rem', accentColor: '#16a34a' }}
+                    />
+                    {labelText}
+                  </label>
+                  {markKey && (
+                    <label style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                      marginLeft: '0.5rem', padding: '0.2rem 0.6rem',
+                      borderRadius: '999px', cursor: 'pointer', whiteSpace: 'nowrap',
+                      fontSize: '0.85rem', fontWeight: 700,
+                      border: `1.5px solid ${markColor}`,
+                      backgroundColor: markOn ? markColor : '#fff',
+                      color: markOn ? '#fff' : markColor,
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={markOn}
+                        onChange={(e) => handleCheckboxChange(currentSeason, markKey, e.target.checked)}
+                        style={{ width: '1.1rem', height: '1.1rem', margin: 0, accentColor: markColor }}
+                      />
+                      최종완료
+                    </label>
+                  )}
+                </div>
               );
             })}
           </div>

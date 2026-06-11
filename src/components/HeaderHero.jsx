@@ -19,6 +19,11 @@ export default function HeaderHero({
   missedCount = 0,
   missionGap = null,                 // 지난달 미션 미완료 { month, pct } | null — 푸쉬 배너
   onOpenMission,                     // 배너 탭 → 지난달 미션 모달 열기
+  clusterPct = 0,                    // 송이크기정리 최종완료 진행률(전밭 그루 대비 %)
+  thinningPct = 0,                   // 알솎이 최종완료 진행률
+  clusterDone = 0,                   // 송이크기정리 최종완료 그루 수
+  thinningDone = 0,                  // 알솎이 최종완료 그루 수
+  fieldTotal = 0,                    // 전체 활성 나무 수
   streak = 0,                      // 🔥 연속 출근 일수
   duckMessage = '오늘도 화이팅!',     // 🦆 오리 말풍선 — 항상 표시되는 오늘의 전달사항
   onSubmitDuckMessage,                // (text) => Promise<bool> — 새 메시지 저장
@@ -116,9 +121,29 @@ export default function HeaderHero({
 
       {/* 상단: 브랜드 + 사용자 + 알림 배너 */}
       <div className="hero-top">
-        <button className="brand-mark" onClick={onGoAnalysis} aria-label="현황분석으로 이동">
-          PODOWA
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+          <button className="brand-mark" onClick={onGoAnalysis} aria-label="현황분석으로 이동">
+            PODOWA
+          </button>
+          {/* 송이크기정리/알솎이 최종완료 진행률 — PODOWA 옆 흰 칩으로 또렷하게.
+              전밭 그루 대비 %. 아무도 안 누른(0/0) 비시즌엔 숨김.
+              전밭 알솎이까지 100% 끝나면(=둘 다 100%) 지도 테두리처럼 칩도 사라짐. */}
+          {fieldTotal > 0 && (clusterDone > 0 || thinningDone > 0) && thinningPct < 100 && (
+            <span
+              style={{
+                display: 'inline-flex', flexDirection: 'column', gap: '1px',
+                padding: '0.25rem 0.55rem', borderRadius: '0.6rem',
+                background: 'rgba(255,255,255,0.96)',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.22)',
+                lineHeight: 1.15, whiteSpace: 'nowrap',
+              }}
+              title={`송이크기정리 ${clusterDone}/${fieldTotal}그루 · 알솎이 ${thinningDone}/${fieldTotal}그루`}
+            >
+              <span style={{ color: '#ca8a04', fontWeight: 800, fontSize: '0.78rem' }}>송이크기정리 {clusterPct}%</span>
+              <span style={{ color: '#2563eb', fontWeight: 800, fontSize: '0.78rem' }}>알솎이 {thinningPct}%</span>
+            </span>
+          )}
+        </div>
         <div className="hero-user-stack">
           {userName && (
             <div className="user-name">

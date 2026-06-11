@@ -36,6 +36,9 @@ function formatSeasonData(seasonData, season) {
   labels.forEach((label, i) => {
     if (data[`option${i + 1}`]) checked.push(label);
   });
+  // 송이크기정리/알솎이 "최종완료" 마커도 일지에 남긴다.
+  if (data.clusterTrimDone) checked.push('송이크기정리 최종완료');
+  if (data.thinningDone) checked.push('알솎이 최종완료');
   return checked.join(', ');
 }
 

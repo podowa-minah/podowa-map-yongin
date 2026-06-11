@@ -48,6 +48,7 @@ const AnalysisPage = lazy(() => import('./AnalysisPage'));
 const ScoreReferencePage = lazy(() => import('./ScoreReferencePage'));
 const VarietyGuideModal = lazy(() => import('./components/VarietyGuideModal'));
 import { monthOfStageName } from './lib/variety-guide';
+import { clusterThinningStatus } from './lib/cluster-thinning';
 
 export default function App() {
   const [treeData, setTreeData] = useState({});
@@ -632,6 +633,13 @@ export default function App() {
     return new Set((diag.watchTrees || []).map(w => w.id));
   }, [treeData, labels]);
 
+  // 송이크기정리/알솎이 "최종완료" 집계 — 헤더 진행률(%) + 맵 테두리(노랑/파랑).
+  //   올해 기록만(연도 바뀌면 자동 리셋). 전밭 알솎이 100% 되면 테두리 전부 사라짐.
+  const clusterThinning = useMemo(() => {
+    const year = parseInt(getKSTToday().slice(0, 4), 10);
+    return clusterThinningStatus(treeData, labels, year);
+  }, [treeData, labels]);
+
   // 🔥 연속 출근 streak — 헤더 배지
   const streak = useMemo(
     () => getActiveStreak(treeData, getKSTToday(), historySummaries || []),
@@ -734,6 +742,11 @@ export default function App() {
             missedCount={missedDaysNeedingReasons.length}
             missionGap={missionGap}
             onOpenMission={() => missionGap && setMissionModalMonth(missionGap.month)}
+            clusterPct={clusterThinning.clusterPct}
+            thinningPct={clusterThinning.thinningPct}
+            clusterDone={clusterThinning.clusterDone}
+            thinningDone={clusterThinning.thinningDone}
+            fieldTotal={clusterThinning.total}
             streak={streak}
             duckMessage={duckMessage}
             onSubmitDuckMessage={handleSubmitDuckMessage}
@@ -790,7 +803,7 @@ export default function App() {
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
             ) : (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             )
