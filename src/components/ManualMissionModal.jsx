@@ -131,7 +131,7 @@ const CSS = `
 @keyframes pmm-fade{from{opacity:0;} to{opacity:1;}}
 `;
 
-export default function ManualMissionModal({ user, onClose, onSaved }) {
+export default function ManualMissionModal({ user, onClose, onSaved, initialMonth = null }) {
   const authorName = user?.user_metadata?.nickname || user?.email || '농부';
   const curMonth = parseInt(todayKST().split('-')[1], 10);
 
@@ -141,7 +141,7 @@ export default function ManualMissionModal({ user, onClose, onSaved }) {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [sel, setSel] = useState(curMonth);
+  const [sel, setSel] = useState(initialMonth || curMonth);   // 푸쉬 배너로 열면 그 달(지난달)부터
   const [mode, setMode] = useState('month');     // 'month' | 'all'
   const [openItems, setOpenItems] = useState(() => new Set());
   const [justAddedId, setJustAddedId] = useState(null);

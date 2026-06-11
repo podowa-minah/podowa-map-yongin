@@ -28,6 +28,8 @@ import grapelink from './assets/icons/grape.svg';
 import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
 import ManualMissionCard from './components/ManualMissionCard';
+const ManualMissionModal = lazy(() => import('./components/ManualMissionModal'));
+import usePrevMissionGap from './hooks/usePrevMissionGap';
 const IrrigationModal = lazy(() => import('./components/IrrigationModal'));
 const PestTreatmentModal = lazy(() => import('./components/PestTreatmentModal'));
 import { hasJournalData, isBriefingChecked } from './lib/journal';
@@ -92,6 +94,8 @@ export default function App() {
   const [pestEval, setPestEval] = useState(null);
   const [missedDaysNeedingReasons, setMissedDaysNeedingReasons] = useState([]);
   const [showIncompletePopup, setShowIncompletePopup] = useState(false);
+  const { gap: missionGap, refresh: refreshMissionGap } = usePrevMissionGap();  // 지난달 미션 미완료 푸쉬
+  const [missionModalMonth, setMissionModalMonth] = useState(null);  // 푸쉬 탭으로 열린 미션 모달(그 달) | null
   const [incompleteRefresh, setIncompleteRefresh] = useState(0);
   const [workerDrilldown, setWorkerDrilldown] = useState(null);   // {name, date} | null
   // 영농일지 — Podowa 버튼 클릭 시 열림. 오늘 일지 있으면 불 꺼짐
@@ -118,16 +122,24 @@ export default function App() {
   }, []);
 
   const loadAllRows = async () => {
-    const { data, error } = await supabase
-      .from('trees')
-      .select('*')
-      .is('archived_at', null)  // 보관된 나무 제외 (백지화된 과거 기록)
-      .order('date', { ascending: false });
-
-    if (error) { console.error('Error fetching trees:', error); return; }
+    // Supabase는 기본 1000행만 돌려준다 → 나무가 많으면 날짜 내림차순이라 오래된 달(4월 등)이
+    // 통째로 잘려서 사진이 안 보였다. 페이지로 끝까지 받아 전부 모은다. (minari: 4월 사진 누락 버그)
+    const PAGE = 1000;
+    const all = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('trees')
+        .select('*')
+        .is('archived_at', null)  // 보관된 나무 제외 (백지화된 과거 기록)
+        .order('date', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) { console.error('Error fetching trees:', error); if (!all.length) return; break; }
+      all.push(...(data || []));
+      if (!data || data.length < PAGE) break;   // 마지막 페이지
+    }
 
     const grouped = {};
-    data.forEach((row) => { (grouped[row.id] ??= []).push(row); });
+    all.forEach((row) => { (grouped[row.id] ??= []).push(row); });
     setFreshTreeLoaded(true);
     setTreeData(grouped);
     setDataLoading(false);
@@ -720,6 +732,8 @@ export default function App() {
             kindDots={greenDots - completed}
             fakeDots={fakeDoneCount}
             missedCount={missedDaysNeedingReasons.length}
+            missionGap={missionGap}
+            onOpenMission={() => missionGap && setMissionModalMonth(missionGap.month)}
             streak={streak}
             duckMessage={duckMessage}
             onSubmitDuckMessage={handleSubmitDuckMessage}
@@ -858,6 +872,16 @@ export default function App() {
           />
         )}
 
+        {/* 지난달 미션 미완료 푸쉬 배너 → 그 달 미션 모달 (닫으면 다시 계산 → 다 채웠으면 배너 사라짐) */}
+        {missionModalMonth != null && (
+          <ManualMissionModal
+            user={user}
+            initialMonth={missionModalMonth}
+            onClose={() => { setMissionModalMonth(null); refreshMissionGap(); }}
+            onSaved={refreshMissionGap}
+          />
+        )}
+
         {showAnnouncements && (
           <AnnouncementPopup
             onClose={() => setShowAnnouncements(false)}
@@ -882,7 +906,9 @@ export default function App() {
           <VarietyGuideModal
             user={user}
             initialMonth={varietyGuideMonth}
+            treeData={treeData}
             onClose={() => setShowVarietyGuide(false)}
+            onOpenTree={(id) => { setShowVarietyGuide(false); window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
           />
         )}
 

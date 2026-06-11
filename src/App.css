@@ -549,6 +549,17 @@
   50%      { box-shadow: 0 4px 18px rgba(220, 38, 38, 0.5); }
 }
 
+/* 📋 지난달 미션 미완료 푸쉬 — 미달일 배너와 같은 모양, 색만 호박색(잔잔한 리마인더) */
+.mission-gap-banner {
+  background: rgba(254, 243, 199, 0.96);
+  border-color: #f59e0b;
+  color: #78350f;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.22);
+  animation: none;                       /* 빨간 경보만 펄스, 이건 차분하게 */
+}
+.mission-gap-banner:hover { background: #fef3c7; }
+.mission-gap-banner b { color: #92400e; }
+
 .brand-mark {
   font-family: 'Russo One', 'Pretendard Variable', sans-serif;
   font-size: 1.65rem;

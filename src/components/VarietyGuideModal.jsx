@@ -8,11 +8,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
+import { useLabels } from '../LabelContext';
 import { todayKST } from '../lib/treatment-cycles';
 import {
-  MONTH_STAGES, STAGE_COLORS, stageOfMonth, colorOfStage,
-  indexGuides, cellPreview, mdLabel,
+  MONTH_STAGES, stageOfMonth, colorOfStage,
+  cellPreview, mdLabel,
 } from '../lib/variety-guide';
+import { aggregateVarietyPhotos, aggregateFarmMonthly, weekOfMonth, weekStartKo, yearOfDate, availableYears } from '../lib/variety-records';
+import { resizedImageUrl } from '../utils/supabaseImage';
 import VarietyGuideEditPanel from './VarietyGuideEditPanel';
 import PinchZoomPane from './PinchZoomPane';
 
@@ -27,6 +30,11 @@ const CSS = `
 .pvg-tabs{display:flex; gap:6px; padding:10px 16px 0;}
 .pvg-tab{flex:1; font:inherit; font-weight:700; font-size:13px; padding:9px; border-radius:10px; border:1px solid var(--line); background:#fff; color:#8a8472; cursor:pointer;}
 .pvg-tab.on{background:#2f6b3c; color:#fff; border-color:#2f6b3c;}
+/* 연간 검색 — 연도 골라보기 */
+.pvg-years{display:flex; align-items:center; gap:6px; padding:10px 16px 0; flex-wrap:wrap;}
+.pvg-years .pvg-yrlb{font-size:11px; font-weight:800; color:#a08a6a; margin-right:2px;}
+.pvg-yr{font:inherit; font-weight:800; font-size:12px; padding:5px 13px; border-radius:999px; border:1px solid var(--line); background:#fff; color:#8a8472; cursor:pointer;}
+.pvg-yr.on{background:#2f6b3c; color:#fff; border-color:#2f6b3c;}
 .pvg-hint{font-size:11px; color:#a39a88; margin:8px 16px 0;}
 .pvg-load{padding:50px 16px; text-align:center; color:#a39a88; font-size:13px;}
 /* 연간 생육밴드 */
@@ -43,10 +51,17 @@ const CSS = `
 .pvg-seg .pvg-ph{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
 .pvg-seg.now{outline:2.5px solid var(--green); outline-offset:-1px;}
 .pvg-vbadge{position:absolute; right:2px; bottom:1px; font-size:8px; color:#fff; background:rgba(0,0,0,.55); border-radius:4px; padding:0 3px; line-height:1.5;}
+.pvg-farmrow .pvg-vl{color:#2f6b3c;}
+.pvg-farmrow{padding-bottom:8px; margin-bottom:8px; border-bottom:1px dashed #ddd3bf;}
+.pvg-diagdot{position:absolute; left:2px; top:2px; width:8px; height:8px; border-radius:50%; box-shadow:0 0 0 1px rgba(255,255,255,.85);}
 .pvg-legend{display:flex; flex-wrap:wrap; gap:6px 10px; padding:12px 16px 2px;}
 .pvg-lg{display:flex; align-items:center; gap:4px; font-size:10px; color:#6b6456; font-weight:600;}
 .pvg-lg i{width:11px; height:11px; border-radius:3px; display:inline-block;}
 .pvg-foot{text-align:center; font-size:11px; color:#b3ac9d; margin:18px 16px 0;}
+.pvg-namewarn{margin:10px 12px 0; background:#fff7e6; border:1px solid #f0e2b8; border-radius:12px; padding:10px 12px; font-size:11.5px; color:#8a6d2a; line-height:1.5;}
+.pvg-namewarn b{font-size:12px; color:#a06a2a;}
+.pvg-namewarn > div{margin-top:3px;}
+.pvg-namewarn .t{display:inline-block; min-width:46px; font-weight:800; color:#a06a2a;}
 /* 송이관리 표 */
 .pvg-cwrap{overflow-x:auto; padding:8px 12px 2px; -webkit-overflow-scrolling:touch;}
 table.pvg-ct{border-collapse:separate; border-spacing:0; font-size:11px; width:max-content; min-width:100%;}
@@ -85,6 +100,30 @@ table.pvg-ct tbody tr:active .vcol{background:#f3eede;}
 .pvg-shotcap{font-size:11px; font-weight:800; color:#8a6d2a; margin-bottom:5px; letter-spacing:.2px;}
 .pvg-shot .pvg-gal{padding:0;}
 .pvg-empty{padding:30px 16px; text-align:center; color:#a39a88; font-size:13px;}
+/* 상세 시트 — 기록 카드(나무사진/직접사진) */
+.pvg-rec{background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:0 16px 9px;}
+.pvg-rechd{display:flex; align-items:center; gap:6px; margin-bottom:7px; flex-wrap:wrap;}
+.pvg-tree{font-size:12px; font-weight:800; color:#2f6b3c; background:#eaf3ea; border-radius:7px; padding:2px 7px; display:inline-flex; align-items:center; gap:4px;}
+.pvg-treeic{font-style:normal; font-size:9px; font-weight:800; color:#fff; background:#2f6b3c; border-radius:4px; padding:1px 4px; letter-spacing:.5px;}
+.pvg-date{font-size:11px; font-weight:700; color:#a08a6a;}
+.pvg-count{font-size:10.5px; font-weight:800; color:#7a6f57; background:#efe8da; border-radius:7px; padding:1px 7px;}
+.pvg-weekhd{display:flex; align-items:center; gap:7px; margin:14px 16px 8px; padding:6px 11px; background:#eaf3ea; border-left:4px solid #2f6b3c; border-radius:8px;}
+.pvg-weekhd b{font-size:13px; font-weight:800; color:#2f6b3c;}
+.pvg-weekhd span{font-size:10.5px; font-weight:700; color:#7a9a7e;}
+.pvg-weekhd .pvg-weekdt{color:#3a6b45; background:#dcebdd; border-radius:6px; padding:1px 7px;}
+/* 기록 카드 — 가로 2장씩 (세로 스크롤 줄임) */
+.pvg-recgrid{display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 16px;}
+.pvg-recgrid .pvg-rec{margin:0;}
+.pvg-recgrid .pvg-rec .pvg-gal img{width:100%; height:116px;}
+.pvg-treebtn{font-family:inherit; border:none; cursor:pointer;}
+.pvg-treebtn:active{filter:brightness(.92);}
+.pvg-who{font-size:10px; font-weight:700; color:#8a7a5a; background:#f3eede; border-radius:6px; padding:1px 6px;}
+.pvg-worklb{font-size:10px; font-weight:800; color:#8a6d2a; align-self:center; margin-right:2px;}
+.pvg-diag{font-size:10.5px; font-weight:800; color:#fff; border-radius:7px; padding:1px 8px; margin-left:auto;}
+.pvg-works{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:7px;}
+.pvg-work{font-size:10.5px; font-weight:700; color:#6b5a36; background:#f3ead2; border:1px solid #e7dcbf; border-radius:7px; padding:1px 7px;}
+.pvg-rec .pvg-gal{padding:0;}
+.pvg-rec .pvg-cmt{font-size:11.5px; color:#6b6456; line-height:1.4; margin-top:6px; white-space:pre-line;}
 .pvg-manage{display:block; width:calc(100% - 32px); margin:4px 16px 8px; padding:12px; border:1.5px dashed #e3cf94; background:#fff7e6; color:#8a6d2a; font-weight:800; font-size:13px; border-radius:12px; cursor:pointer;}
 .pvg-toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#2f6b3c; color:#fff; padding:10px 18px; border-radius:24px; font-size:13px; font-weight:700; z-index:10002; box-shadow:0 6px 20px #2f6b3c55;}
 .pvg-gal img{cursor:zoom-in;}
@@ -106,8 +145,11 @@ function clusterMarkLabel(v) {
   return v === 'O' ? '○ 함' : v === 'X' ? '✗ 안 함' : '— 해당없음';
 }
 
-export default function VarietyGuideModal({ user, initialMonth, onClose }) {
+export default function VarietyGuideModal({ user, initialMonth, treeData = {}, onClose, onOpenTree }) {
   const curMonth = initialMonth || parseInt(todayKST().split('-')[1], 10);
+  const curYear = parseInt(todayKST().split('-')[0], 10);   // 2026
+  const [year, setYear] = useState(curYear);                // 연간 검색: 보고 있는 연도 (기본=올해)
+  const { labels } = useLabels();
 
   const [varieties, setVarieties] = useState([]);
   const [guides, setGuides] = useState([]);
@@ -137,8 +179,74 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   useEffect(() => { setLoading(true); load(); }, [load]);
   useEffect(() => { resetZoom(); }, [lightbox]);  // 새 사진 열 때마다 확대 초기화
 
-  const idx = useMemo(() => indexGuides(guides), [guides]);
-  const byId = useMemo(() => Object.fromEntries(varieties.map((v) => [v.id, v])), [varieties]);
+  // ── 진짜 데이터원: 나무(trees) 사진을 품종명으로 집계 (minari: 모든 건 나무 안에서 매칭) ──
+  //   year 로 그 해 기록만 — 2027년에 2026년 사진을 골라보기 위함. (minari 요청)
+  const treeAgg = useMemo(() => aggregateVarietyPhotos(treeData, labels, year), [treeData, labels, year]);
+  const farm = useMemo(() => aggregateFarmMonthly(treeData, labels, year), [treeData, labels, year]);
+  // 선택할 수 있는 연도 — 나무에 있는 연도들 + 올해(데이터 없어도 항상 고를 수 있게). 최신 먼저.
+  const years = useMemo(() => {
+    const ys = availableYears(treeData);
+    if (!ys.includes(curYear)) ys.unshift(curYear);
+    return ys;
+  }, [treeData, curYear]);
+  // 품종 설정/가이드(varieties·variety_guides)는 "이름"으로 나무에 붙는다
+  const cfgByName = useMemo(() => Object.fromEntries(varieties.map((v) => [v.name, v])), [varieties]);
+  const nameOfVid = useMemo(() => Object.fromEntries(varieties.map((v) => [v.id, v.name])), [varieties]);
+  // variety_guides → { [품종명]: { [월]: entries[] } } (직접 올린 사진 + 글 가이드)
+  const guidesByName = useMemo(() => {
+    const out = {};
+    for (const g of guides || []) {
+      const nm = nameOfVid[g.variety_id];
+      if (!nm) continue;
+      (out[nm] ??= {});
+      (out[nm][g.month] ??= []).push(g);
+    }
+    for (const months of Object.values(out))
+      for (const m of Object.keys(months))
+        months[m].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    return out;
+  }, [guides, nameOfVid]);
+  // 표시할 품종 목록: 설정 순서(sort_order) 먼저 + 나무에만 있는 품종을 뒤에 붙임
+  const displayNames = useMemo(() => {
+    const ordered = varieties.map((v) => v.name);
+    const extra = treeAgg.names.filter((n) => !ordered.includes(n)).sort((a, b) => a.localeCompare(b, 'ko'));
+    return [...ordered, ...extra];
+  }, [varieties, treeAgg]);
+
+  // 맵 라벨(=진실)에 실제로 존재하는 품종 이름들. (사진 유무와 무관 — 매칭 점검용)
+  const treeLabelNames = useMemo(() => {
+    const set = new Set();
+    for (const [k, v] of Object.entries(labels || {})) {
+      if (!k.startsWith('Tree-')) continue;
+      const nm = (v?.name || '').trim();
+      if (nm) set.add(nm);
+    }
+    return set;
+  }, [labels]);
+  // 이름 점검 — 설정에만 있고 나무 라벨엔 없는 이름(=사진이 안 붙는 매칭 실수)만 경고.
+  //   '나무에만' 쪽은 이미 밴드에 '나무' 줄로 자동으로 뜨므로 카드로 또 보여주지 않음 (minari 요청).
+  const nameWarn = useMemo(() => {
+    const cfg = new Set(varieties.map((v) => v.name));
+    return {
+      configOnly: [...cfg].filter((n) => !treeLabelNames.has(n)),   // 설정엔 있는데 맵엔 없음 → 매칭 실수
+    };
+  }, [varieties, treeLabelNames]);
+
+  // 한 칸(품종·월)의 사진 엔트리 — 나무사진 + 직접올린 사진. 최신 먼저.
+  const entryTime = (e) => new Date(e.kind === 'tree' ? e.date : (e.created_at || 0)).getTime();
+  function cellEntries(name, month) {
+    const tree = treeAgg.byName[name]?.[month] || [];   // 나무사진은 이미 year 로 걸러짐
+    const manual = (guidesByName[name]?.[month] || []).filter(
+      (e) => ((e.image_urls?.length) || e.video_url) && yearOfDate(e.created_at) === year,  // 직접올린 사진도 그 해만
+    );
+    return [...tree, ...manual].sort((a, b) => entryTime(b) - entryTime(a));
+  }
+  // 한 칸의 글-가이드 행 (그 달 하나)
+  function guideTextOf(name, month) {
+    const rows = guidesByName[name]?.[month] || [];
+    return rows.find((e) => !(e.image_urls?.length) && !e.video_url) || null;
+  }
+  const vidOf = (name) => cfgByName[name]?.id || null;
 
   // 표를 2.5배 이상 당기면 보이는 칸만 원본으로 교체 → 확대 시 선명. (같은 값이면 리렌더 안 함)
   const handleScale = useCallback((s) => {
@@ -217,13 +325,13 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   function closeLightbox() {
     const lb = lightbox;
     setLightbox(null);
-    if (lb?.vid) setSheet({ type: 'cell', vid: lb.vid, m: lb.m });
+    if (lb?.name) setSheet({ type: 'cell', name: lb.name, m: lb.m });
   }
 
   const nextVarietySort = varieties.reduce((mx, x) => Math.max(mx, x.sort_order || 0), 0) + 1;
-  // 칸 편집 패널엔 사진·영상 행만 (글-전용 가이드 행은 제외)
+  // 칸 편집 패널엔 "직접 올린" 사진·영상 행만 (나무사진·글가이드 제외 — 나무사진은 나무에서 관리)
   const editCellEntries = editTarget?.mode === 'cell'
-    ? (idx[editTarget.vid]?.[editTarget.m] || []).filter((e) => (e.image_urls?.length) || e.video_url)
+    ? (guidesByName[editTarget.vname]?.[editTarget.m] || []).filter((e) => (e.image_urls?.length) || e.video_url)
     : [];
   const nextGuideSort = editCellEntries.length
     ? Math.max(...editCellEntries.map((e) => e.sort_order || 0)) + 1 : 0;
@@ -232,44 +340,91 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   function renderBand() {
     return (
       <div>
+        {/* 연간 검색 — 연도 골라보기 (예: 2027년에 2026년 사진 열람). 기본은 올해. */}
+        <div className="pvg-years">
+          <span className="pvg-yrlb">연도</span>
+          {years.map((y) => (
+            <button key={y} type="button" className={'pvg-yr' + (y === year ? ' on' : '')} onClick={() => setYear(y)}>
+              {y}년
+            </button>
+          ))}
+        </div>
+        {/* 이름 점검 — 설정에만 있고 나무엔 없는 이름이면 사진이 안 붙는다(매칭 실수). 그것만 경고. */}
+        {nameWarn.configOnly.length > 0 && (
+          <div className="pvg-namewarn">
+            <b>이름 점검</b> — 설정에만 있고 나무 라벨엔 없는 이름이에요. 같은 품종이면 이름을 똑같이 맞춰주세요.
+            <div><span className="t">설정에만</span> {nameWarn.configOnly.join(', ')}</div>
+          </div>
+        )}
         {/* 포도맵처럼 — 두 손가락 핀치줌 · 끌어서 이동 (앱 전역 user-scalable=no 우회) */}
         <PinchZoomPane height="58vh" maxScale={6} onScale={handleScale}>
           <div className="pvg-band">
             <div className="pvg-mhead">
               {MONTH_STAGES.map((s) => (
                 <div key={s.m} className={'pvg-mh' + (s.m === curMonth ? ' now' : '')}>
-                  {s.ab}<b>{s.m}</b>
+                  {s.ab}<b>{s.m}월</b>
                 </div>
               ))}
             </div>
-            {varieties.map((v) => (
-              <div className="pvg-brow" key={v.id}>
-                <div className="pvg-vl">{v.name}{v.subtype && <small>{v.subtype}</small>}</div>
-                <div className="pvg-track">
-                  {MONTH_STAGES.map((s) => {
-                    const entries = idx[v.id]?.[s.m] || [];
-                    const pv = cellPreview(entries);
-                    const color = colorOfStage(s.sc);
-                    // 사진 있는 칸 → 탭하면 곧장 크게(맵처럼). 없으면 상세 시트.
-                    const fullImg = entries.find((e) => e.image_urls?.length)?.image_urls?.[0] || null;
-                    return (
-                      <button
-                        key={s.m}
-                        className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
-                        style={{ background: pv.thumb ? '#fff' : color, borderColor: color }}
-                        onClick={() => fullImg
-                          ? setLightbox({ url: fullImg, vid: v.id, m: s.m })
-                          : setSheet({ type: 'cell', vid: v.id, m: s.m })}
-                        aria-label={`${v.name} ${s.m}월 ${s.stage}`}
-                      >
-                        {pv.thumb && <img className="pvg-ph" src={(zoomHi && fullImg) ? fullImg : pv.thumb} alt="" loading="lazy" decoding="async" />}
-                        {pv.hasVideo && <span className="pvg-vbadge">▶</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+
+            {/* 1단 · 우리 농장 한 해 — 월별 대표 사진 + 그 달 진단 */}
+            <div className="pvg-brow pvg-farmrow">
+              <div className="pvg-vl">우리<br />농장<small>전체</small></div>
+              <div className="pvg-track">
+                {MONTH_STAGES.map((s) => {
+                  const f = farm[s.m] || {};
+                  const pv = cellPreview(f.entries || []);
+                  const bandColor = f.band?.color || colorOfStage(s.sc);
+                  return (
+                    <button
+                      key={s.m}
+                      className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
+                      style={{ background: pv.thumb ? '#fff' : colorOfStage(s.sc), borderColor: bandColor }}
+                      onClick={() => setSheet({ type: 'farm', m: s.m })}
+                      aria-label={`농장 전체 ${s.m}월`}
+                    >
+                      {pv.thumb && <img className="pvg-ph" src={pv.thumb} alt="" loading="lazy" decoding="async" />}
+                      {f.count > 0 && <span className="pvg-vbadge">{f.count}</span>}
+                      {f.band && <span className="pvg-diagdot" style={{ background: bandColor }} />}
+                    </button>
+                  );
+                })}
               </div>
-            ))}
+            </div>
+
+            {/* 2단 · 품종 한 해 — 이름(=나무 라벨)으로 묶인 줄 */}
+            {displayNames.map((name) => {
+              const cfg = cfgByName[name];
+              const onTree = treeAgg.names.includes(name);
+              return (
+                <div className="pvg-brow" key={name}>
+                  <div className="pvg-vl">{name}{cfg?.subtype && <small>{cfg.subtype}</small>}{!cfg && onTree && <small>나무</small>}</div>
+                  <div className="pvg-track">
+                    {MONTH_STAGES.map((s) => {
+                      const entries = cellEntries(name, s.m);
+                      const pv = cellPreview(entries);
+                      const color = colorOfStage(s.sc);
+                      const fullImg = entries.find((e) => e.image_urls?.length)?.image_urls?.[0] || null;
+                      const cnt = entries.reduce((n, e) => n + (e.image_urls?.length || 0), 0);
+                      return (
+                        <button
+                          key={s.m}
+                          className={'pvg-seg' + (s.m === curMonth ? ' now' : '')}
+                          style={{ background: pv.thumb ? '#fff' : color, borderColor: color }}
+                          onClick={() => setSheet({ type: 'cell', name, m: s.m })}
+                          aria-label={`${name} ${s.m}월 ${s.stage} 사진 ${cnt}장`}
+                        >
+                          {pv.thumb && <img className="pvg-ph" src={(zoomHi && fullImg) ? resizedImageUrl(fullImg, { width: 400 }) : pv.thumb} alt="" loading="lazy" decoding="async" />}
+                          {(cnt > 0 || pv.hasVideo) && (
+                            <span className="pvg-vbadge">{pv.hasVideo ? '▶ ' : ''}{cnt > 0 ? cnt : ''}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </PinchZoomPane>
         <div className="pvg-legend">
@@ -277,7 +432,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
             <span className="pvg-lg" key={s.sc}><i style={{ background: colorOfStage(s.sc) }} />{s.stage}</span>
           ))}
         </div>
-        <div className="pvg-foot">두 손가락으로 넓게 보고 · 칸을 누르면 그 시기 사진·영상·가이드. 빈 칸은 아직 안 채운 시기.</div>
+        <div className="pvg-foot">사진은 나무 기록에서 자동으로 모임(2-3 · 6/10). 칸을 누르면 그 시기 사진·한일·진단·가이드.</div>
       </div>
     );
   }
@@ -307,7 +462,7 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
               {varieties.map((v) => {
                 const c = v.cluster_spec || {};
                 return (
-                  <tr key={v.id} onClick={() => setSheet({ type: 'cluster', vid: v.id })}>
+                  <tr key={v.id} onClick={() => setSheet({ type: 'cluster', name: v.name })}>
                     <td className="vcol">{v.name}</td>
                     <td className="pvg-memocell">
                       {c.b7 ? <div className="pvg-memoclip">{String(c.b7).replace(/\n/g, ' ')}</div> : <span className="pvg-dot dash">–</span>}
@@ -333,25 +488,109 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
   }
 
   // ── 상세 시트 ──
+  // 사진 기록 카드 (나무사진 / 직접사진 공통) — 나무번호·날짜·한일·진단 도장
+  function renderRec(e, showVariety) {
+    const treeName = e.kind === 'tree' && showVariety ? (labels?.[`Tree-${e.treeId}`]?.name || '') : '';
+    const md = e.kind === 'tree' ? e.md : mdLabel(e.created_at);   // "6/10"
+    const [mm, dd] = (md || '').split('/');
+    const koDate = mm && dd ? `${mm}월 ${dd}일` : md;              // 날짜는 "6월 10일" — 나무번호와 헷갈리지 않게
+    const photoN = e.image_urls?.length || 0;
+    return (
+      <div className="pvg-rec" key={e.id}>
+        <div className="pvg-rechd">
+          {e.kind === 'tree'
+            ? <button type="button" className="pvg-tree pvg-treebtn" onClick={() => onOpenTree?.(e.treeId)} title="이 나무 열기">
+                <i className="pvg-treeic">나무</i>{e.treeId}{treeName ? ' · ' + treeName : ''}
+              </button>
+            : <span className="pvg-tree" style={{ background: '#efe8da', color: '#8a6d2a' }}>직접 올림</span>}
+          <span className="pvg-date">{koDate}{e.kind !== 'tree' && e.title ? ' · ' + e.title : ''}</span>
+          {photoN > 0 && <span className="pvg-count">사진 {photoN}장</span>}
+          {e.producer && <span className="pvg-who">{e.producer}</span>}
+          {e.diag && (
+            <span className="pvg-diag" style={{ background: e.diag.band.color }}>
+              {e.diag.band.label}{e.diag.reasons?.length ? ' · ' + e.diag.reasons.join('·') : ''}
+            </span>
+          )}
+        </div>
+        {e.work?.length > 0 && (
+          <div className="pvg-works"><span className="pvg-worklb">실행작업</span>{e.work.map((w, i) => <span className="pvg-work" key={i}>{w}</span>)}</div>
+        )}
+        {e.video_url && (
+          <video src={e.video_url} controls playsInline style={{ width: '100%', borderRadius: 10, background: '#000', display: 'block', marginBottom: e.image_urls?.length ? 6 : 0 }} />
+        )}
+        {(e.image_urls?.length > 0) && (
+          <div className="pvg-gal">
+            {e.image_urls.map((u, i) => (
+              // 기존 썸네일은 80px라 카드(≈190px)에서 흐릿 → 중간크기(500px) 리사이즈로 또렷+가볍게.
+              // (확대 라이트박스만 원본 u · loading=lazy 라 보이는 사진만 받음)
+              <img key={i} src={resizedImageUrl(u, { width: 500 })} alt="" loading="lazy" decoding="async" onClick={() => setLightbox({ url: u })} />
+            ))}
+          </div>
+        )}
+        {e.kind === 'tree' && e.comments && <div className="pvg-cmt">{e.comments}</div>}
+      </div>
+    );
+  }
+
+  // 기록들을 그 달의 주차(1~4)로 묶어서 — 첫째주~넷째주 헤더로 나눠 보여준다 (minari 요청)
+  function renderRecs(recs, showVariety) {
+    const byWeek = {};
+    for (const e of recs) {
+      const w = weekOfMonth(e.kind === 'tree' ? e.date : e.created_at);
+      (byWeek[w] ??= []).push(e);
+    }
+    const WEEK_KO = { 1: '첫째주', 2: '둘째주', 3: '셋째주', 4: '넷째주' };
+    return Object.keys(byWeek).map(Number).sort((a, b) => a - b).map((w) => {
+      const start = weekStartKo(byWeek[w]);  // 그 주 첫 기록 날짜 ("26년 4월 6일")
+      const shots = byWeek[w].reduce((n, e) => n + (e.image_urls?.length || 0), 0);
+      return (
+        <div key={w}>
+          <div className="pvg-weekhd">
+            <b>{WEEK_KO[w] || `${w}주차`}</b>
+            {start && <span className="pvg-weekdt">{start}~</span>}
+            <span>· 사진 {shots}장</span>
+          </div>
+          <div className="pvg-recgrid">
+            {byWeek[w].map((e) => renderRec(e, showVariety))}
+          </div>
+        </div>
+      );
+    });
+  }
+
   function renderSheet() {
     if (!sheet) return null;
-    const v = byId[sheet.vid];
-    if (!v) return null;
 
     let inner;
-    if (sheet.type === 'cell') {
+    if (sheet.type === 'farm') {
       const s = stageOfMonth(sheet.m);
-      const entries = idx[v.id]?.[sheet.m] || [];
-      // 글-전용 가이드 행(그 달에 하나) vs 사진·영상 행(쌓임, 날짜별)
-      const guideRow = entries.find((e) => !(e.image_urls?.length) && !e.video_url) || null;
-      const photoRows = entries
-        .filter((e) => (e.image_urls?.length) || e.video_url)
-        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const f = farm[sheet.m] || {};
+      const recs = f.entries || [];
       inner = (
         <>
           <div className="pvg-shead">
             <div>
-              <div className="t">{v.name} · {sheet.m}월</div>
+              <div className="t">우리 농장 · {sheet.m}월</div>
+              <div className="s">{s?.stage || ''}{f.band ? ' · 진단 ' + f.band.label : ''}</div>
+            </div>
+            <button className="x" onClick={() => setSheet(null)}>✕</button>
+          </div>
+          {recs.length === 0
+            ? <div className="pvg-empty">이 달 나무 사진이 아직 없어요.</div>
+            : renderRecs(recs, true)}
+        </>
+      );
+    } else if (sheet.type === 'cell') {
+      const name = sheet.name;
+      const vid = vidOf(name);
+      const s = stageOfMonth(sheet.m);
+      const guideRow = guideTextOf(name, sheet.m);
+      const recs = cellEntries(name, sheet.m);
+      inner = (
+        <>
+          <div className="pvg-shead">
+            <div>
+              <div className="t">{name} · {sheet.m}월</div>
               <div className="s">{s?.stage || ''}</div>
             </div>
             <button className="x" onClick={() => setSheet(null)}>✕</button>
@@ -366,63 +605,62 @@ export default function VarietyGuideModal({ user, initialMonth, onClose }) {
             </div>
           )}
 
-          {photoRows.length === 0 && !guideRow?.detail ? (
-            <div className="pvg-empty">아직 이 시기 사진·가이드가 없어요.</div>
+          {recs.length === 0 && !guideRow?.detail ? (
+            <div className="pvg-empty">아직 이 시기 사진·가이드가 없어요.{'\n'}나무에 사진을 넣으면 여기 자동으로 모여요.</div>
           ) : (
-            photoRows.map((e) => (
-              <div className="pvg-shot" key={e.id}>
-                <div className="pvg-shotcap">{mdLabel(e.created_at)}{e.title ? ' · ' + e.title : ''}</div>
-                {e.video_url && (
-                  <video src={e.video_url} controls playsInline style={{ width: '100%', borderRadius: 12, background: '#000', display: 'block' }} />
-                )}
-                {(e.image_urls?.length > 0) && (
-                  <div className="pvg-gal">
-                    {e.image_urls.map((u, i) => (
-                      // 목록은 가벼운 썸네일, 확대(라이트박스)만 원본 — 로딩 속도 ↑
-                      <img key={i} src={e.thumbnails?.[i] || u} alt="" loading="lazy" decoding="async" onClick={() => setLightbox({ url: u })} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))
+            renderRecs(recs, false)
           )}
 
-          <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'cell', vid: v.id, m: sheet.m, vname: v.name })}>
-            ＋ 사진·영상 추가
-          </button>
-          <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'guide', vid: v.id, m: sheet.m, vname: v.name, guideRow })}>
-            이 시기 가이드 {guideRow?.detail ? '고치기' : '쓰기'}
-          </button>
+          {vid ? (
+            <>
+              <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'cell', vid, m: sheet.m, vname: name })}>
+                ＋ 직접 사진·영상 추가 (나무번호 없이 · 날짜만)
+              </button>
+              <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'guide', vid, m: sheet.m, vname: name, guideRow })}>
+                이 시기 가이드 {guideRow?.detail ? '고치기' : '쓰기'}
+              </button>
+            </>
+          ) : (
+            <div className="pvg-foot">사진은 나무 기록에서 자동으로 모여요. 송이관리·가이드 설정을 만들려면 '송이관리' 탭 → ＋ 품종 추가.</div>
+          )}
         </>
       );
-    } else {
-      const c = v.cluster_spec || {};
+    } else { // cluster
+      const name = sheet.name;
+      const v = cfgByName[name];
+      const c = v?.cluster_spec || {};
       inner = (
         <>
           <div className="pvg-shead">
             <div>
-              <div className="t">{v.name}</div>
+              <div className="t">{name}</div>
               <div className="s">송이관리 가이드 · 2024 기준</div>
             </div>
             <button className="x" onClick={() => setSheet(null)}>✕</button>
           </div>
-          <div className="pvg-kcards">
-            <div className="pvg-kcard" style={{ '--cl': '#2f6b3c' }}>
-              <div className="kl">개화 7일 전</div>
-              <div className="kt">{c.b7 || '— 따로 없음'}</div>
-            </div>
-            <div className="pvg-kcard" style={{ '--cl': '#b5763a' }}>
-              <div className="kl">개화 2~3일 전</div>
-              <div className="kt">{`어깨송이제거 · ${clusterMarkLabel(c.s)}\n윗지경제거 · ${clusterMarkLabel(c.u)}\n송이끝단제거 · ${clusterMarkLabel(c.t)}\n잎수 · 1송이 ${c.lf1 || '–'} / 2송이 ${c.lf2 || '–'}`}</div>
-            </div>
-            <div className="pvg-kcard" style={{ '--cl': '#6b4a8a' }}>
-              <div className="kl">착과 후</div>
-              <div className="kt">{`크기조절 · ${c.sz && c.sz !== '-' ? c.sz : '— 해당없음'}\n어깨송이제거 · ${clusterMarkLabel(c.sa)}\n송이끝단제거 · ${clusterMarkLabel(c.ta)}`}</div>
-            </div>
-          </div>
-          <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'variety', v })}>
-            이 품종 수정 · 송이관리 값 고치기
-          </button>
+          {v ? (
+            <>
+              <div className="pvg-kcards">
+                <div className="pvg-kcard" style={{ '--cl': '#2f6b3c' }}>
+                  <div className="kl">개화 7일 전</div>
+                  <div className="kt">{c.b7 || '— 따로 없음'}</div>
+                </div>
+                <div className="pvg-kcard" style={{ '--cl': '#b5763a' }}>
+                  <div className="kl">개화 2~3일 전</div>
+                  <div className="kt">{`어깨송이제거 · ${clusterMarkLabel(c.s)}\n윗지경제거 · ${clusterMarkLabel(c.u)}\n송이끝단제거 · ${clusterMarkLabel(c.t)}\n잎수 · 1송이 ${c.lf1 || '–'} / 2송이 ${c.lf2 || '–'}`}</div>
+                </div>
+                <div className="pvg-kcard" style={{ '--cl': '#6b4a8a' }}>
+                  <div className="kl">착과 후</div>
+                  <div className="kt">{`크기조절 · ${c.sz && c.sz !== '-' ? c.sz : '— 해당없음'}\n어깨송이제거 · ${clusterMarkLabel(c.sa)}\n송이끝단제거 · ${clusterMarkLabel(c.ta)}`}</div>
+                </div>
+              </div>
+              <button className="pvg-manage" onClick={() => requireAdmin({ mode: 'variety', v })}>
+                이 품종 수정 · 송이관리 값 고치기
+              </button>
+            </>
+          ) : (
+            <div className="pvg-empty">이 품종은 송이관리 설정이 없어요.{'\n'}'＋ 품종 추가'로 만들 수 있어요.</div>
+          )}
         </>
       );
     }

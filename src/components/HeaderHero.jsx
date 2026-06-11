@@ -17,6 +17,8 @@ export default function HeaderHero({
   kindDots = 0,
   fakeDots = 0,
   missedCount = 0,
+  missionGap = null,                 // 지난달 미션 미완료 { month, pct } | null — 푸쉬 배너
+  onOpenMission,                     // 배너 탭 → 지난달 미션 모달 열기
   streak = 0,                      // 🔥 연속 출근 일수
   duckMessage = '오늘도 화이팅!',     // 🦆 오리 말풍선 — 항상 표시되는 오늘의 전달사항
   onSubmitDuckMessage,                // (text) => Promise<bool> — 새 메시지 저장
@@ -153,6 +155,18 @@ export default function HeaderHero({
         >
           <span className="iwb-icon">⚠️</span>
           <span className="iwb-text">미달일 사유 미제출 <b>{missedCount}건</b> · 입력 →</span>
+        </button>
+      )}
+
+      {/* 📋 지난달 미션 미완료 푸쉬 배너 — 지난달 미션 다 채우면 사라짐 (탭하면 그 달 모달) */}
+      {missionGap && missionGap.pct < 100 && (
+        <button
+          className="incomplete-warn-banner mission-gap-banner"
+          onClick={onOpenMission}
+          aria-label={`${missionGap.month}월 포도 미션 ${missionGap.pct}% · 마저 입력`}
+        >
+          <span className="iwb-icon">📋</span>
+          <span className="iwb-text">{missionGap.month}월 포도 미션 미완료 <b>{missionGap.pct}%</b> · 마저 하기 →</span>
         </button>
       )}
 
