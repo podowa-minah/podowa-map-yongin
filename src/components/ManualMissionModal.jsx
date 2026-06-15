@@ -75,9 +75,12 @@ const CSS = `
 .pmm-wrap .item.open .detail{display:block;}
 .pmm-wrap .item .meta{font-size:11px; color:#a39a88; margin-top:3px;}
 .pmm-wrap .stamps{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center;}
-.pmm-wrap .stamp{display:inline-flex; flex-direction:column; align-items:center; line-height:1.12; border:1px solid; border-radius:9px; padding:3px 8px; font-size:9.5px;}
+.pmm-wrap .stamp{position:relative; display:inline-flex; flex-direction:column; align-items:center; line-height:1.12; border:1px solid; border-radius:9px; padding:3px 8px; font-size:9.5px; cursor:pointer; font-family:inherit;}
 .pmm-wrap .stamp b{font-size:12px; font-weight:800; letter-spacing:-.3px;}
 .pmm-wrap .stamp.new{animation:pmm-pop .45s cubic-bezier(.18,.9,.3,1.35);}
+.pmm-wrap .stamp .stamp-x{position:absolute; top:-6px; right:-5px; width:15px; height:15px; border-radius:50%; background:#fff; border:1px solid #e3b7b0; color:#c0392b; font-size:9px; font-weight:800; line-height:1; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(0,0,0,.14); opacity:0; transition:opacity .12s;}
+.pmm-wrap .stamp:hover .stamp-x, .pmm-wrap .stamp:focus .stamp-x, .pmm-wrap .stamp:active .stamp-x{opacity:1;}
+@media (hover:none){.pmm-wrap .stamp .stamp-x{opacity:1;}}
 .pmm-wrap .stamps .cnt{font-size:11px; color:#9bb5a1; font-weight:700; margin-left:1px;}
 @keyframes pmm-pop{0%{transform:scale(.2) translateY(6px); opacity:0;} 60%{transform:scale(1.15) translateY(0);} 100%{transform:scale(1); opacity:1;}}
 .pmm-wrap .btn{flex:0 0 auto; border:none; border-radius:10px; cursor:pointer; font:inherit; font-weight:800; font-size:12px; padding:9px 12px; background:#2f6b3c; color:#fff; white-space:nowrap;}
@@ -236,6 +239,28 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
       return;
     }
     setCompletions((prev) => prev.map((c) => (c === optimistic ? data : c)));
+    onSaved?.();
+  }
+
+  // 도장 1개 취소(삭제) — 잘못 찍은 완료기록을 manual_completions에서 지운다.
+  //   왜: 지난달 미션을 배너 끄려고 임의로 찍으면 그 날짜 영농일지에 남아 나중에 헷갈림.
+  //   되돌릴 수 없으니 confirm 한 번. 저장 중(tmp-) 도장은 잠시 후 가능.
+  async function removeCompletion(compId, dLabel, byName) {
+    if (!compId || String(compId).startsWith('tmp-')) {
+      showToast('저장 중인 도장은 잠시 후 취소할 수 있어요');
+      return;
+    }
+    const ok = window.confirm(`${dLabel} ${shortName(byName)} 도장을 취소(삭제)할까요?\n되돌릴 수 없어요.`);
+    if (!ok) return;
+    const snapshot = completions;
+    setCompletions((cur) => cur.filter((c) => c.id !== compId));   // 낙관적 제거
+    const { error } = await supabase.from('manual_completions').delete().eq('id', compId);
+    if (error) {
+      setCompletions(snapshot);   // 실패 시 롤백
+      showToast('취소 실패 — 다시 시도해주세요');
+      return;
+    }
+    showToast('도장 취소됨');
     onSaved?.();
   }
 
@@ -398,9 +423,17 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
                           const p = personColor(l.by);
                           const isNew = justAddedId === it.id && k === il.length - 1;
                           return (
-                            <span key={k} className={'stamp' + (isNew ? ' new' : '')} style={{ background: p.bg, borderColor: p.bd, color: p.tx }}>
+                            <button
+                              key={k}
+                              type="button"
+                              className={'stamp' + (isNew ? ' new' : '')}
+                              style={{ background: p.bg, borderColor: p.bd, color: p.tx }}
+                              onClick={() => removeCompletion(l.id, l.d, l.by)}
+                              title="눌러서 이 도장 취소(삭제)"
+                            >
                               <b style={{ color: p.tx }}>{l.d}</b>{shortName(l.by)}
-                            </span>
+                              <span className="stamp-x" aria-hidden>✕</span>
+                            </button>
                           );
                         })}
                         <span className="cnt">총 {il.length}회</span>

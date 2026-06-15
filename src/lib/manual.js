@@ -53,7 +53,7 @@ export function logsByItem(completions = []) {
   const map = {};
   for (const c of completions) {
     if (!map[c.item_id]) map[c.item_id] = [];
-    map[c.item_id].push({ by: c.author, d: shortDate(c.done_on), done_on: c.done_on });
+    map[c.item_id].push({ id: c.id, by: c.author, d: shortDate(c.done_on), done_on: c.done_on });
   }
   for (const k in map) {
     map[k].sort((a, b) => (a.done_on < b.done_on ? -1 : a.done_on > b.done_on ? 1 : 0));
