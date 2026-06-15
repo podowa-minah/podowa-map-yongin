@@ -1,6 +1,6 @@
 // @ts-nocheck
 // src/TreeModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useLabels } from './LabelContext';
@@ -10,7 +10,7 @@ import SaveCelebration from './components/SaveCelebration';
 import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
 import { playSuccess } from './utils/sounds';
-import { CLUSTER_MARK, THINNING_MARK, markLabelsOf } from './lib/cluster-thinning';
+import { CLUSTER_MARK, THINNING_MARK, markLabelsOf, treeMarkStatus } from './lib/cluster-thinning';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -585,6 +585,14 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   }
 
   const currentSeason = Number(treeData.season);
+
+  // 최종완료(송이크기정리/알솎이)는 "이 나무가 올해 끝냈나"로 본다 — 전체 기록(history) 기준.
+  //   한 번 체크하면 끝(완료) → 다른 날 입력창을 다시 열어도 체크 상태가 유지/잠금된다.
+  //   App.jsx 집계와 같은 연도 기준(올해). 해 바뀌면 자동 리셋.
+  const finalMarks = useMemo(
+    () => treeMarkStatus(history, new Date().getFullYear()),
+    [history],
+  );
 
   return (
     <div
@@ -1162,7 +1170,11 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
               const markKey = labelText === '송이크기정리' ? CLUSTER_MARK
                 : labelText === '알솎이' ? THINNING_MARK : null;
               const markColor = markKey === CLUSTER_MARK ? '#eab308' : '#2563eb';
-              const markOn = markKey ? !!treeData.season_data[currentSeason]?.[markKey] : false;
+              // 올해 이미 최종완료된 나무면(다른 날 기록 포함) 계속 체크 + 잠금.
+              const markDoneThisYear = markKey === CLUSTER_MARK ? finalMarks.cluster
+                : markKey === THINNING_MARK ? finalMarks.thinning : false;
+              const markOnCurrent = markKey ? !!treeData.season_data[currentSeason]?.[markKey] : false;
+              const markOn = markDoneThisYear || markOnCurrent;
               return (
                 <div key={optionKey} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', margin: '0.3rem 0' }}>
                   <label style={{ display: 'flex', alignItems: 'center', fontSize: '1rem', flex: '1 1 auto', margin: 0 }}>
@@ -1175,22 +1187,25 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     {labelText}
                   </label>
                   {markKey && (
-                    <label style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                      marginLeft: '0.5rem', padding: '0.2rem 0.6rem',
-                      borderRadius: '999px', cursor: 'pointer', whiteSpace: 'nowrap',
-                      fontSize: '0.85rem', fontWeight: 700,
-                      border: `1.5px solid ${markColor}`,
-                      backgroundColor: markOn ? markColor : '#fff',
-                      color: markOn ? '#fff' : markColor,
-                    }}>
+                    <label
+                      title={markDoneThisYear ? '올해 이미 최종완료된 나무예요 (한 번이면 끝)' : '다 끝낸 나무면 눌러요 — 한 번이면 끝'}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        marginLeft: '0.5rem', padding: '0.2rem 0.6rem',
+                        borderRadius: '999px', cursor: markDoneThisYear ? 'default' : 'pointer', whiteSpace: 'nowrap',
+                        fontSize: '0.85rem', fontWeight: 700,
+                        border: `1.5px solid ${markColor}`,
+                        backgroundColor: markOn ? markColor : '#fff',
+                        color: markOn ? '#fff' : markColor,
+                      }}>
                       <input
                         type="checkbox"
                         checked={markOn}
+                        disabled={markDoneThisYear}
                         onChange={(e) => handleCheckboxChange(currentSeason, markKey, e.target.checked)}
                         style={{ width: '1.1rem', height: '1.1rem', margin: 0, accentColor: markColor }}
                       />
-                      최종완료
+                      {markDoneThisYear ? '✓ 최종완료' : '최종완료'}
                     </label>
                   )}
                 </div>
