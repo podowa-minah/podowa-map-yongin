@@ -60,7 +60,11 @@ export default function HeaderHero({
     }
   }
   // 완료율(0~100)을 CSS 변수로 — 헤더 아래에서부터 차오르는 따뜻한 색 fill
-  const fillPct = Math.min(100, Math.max(0, pct || 0));
+  // 헛돌봄(잘못 돌봄)이 있으면 진짜 완료가 아니므로 100% 못 가게 막는다 (최대 99%)
+  const hasFake = fakeDots > 0;
+  const rawPct = pct ?? 0;
+  const shownPct = hasFake ? Math.min(rawPct, 99) : rawPct;
+  const fillPct = Math.min(100, Math.max(0, shownPct));
   // 첫 로드 시 노랗게 차오르는 애니메이션 X — 데이터 들어온 직후 한 번은 transition 끔
   const [fillAnimEnabled, setFillAnimEnabled] = useState(false);
   useEffect(() => {
@@ -206,11 +210,17 @@ export default function HeaderHero({
         />
         <div style={{ flex: 1 }}>
           <div className="hero-stat-num" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
-            {pct ?? 0}<span className="pct-sign">%</span>
+            {shownPct}<span className="pct-sign">%</span>
           </div>
           <div className="hero-stat-label" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
             오늘 작업 진행 · {completed ?? 0}/{total ?? 0}그루
           </div>
+          {/* 헛돌봄 경고 — 항상 보이는 헤더에. 잘못 돌본 나무 있으면 100% 아님을 알림 */}
+          {hasFake && !isStatsLoading && (
+            <div className="hero-stat-label" style={{ color: '#dc2626', fontWeight: 700, marginTop: 2 }}>
+              ⚠️ 헛돌봄 {fakeDots}그루 — 다시 확인하세요
+            </div>
+          )}
           {/* 점 indicator — 헛돌봄(주황)/착한돌봄(파랑)/정돌봄(초록) */}
           {(greenDots > 0 || kindDots > 0 || fakeDots > 0) && (
             <div className="hero-dots">

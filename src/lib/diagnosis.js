@@ -77,24 +77,39 @@ export function getFarmDiagnosis(treeData, labels, todayIso) {
     if (t.recordedToday) continue;      // (A) 오늘 챙긴 나무는 오늘 제외
     const s = t.latest.score;
     const power = toNum(t.latest.rec.power);
+    const bal = toNum(t.latest.rec.balance);
     const bugs = toNum(t.latest.rec.bugs);
     const reasons = [];
     let severity = 0;
 
-    // ① 밭 평균에서 유독 처짐 (상대 비교)
+    // ① 자기 과거보다 급락 — "왜" 떨어졌는지(해충↑/균형↓/세력↓)까지 짚는다
+    let dropCause = null;
+    if (t.prev != null) {
+      const drop = t.prev.score - s;
+      if (drop >= DROP_CUT) {
+        severity += drop;
+        const pBug = toNum(t.prev.rec.bugs);
+        const pBal = toNum(t.prev.rec.balance);
+        const pPow = toNum(t.prev.rec.power);
+        // 가장 많이 "나빠진" 항목을 원인으로 (기여도 하락폭 비교 — 작은 변화여도 1등을 집음)
+        const cand = [];
+        if (pBug != null && bugs != null) cand.push({ k: '해충↑', d: bugs - pBug });               // 해충은 높을수록 나쁨
+        if (pBal != null && bal != null) cand.push({ k: '균형↓', d: pBal - bal });                  // 균형은 높을수록 좋음
+        if (pPow != null && power != null) cand.push({ k: power < pPow ? '세력↓' : '세력↑', d: powerScore(pPow) - powerScore(power) });
+        cand.sort((a, b) => b.d - a.d);
+        dropCause = (cand.length && cand[0].d > 0) ? cand[0].k : '급락';
+        reasons.push(dropCause);
+      }
+    }
+    // ② 위험 신호 (원본 데이터) — 급락 원인과 중복되면 생략
+    if (bugs != null && bugs >= 4 && dropCause !== '해충↑') { reasons.push('해충'); severity += 1.5; }
+    if (power != null && power <= 1.5 && dropCause !== '세력↓') { reasons.push('세력약'); severity += 1; }
+    // ③ 밭 평균에서 유독 처짐 (상대 비교)
     if (mean != null) {
       const gap = mean - s;
       const cut = Math.max(FLOOR, K * std);
       if (gap >= cut) { reasons.push('평균↓'); severity += gap; }
     }
-    // ② 자기 과거보다 급락 (변화 감지)
-    if (t.prev != null) {
-      const drop = t.prev.score - s;
-      if (drop >= DROP_CUT) { reasons.push('급락'); severity += drop; }
-    }
-    // ③ 위험 신호 (원본 데이터)
-    if (bugs != null && bugs >= 4) { reasons.push('해충'); severity += 1.5; }
-    if (power != null && power <= 1.5) { reasons.push('세력약'); severity += 1; }
 
     if (reasons.length > 0) {
       watch.push({ id: t.id, name: t.name, score: s, reasons, severity });

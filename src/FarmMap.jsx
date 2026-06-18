@@ -388,8 +388,8 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 transform: hasTodo ? 'translateY(-1px)' : 'none',
               }}
             >
-              {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 착한돌봄=파랑) */}
-              {hasTodayInput && !fakeDoneTreeIds.has(numericId) && (
+              {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 헛돌봄=오렌지, 착한돌봄=파랑) */}
+              {hasTodayInput && (
                 <span style={{
                   position: 'absolute',
                   top: 1,
@@ -397,27 +397,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width: 5,
                   height: 5,
                   borderRadius: '50%',
-                  backgroundColor: doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
+                  backgroundColor: fakeDoneTreeIds.has(numericId) ? '#f97316' : doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
                   zIndex: 1,
                 }} />
-              )}
-              {/* 헛돌봄(잘못 돌봄) - 우측상단 크고 글로우 + 호버 이유. 작아서 놓치던 문제 해결 */}
-              {hasTodayInput && fakeDoneTreeIds.has(numericId) && (
-                <span
-                  title={fakeDoneReasons[numericId] || '헛돌봄 — 필요한 작업을 빠뜨렸어요'}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: 11,
-                    height: 11,
-                    borderRadius: '50%',
-                    backgroundColor: '#f97316',
-                    border: '1.5px solid #fff',
-                    boxShadow: '0 0 0 1px #c2410c, 0 0 5px rgba(249,115,22,0.95)',
-                    zIndex: 3,
-                  }}
-                />
               )}
               {/* 유심히 볼 나무(이상치) - 좌측상단 주황 점 + 글로우. 브리핑 '유심히'와 동일 */}
               {isWatch && (
@@ -517,6 +499,43 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   {displayId}
                 </span>
               </div>
+            </div>
+          );
+        })}
+
+        {/* 유심히 볼 나무 이유 칩 — 호버 대신 맵에 상시 표시(모바일). 나무 위에 작은 칩. */}
+        {[...watchTreeIds].map((nid) => {
+          const reason = watchReasons[nid];
+          if (!reason) return null;
+          const [c, r] = String(nid).split('-').map(Number);
+          if (!c || !r) return null;
+          const x = (c - 1) * (cellW + gapX);
+          const y = (r - 1) * (cellH + 10 + gapY);
+          return (
+            <div
+              key={`watchchip-${nid}`}
+              style={{
+                position: 'absolute',
+                left: x - 8,
+                top: y - 12,
+                width: cellW + 16,
+                display: 'flex',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                zIndex: 4,
+              }}
+            >
+              <span style={{
+                fontSize: 6.5,
+                lineHeight: '8px',
+                whiteSpace: 'nowrap',
+                background: '#fff7ed',
+                color: '#9a3412',
+                border: '0.5px solid #fdba74',
+                borderRadius: 4,
+                padding: '1px 3px',
+                fontWeight: 700,
+              }}>{reason}</span>
             </div>
           );
         })}
