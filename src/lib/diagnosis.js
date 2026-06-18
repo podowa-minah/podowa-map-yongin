@@ -77,42 +77,26 @@ export function getFarmDiagnosis(treeData, labels, todayIso) {
     if (t.recordedToday) continue;      // (A) 오늘 챙긴 나무는 오늘 제외
     const s = t.latest.score;
     const power = toNum(t.latest.rec.power);
-    const bal = toNum(t.latest.rec.balance);
     const bugs = toNum(t.latest.rec.bugs);
-    const reasons = [];
     let severity = 0;
+    let flagged = false;
 
-    // ① 자기 과거보다 급락 — "왜" 떨어졌는지(해충↑/균형↓/세력↓)까지 짚는다
-    let dropCause = null;
-    if (t.prev != null) {
-      const drop = t.prev.score - s;
-      if (drop >= DROP_CUT) {
-        severity += drop;
-        const pBug = toNum(t.prev.rec.bugs);
-        const pBal = toNum(t.prev.rec.balance);
-        const pPow = toNum(t.prev.rec.power);
-        // 가장 많이 "나빠진" 항목을 원인으로 (기여도 하락폭 비교 — 작은 변화여도 1등을 집음)
-        const cand = [];
-        if (pBug != null && bugs != null) cand.push({ k: '해충↑', d: bugs - pBug });               // 해충은 높을수록 나쁨
-        if (pBal != null && bal != null) cand.push({ k: '균형↓', d: pBal - bal });                  // 균형은 높을수록 좋음
-        if (pPow != null && power != null) cand.push({ k: power < pPow ? '세력↓' : '세력↑', d: powerScore(pPow) - powerScore(power) });
-        cand.sort((a, b) => b.d - a.d);
-        dropCause = (cand.length && cand[0].d > 0) ? cand[0].k : '급락';
-        reasons.push(dropCause);
-      }
-    }
-    // ② 위험 신호 (원본 데이터) — 급락 원인과 중복되면 생략
-    if (bugs != null && bugs >= 4 && dropCause !== '해충↑') { reasons.push('해충'); severity += 1.5; }
-    if (power != null && power <= 1.5 && dropCause !== '세력↓') { reasons.push('세력약'); severity += 1; }
-    // ③ 밭 평균에서 유독 처짐 (상대 비교)
-    if (mean != null) {
+    // ── 어떤 나무를 주목할지 "판정" (점수 기준) — 화면 이유와 분리 ──
+    if (mean != null) {                                   // 밭 평균보다 처짐
       const gap = mean - s;
       const cut = Math.max(FLOOR, K * std);
-      if (gap >= cut) { reasons.push('평균↓'); severity += gap; }
+      if (gap >= cut) { flagged = true; severity += gap; }
     }
+    if (t.prev != null) {                                 // 자기 과거보다 급락
+      const drop = t.prev.score - s;
+      if (drop >= DROP_CUT) { flagged = true; severity += drop; }
+    }
+    if (bugs != null && bugs >= 4) { flagged = true; severity += 1.5; }
+    if (power != null && power <= 1.5) { flagged = true; severity += 1; }
 
-    if (reasons.length > 0) {
-      watch.push({ id: t.id, name: t.name, score: s, reasons, severity });
+    if (flagged) {
+      // 화면 "이유"는 명확한 것만 — 해충/균형/세력 중 실제로 나쁜 항목
+      watch.push({ id: t.id, name: t.name, score: s, reasons: metricIssues(t.latest.rec), severity });
     }
   }
   watch.sort((a, b) => b.severity - a.severity);
@@ -171,6 +155,20 @@ function weakestReason(m) {
   if (items.length === 0) return null;
   items.sort((a, b) => a.v - b.v);
   return items[0].v >= 4 ? null : items[0].label;   // 다 양호하면 약점 없음
+}
+
+// 한 기록의 "명확한 이유" — 해충/균형/세력 중 실제로 나쁜 항목(들). 칩/목록 표시용.
+//   기여도(낮을수록 나쁨)가 낮은 항목부터. 2.5 이하면 "나쁨"으로 보고, 없으면 가장 낮은 1개.
+function metricIssues(rec) {
+  const power = toNum(rec.power), bal = toNum(rec.balance), bugs = toNum(rec.bugs);
+  const items = [];
+  if (power != null) items.push({ c: powerScore(power), label: power < POWER_IDEAL ? '세력약함' : '세력과함' });
+  if (bal != null) items.push({ c: bal, label: '균형낮음' });
+  if (bugs != null) items.push({ c: 5 - bugs, label: '해충많음' });
+  if (items.length === 0) return ['확인'];
+  items.sort((a, b) => a.c - b.c);
+  const bad = items.filter((i) => i.c <= 2.5);
+  return (bad.length ? bad : items.slice(0, 1)).slice(0, 2).map((i) => i.label);
 }
 
 // ── 밭 전체 추세 (기간 비교) ──────────────────────────
