@@ -1,8 +1,9 @@
 // src/FarmMap.jsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useSignalLights } from "./SignalLightsContext";
 import RenamePopup from "./RenamePopup";
 import { useLabels } from "./LabelContext";
+import { getFarmDiagnosis } from "./lib/diagnosis";
 
 import treeSVG from "./assets/icons/tree.svg";
 import bugSVG from "./assets/icons/bug.svg";
@@ -62,6 +63,15 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
   // 라벨 + 서버 fresh fetch 둘 다 완료돼야 lit 표시 (캐시-즉시-treeData / 라벨-나중 race 깜빡임 방지)
   const labelsReady = Object.keys(labels || {}).length >= 5;
   const litReady = labelsReady && freshDataLoaded;
+
+  // 유심히 볼 나무 이유 — FarmMap이 직접 계산(App 의존 X). 칩에 표시할 짧은 이유.
+  //   App이 watchReasons를 넘기면 그걸 우선 쓰고, 없으면 여기서 계산한 걸 쓴다.
+  const watchReasonsLocal = useMemo(() => {
+    const diag = getFarmDiagnosis(treeData, labels, getToday());
+    const m = {};
+    for (const w of (diag.watchTrees || [])) m[w.id] = (w.reasons || []).join('·');
+    return m;
+  }, [treeData, labels]);
 
   const gridW = cols * cellW + (cols - 1) * gapX;
   const gridH = rows * (cellH + 10) + (rows - 1) * gapY;
@@ -325,7 +335,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           // 칸 전체에 거는 호버 이유 (작은 점만이 아니라 나무 어디든 호버하면 뜨게)
           const tileTitle = fakeDoneTreeIds.has(numericId)
             ? (fakeDoneReasons[numericId] || '헛돌봄 — 필요한 작업을 빠뜨렸어요')
-            : isWatch ? (watchReasons[numericId] || '유심히 볼 나무')
+            : isWatch ? (watchReasons[numericId] || watchReasonsLocal[numericId] || '유심히 볼 나무')
             : undefined;
 
           if (isDisabled) {
@@ -505,7 +515,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
 
         {/* 유심히 볼 나무 이유 칩 — 호버 대신 맵에 상시 표시(모바일). 나무 위에 작은 칩. */}
         {[...watchTreeIds].map((nid) => {
-          const reason = watchReasons[nid];
+          const reason = watchReasons[nid] || watchReasonsLocal[nid];
           if (!reason) return null;
           const [c, r] = String(nid).split('-').map(Number);
           if (!c || !r) return null;
