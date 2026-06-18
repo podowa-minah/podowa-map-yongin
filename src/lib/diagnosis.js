@@ -201,3 +201,15 @@ function recordsBetween(treeData, fromIso, toExclusive) {
   }
   return out;
 }
+
+// 유심히 볼 나무 이유 코드(getFarmDiagnosis의 reasons) → 사람이 읽는 한 줄 (호버 툴팁용)
+const WATCH_REASON_TEXT = {
+  '평균↓': '밭 평균보다 낮음',
+  '급락': '점수 급락',
+  '해충': '해충 많음',
+  '세력약': '세력 약함',
+};
+export function watchReasonText(reasons = []) {
+  const parts = (reasons || []).map((r) => WATCH_REASON_TEXT[r] || r);
+  return parts.length ? `유심히 볼 나무 — ${parts.join(' · ')}` : '유심히 볼 나무';
+}

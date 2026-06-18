@@ -35,7 +35,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), watchTreeIds = new Set(), clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), fakeDoneReasons = {}, watchTreeIds = new Set(), watchReasons = {}, clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -322,6 +322,11 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           const { treeLevel, bugLevel, clockLevel, anyOn, anyOverdue } = computeTriggers(records);
           const hasTodayInput = records.some(r => r.date === getToday());
           const isWatch = watchTreeIds.has(numericId);   // 오늘 유심히 볼 나무(이상치)
+          // 칸 전체에 거는 호버 이유 (작은 점만이 아니라 나무 어디든 호버하면 뜨게)
+          const tileTitle = fakeDoneTreeIds.has(numericId)
+            ? (fakeDoneReasons[numericId] || '헛돌봄 — 필요한 작업을 빠뜨렸어요')
+            : isWatch ? (watchReasons[numericId] || '유심히 볼 나무')
+            : undefined;
 
           if (isDisabled) {
             return (
@@ -366,6 +371,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
           return (
             <div
               key={id}
+              title={tileTitle}
               style={{
                 width: cellW,
                 height: cellH + 10,
@@ -382,8 +388,8 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 transform: hasTodo ? 'translateY(-1px)' : 'none',
               }}
             >
-              {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 헛돌봄=오렌지, 착한돌봄=파랑) */}
-              {hasTodayInput && (
+              {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 착한돌봄=파랑) */}
+              {hasTodayInput && !fakeDoneTreeIds.has(numericId) && (
                 <span style={{
                   position: 'absolute',
                   top: 1,
@@ -391,14 +397,32 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   width: 5,
                   height: 5,
                   borderRadius: '50%',
-                  backgroundColor: fakeDoneTreeIds.has(numericId) ? '#f97316' : doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
+                  backgroundColor: doneTreeIds.has(numericId) ? '#10b981' : '#667eea',
                   zIndex: 1,
                 }} />
+              )}
+              {/* 헛돌봄(잘못 돌봄) - 우측상단 크고 글로우 + 호버 이유. 작아서 놓치던 문제 해결 */}
+              {hasTodayInput && fakeDoneTreeIds.has(numericId) && (
+                <span
+                  title={fakeDoneReasons[numericId] || '헛돌봄 — 필요한 작업을 빠뜨렸어요'}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    width: 11,
+                    height: 11,
+                    borderRadius: '50%',
+                    backgroundColor: '#f97316',
+                    border: '1.5px solid #fff',
+                    boxShadow: '0 0 0 1px #c2410c, 0 0 5px rgba(249,115,22,0.95)',
+                    zIndex: 3,
+                  }}
+                />
               )}
               {/* 유심히 볼 나무(이상치) - 좌측상단 주황 점 + 글로우. 브리핑 '유심히'와 동일 */}
               {isWatch && (
                 <span
-                  title="유심히 볼 나무"
+                  title={watchReasons[numericId] || '유심히 볼 나무'}
                   style={{
                     position: 'absolute',
                     top: 1,
