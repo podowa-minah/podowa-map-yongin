@@ -1,0 +1,102 @@
+// src/components/BriefingHistory.jsx
+// 지난 아침 브리핑 모아보기 — daily_notes.journal_notes.briefing.snapshot 읽어서 표시(읽기 전용).
+// 그날 보여준 그대로의 스냅샷이라 재계산하지 않는다. CLAUDE.md §10: 저장된 데이터 표시만.
+//
+// props:
+//   history       AnalysisPage가 fetch한 daily_notes 배열 (journal_notes 포함)
+//   C             컬러 토큰 (AnalysisPage와 공유)
+//   onSelectDate  (date) => void  — 날짜 누르면 그날 보고로 이동
+
+import { useState } from 'react';
+import { scoreBand } from '../lib/scoring';
+
+export default function BriefingHistory({ history = [], C, onSelectDate }) {
+  const [showAll, setShowAll] = useState(false);
+  const items = history.filter(h => h?.journal_notes?.briefing?.snapshot);
+
+  if (items.length === 0) {
+    return (
+      <p style={{ color: C.muted, fontSize: '0.85rem', margin: 0, lineHeight: 1.6 }}>
+        아직 저장된 브리핑이 없어요.<br />
+        아침에 브리핑에서 <b style={{ color: '#15803d' }}>“오늘 일 시작”</b>을 누르면 그날 브리핑이 여기 쌓여요.
+      </p>
+    );
+  }
+
+  const shown = showAll ? items : items.slice(0, 3);
+
+  return (
+    <>
+      {shown.map(entry => {
+        const b = entry.journal_notes.briefing;
+        const s = b.snapshot || {};
+        const band = s.score != null ? scoreBand(s.score) : null;
+        const time = b.checked_at
+          ? new Date(b.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        return (
+          <div key={entry.id} style={card}>
+            <div style={head}>
+              <button onClick={() => onSelectDate?.(entry.date)} style={dateBtn} title="그날 보고로 이동">
+                {entry.date}
+              </button>
+              {time && <span style={{ color: '#a89968', fontSize: '0.72rem' }}>{time} 확인</span>}
+              {s.score != null && band && (
+                <span style={{ marginLeft: 'auto', fontWeight: 700, color: band.color, fontSize: '0.85rem' }}>
+                  밭 {s.score.toFixed(1)} · {band.label}
+                </span>
+              )}
+            </div>
+            {(s.opinions || []).map((o, i) => (
+              <div key={i} style={opRow}>
+                <span style={opLabel}>{o.label}</span>
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.5, color: C.text }}>{o.text}</span>
+              </div>
+            ))}
+            {s.watchTotal > 0 && (
+              <div style={{ fontSize: '0.74rem', color: '#b45309', marginTop: '0.35rem' }}>
+                ⚠️ 유심히 볼 나무 {s.watchTotal}그루
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {items.length > 3 && (
+        <button onClick={() => setShowAll(v => !v)} style={moreBtn(C)}>
+          {showAll ? '접기 ▴' : `더보기 (${items.length - 3}건 더) ▾`}
+        </button>
+      )}
+    </>
+  );
+}
+
+const card = {
+  padding: '0.75rem 0.85rem', marginBottom: '0.6rem',
+  background: '#fffefb', border: '1px solid #ece0c4', borderRadius: '0.55rem',
+};
+
+const head = {
+  display: 'flex', alignItems: 'center', gap: '0.5rem',
+  marginBottom: '0.45rem', flexWrap: 'wrap',
+};
+
+const dateBtn = {
+  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+  fontFamily: 'inherit', fontWeight: 700, color: '#1f2937',
+  textDecoration: 'underline', textUnderlineOffset: '2px',
+};
+
+const opRow = { display: 'flex', gap: '0.55rem', padding: '0.18rem 0' };
+
+const opLabel = {
+  fontSize: '0.68rem', padding: '2px 7px', alignSelf: 'flex-start',
+  background: '#fffefb', border: '1px solid #d6c8a8', borderRadius: '0.3rem',
+  fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, color: '#4b5563',
+};
+
+const moreBtn = (C) => ({
+  width: '100%', marginTop: '0.2rem', padding: '0.6rem',
+  background: '#fffefb', border: `1px solid ${C.accentBorder}`,
+  borderRadius: '0.5rem', color: '#6b7280', cursor: 'pointer',
+  fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
+});

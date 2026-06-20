@@ -61,13 +61,15 @@ export function logsByItem(completions = []) {
   return map;
 }
 
-// 영농일지 연동 — completions + items → { 'YYYY-MM-DD': [{title, cat, color, tint, count}, ...] }
+// 영농일지 연동 — completions + items → { 'YYYY-MM-DD': [{title, cat, color, tint, count, month}, ...] }
 //   "했어요" 완료를 날짜별로 묶어 영농일지 카드에 칩으로 보여주기 위함.
 //   진실은 manual_completions 한 곳뿐 — 여기서 읽어 계산만 한다(중복 저장 없음, §10).
 //   같은 날 같은 항목을 여러 번 했으면 count로 합친다. archived 항목 제목도 보이게 전체 items를 받는다.
+//   month = 그 미션이 속한 달. 영농일지에서 "그 달 미션만" 골라 보여줄 때 쓴다
+//   (예: 5월 미션을 6/11에 클리어해도 6월 일지엔 안 띄움 — 도장/달성률은 그대로).
 export function missionsByDate(completions = [], items = []) {
   const meta = {};
-  for (const it of items) meta[it.id] = { title: it.title, cat: it.category };
+  for (const it of items) meta[it.id] = { title: it.title, cat: it.category, month: it.month };
   const byDate = {};
   for (const c of completions) {
     const date = c.done_on;
@@ -82,6 +84,7 @@ export function missionsByDate(completions = [], items = []) {
         color: (cat && CATS[cat]) ? CATS[cat].color : '#2f6b3c',
         tint: (cat && CATS[cat]) ? CATS[cat].tint : '#e9f4ec',
         count: 0,
+        month: (m.month != null) ? Number(m.month) : null,
       };
     }
     byDate[date][c.item_id].count += 1;

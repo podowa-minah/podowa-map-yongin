@@ -12,19 +12,17 @@ import { getMoonZodiac, FRAMEWORK_NAME } from './lib/zodiacMoon';
 import MoonZodiacPopup from './components/MoonZodiacPopup';
 import Constellation from './components/Constellation';
 import DayTypeIcon from './components/DayTypeIcon';
-import { generateBriefingOpinions } from './lib/aiOpinion';
 import { scoreBand, avgScore } from './lib/scoring';
 import { avgFromRecords } from './lib/trends';
-import { getFarmDiagnosis, getVarietyAverages, getFarmTrend } from './lib/diagnosis';
-import { isBriefingChecked, briefingCheckedTime } from './lib/journal';
 import { missionsByDate } from './lib/manual';
+import { finalMarksByDate } from './lib/cluster-thinning';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
-import FarmDiagnosis from './components/FarmDiagnosis';
+import BriefingHistory from './components/BriefingHistory';
 
 const ENV_MAX_PHOTOS = 2;
 
-export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenIrrigation, onOpenPest, onSaved, onOpenScores, onOpenTree, onClose }) {
+export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenIrrigation, onOpenPest, onSaved, onOpenScores, onOpenTree, onOpenBriefing, onClose }) {
   const today = todayKST();
   const [selectedDate, setSelectedDate] = useState(today);
   const [dayNote, setDayNote] = useState(null);
@@ -36,7 +34,6 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const [oneLiner, setOneLiner] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [startingDay, setStartingDay] = useState(false);   // "오늘 일 시작" 저장 중
   const [savedFlash, setSavedFlash] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
   const [history, setHistory] = useState([]);
@@ -69,13 +66,16 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     (async () => {
       const [{ data: comps }, { data: its }] = await Promise.all([
         supabase.from('manual_completions').select('item_id,done_on').order('done_on', { ascending: false }).limit(500),
-        supabase.from('manual_items').select('id,title,category'),
+        supabase.from('manual_items').select('id,title,category,month'),
       ]);
       if (!alive) return;
       setMissionMap(missionsByDate(comps || [], its || []));
     })();
     return () => { alive = false; };
   }, [historyKey]);
+
+  // 날짜별 "최종완료"(송이크기정리/알솎이) — trees에서 계산해 영농일지 칩으로 (저장 X, §10)
+  const finalMap = useMemo(() => finalMarksByDate(treeData, labels), [treeData, labels]);
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -129,14 +129,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const report = useMemo(() => buildDailyReport({ records, labels }), [records, labels]);
   const past5 = useMemo(() => avgFromRecords(treeData, selectedDate, 5), [treeData, selectedDate]);
 
-  // ── ① 아침 브리핑 (밭 전체, '지금' 기준 — 항상 오늘 고정) ──
   const isToday = selectedDate === today;
-  const diagnosis = useMemo(() => getFarmDiagnosis(treeData, labels, today), [treeData, labels, today]);
-  const varieties = useMemo(() => getVarietyAverages(treeData, labels), [treeData, labels]);
-  const farmTrend = useMemo(() => getFarmTrend(treeData, today), [treeData, today]);
-  const briefingOpinions = useMemo(() => generateBriefingOpinions({ diagnosis, trend: farmTrend }), [diagnosis, farmTrend]);
-  const briefingChecked = isBriefingChecked(dayNote);
-  const briefingTime = briefingCheckedTime(dayNote);
 
   // 사진 업로드
   async function handleEnvUpload(file) {
@@ -212,33 +205,6 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       setEnvNote(''); setEnvImageUrls([]); setEnvThumbnails([]); setOneLiner('');
     }
     onSaved?.();
-  }
-
-  // ① "오늘 일 시작" = 아침 브리핑 확인 기록 (journal_notes.briefing.checked_at)
-  //   → BottomBar 보고 불이 '깜빡'에서 '고정'으로 바뀜 (보고는 따로 작성)
-  async function handleStartDay() {
-    setStartingDay(true);
-    const author = user?.user_metadata?.nickname || user?.email || '';
-    const journal_notes = {
-      ...(dayNote?.journal_notes || {}),
-      briefing: {
-        ...(dayNote?.journal_notes?.briefing || {}),
-        checked_at: new Date().toISOString(),
-      },
-    };
-    let result;
-    if (dayNote) {
-      result = await supabase.from('daily_notes').update({ journal_notes }).eq('id', dayNote.id);
-    } else {
-      // content는 NOT NULL — 빈 문자열로 행 만들어두고, 저녁 '저장' 때 한줄평으로 덮어쓰임
-      result = await supabase.from('daily_notes').insert({ date: selectedDate, type: 'journal', journal_notes, author, content: '' });
-    }
-    setStartingDay(false);
-    if (result?.error) { alert('저장 실패: ' + result.error.message); return; }
-    const { data } = await supabase.from('daily_notes').select('*')
-      .eq('date', selectedDate).eq('type', 'journal').maybeSingle();
-    setDayNote(data || null);
-    onSaved?.();   // App이 briefingChecked 갱신 → 불 상태 변경
   }
 
   // 보고서 완료 = 저장
@@ -443,23 +409,21 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         );
       })()}
 
-      {/* ═══ ① 아침 브리핑 — 밭 전체 진단 (오늘만) ═══ */}
-      {isToday && (
-        <>
-          <ZoneHeader num="①" title="아침 브리핑" subtitle="밭 전체를 보고 하루 시작" C={C} />
-          <FarmDiagnosis
-            diagnosis={diagnosis}
-            varieties={varieties}
-            opinions={briefingOpinions}
-            checked={briefingChecked}
-            checkedTime={briefingTime}
-            saving={startingDay}
-            onStartDay={handleStartDay}
-            onOpenTree={onOpenTree}
-            C={C}
-          />
-        </>
+      {/* ═══ ① 지난 브리핑 — 아침에 본 브리핑이 여기 쌓임 (읽기 전용) ═══ */}
+      {/*   아침 브리핑 자체는 앱 켤 때 지도 앞 팝업으로 뜨고, 확인하면 여기 저장됨 */}
+      <ZoneHeader num="①" title="지난 브리핑" subtitle="아침에 본 브리핑 다시 보기" C={C} />
+      {onOpenBriefing && (
+        <button onClick={onOpenBriefing} style={todayBriefingBtn}>
+          ☀️ 오늘 브리핑 보기
+        </button>
       )}
+      <Section
+        title="브리핑 기록"
+        right={`총 ${history.filter(h => h?.journal_notes?.briefing?.snapshot).length}건`}
+        C={C}
+      >
+        <BriefingHistory history={history} C={C} onSelectDate={setSelectedDate} />
+      </Section>
 
       {/* ═══ ② 오늘의 보고 — 하루 마무리 기록 ═══ */}
       <ZoneHeader
@@ -615,6 +579,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
                 today={today}
                 selectedDate={selectedDate}
                 missions={missionMap[entry.date] || []}
+                finalMarks={finalMap[entry.date] || null}
                 onSelect={() => setSelectedDate(entry.date)}
                 onDelete={(e) => handleDeleteReport(entry, e)}
                 C={C}
@@ -651,10 +616,13 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
 }
 
 // 🍇 영농일지 카드 — 달이름 + 절기뜻 + 생육시기 + 종합점수 배지
-function JournalCard({ entry, treeData, today, selectedDate, missions = [], onSelect, onDelete, C }) {
+function JournalCard({ entry, treeData, today, selectedDate, missions = [], finalMarks = null, onSelect, onDelete, C }) {
   const isSelected = entry.date === selectedDate;
   const isToday = entry.date === today;
   const missionMonth = parseInt(entry.date.split('-')[1], 10);   // '6월 미션' 틀 라벨용
+  // 영농일지엔 "그 달에 속한 미션"만 보여준다. (5월 미션을 6/11에 클리어해도 6월 일지엔 안 뜸)
+  //   → 도장/달성률(manual_completions)은 그대로 두고, 표시에서만 다른 달 미션을 가린다.
+  const monthMissions = missions.filter((m) => m.month == null || Number(m.month) === missionMonth);
 
   // 그 날짜의 trees 기록 → 평균점수 / 그루수
   const recs = [];
@@ -796,8 +764,8 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], onSe
           )}
         </div>
 
-        {/* 이달의 포도 미션 — 그날 '했어요' 완료를 'N월 미션' 틀로 묶어 보여줌 */}
-        {missions.length > 0 && (
+        {/* 이달의 포도 미션 — 그날 '했어요' 완료 중 '그 달 미션'만 'N월 미션' 틀로 묶어 보여줌 */}
+        {monthMissions.length > 0 && (
           <div style={{
             marginTop: '0.5rem',
             border: `1px solid ${C.accentBorder}`,
@@ -809,11 +777,38 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], onSe
               {missionMonth}월 미션
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
-              {missions.map((m, i) => (
+              {monthMissions.map((m, i) => (
                 <Badge key={i} color={m.color} bg={m.tint} border={m.color + '55'}>
                   {m.title}{m.count > 1 ? ` ×${m.count}` : ''}
                 </Badge>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* 최종완료(송이크기정리/알솎이) — 그날 마커가 박힌 나무를 칩으로 (trees에서 계산) */}
+        {finalMarks && (finalMarks.cluster.length > 0 || finalMarks.thinning.length > 0) && (
+          <div style={{
+            marginTop: '0.5rem',
+            border: `1px solid ${C.accentBorder}`,
+            borderRadius: '0.5rem',
+            background: '#fcfbf7',
+            padding: '0.45rem 0.55rem 0.55rem',
+          }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#5a5446', marginBottom: '0.4rem' }}>
+              최종완료
+            </div>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
+              {finalMarks.cluster.length > 0 && (
+                <Badge color="#854f0b" bg="#fef9c3" border="#eab30855">
+                  송이크기정리 ×{finalMarks.cluster.length}
+                </Badge>
+              )}
+              {finalMarks.thinning.length > 0 && (
+                <Badge color="#1e40af" bg="#dbeafe" border="#2563eb55">
+                  알솎이 ×{finalMarks.thinning.length}
+                </Badge>
+              )}
             </div>
           </div>
         )}
@@ -1055,6 +1050,14 @@ const editBtnStyle = {
   fontSize: '0.7rem', padding: '1px 8px',
   border: '1px solid #d6c8a8', borderRadius: '0.3rem',
   background: '#fff', color: '#6b7280', cursor: 'pointer',
+};
+
+const todayBriefingBtn = {
+  width: '100%', margin: '0 0 1rem', padding: '0.7rem',
+  background: 'linear-gradient(135deg, #15803d 0%, #047857 100%)',
+  color: '#fff', border: 'none', borderRadius: '0.6rem',
+  fontWeight: 700, cursor: 'pointer',
+  fontFamily: 'Arvo, "Pretendard Variable", serif',
 };
 
 function uploadBtn(disabled, color) {

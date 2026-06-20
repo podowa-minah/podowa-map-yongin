@@ -91,3 +91,32 @@ export function clusterThinningStatus(treeData, labels, year, { rows = 25, cols 
     allThinningDone,
   };
 }
+
+// 날짜별 "최종완료" 이벤트 — { 'YYYY-MM-DD': { cluster: [라벨…], thinning: [라벨…] } }
+//   trees.season_data에 마커가 박힌 "그 기록의 날짜"에 묶는다. 영농일지 칩용(저장 X, 계산만).
+export function finalMarksByDate(treeData = {}, labels = {}) {
+  const byDate = {};
+  for (const id of Object.keys(treeData)) {
+    const nm = (labels?.[`Tree-${id}`]?.name || '').trim();
+    const label = nm ? `${id} ${nm}` : id;
+    for (const rec of (treeData[id] || [])) {
+      if (!rec || !rec.date) continue;
+      const sd = rec.season_data;
+      if (!sd || typeof sd !== 'object') continue;
+      let hasC = false, hasT = false;
+      for (const k of Object.keys(sd)) {
+        const o = sd[k];
+        if (o && typeof o === 'object') {
+          if (o[CLUSTER_MARK]) hasC = true;
+          if (o[THINNING_MARK]) hasT = true;
+        }
+      }
+      if (hasC || hasT) {
+        if (!byDate[rec.date]) byDate[rec.date] = { cluster: [], thinning: [] };
+        if (hasC) byDate[rec.date].cluster.push(label);
+        if (hasT) byDate[rec.date].thinning.push(label);
+      }
+    }
+  }
+  return byDate;
+}
