@@ -25,14 +25,20 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
   const [pest, setPest] = useState(null);
   const [note, setNote] = useState('');
   const [ai, setAi] = useState('loading');                 // 'loading' | 'error' | {alert,checks,info}
-  const [doneChecks, setDoneChecks] = useState([]);        // AI 체크리스트 중 "한 일"로 체크한 항목들
+  const [doneTaskIds, setDoneTaskIds] = useState([]);      // 체크한 나무 번호(=한 일) 목록
   const [saving, setSaving] = useState(false);
 
-  const toggleCheck = (item) =>
-    setDoneChecks((prev) => (prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]));
+  const toggleTask = (treeId) =>
+    setDoneTaskIds((prev) => (prev.includes(treeId) ? prev.filter((x) => x !== treeId) : [...prev, treeId]));
 
   const ctx = useMemo(() => buildBriefingContext({ treeData, labels, todayIso: today }), [treeData, labels, today]);
   const varietyScores = useMemo(() => getVarietyAverages(treeData, labels), [treeData, labels]);
+
+  // 진단기반 우선순위 체크리스트 — 유심히 볼 나무(번호·이유)에 작업 라벨을 붙임
+  const taskList = useMemo(
+    () => (ctx.watchTrees || []).map((w) => ({ treeId: w.id, name: w.name, label: taskLabel(w.reasons) })),
+    [ctx],
+  );
 
   // 오늘 이미 브리핑 했나? → 했으면 요약만
   useEffect(() => {
@@ -80,7 +86,8 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
       watchTrees: ctx.watchTrees,
       watchTotal: ctx.watchCount,
       ai: (ai && typeof ai === 'object') ? ai : null,
-      doneChecks,                       // AI 체크리스트에서 "한 일"로 체크한 항목 (히스토리)
+      // 체크한 우선순위 나무 = "한 일" (나무 번호로 연결 → 개별 히스토리에서 읽어 표시)
+      doneTasks: taskList.filter((t) => doneTaskIds.includes(t.treeId)),
     };
     const { data: existing } = await supabase
       .from('daily_notes').select('id, journal_notes')
@@ -102,7 +109,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
   function redo() {
     setSavedSnap(null);
     setVigor(null); setPest(null); setNote('');
-    setDoneChecks([]);
+    setDoneTaskIds([]);
     setAi('loading');
     setStep('report');
     setDoneToday(false);   // → AI 다시 받아오고 보고 흐름 표시
@@ -131,10 +138,14 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
           {/* ── ① 보고 + 나무 돌보세요 ── */}
           {doneToday === false && step === 'report' && (
             <>
-              <WatchSection watchTrees={ctx.watchTrees} watchCount={ctx.watchCount} />
+              <SectionTitle>
+                <span style={{ color: '#854f0b' }}>오늘 꼭 볼 나무 {ctx.watchCount}그루</span>
+                <span style={{ fontWeight: 400, color: '#9ca3af' }}> (우선순위 · 한 건 체크 → 기록)</span>
+              </SectionTitle>
+              <TaskChecklist tasks={taskList} watchCount={ctx.watchCount} checked={doneTaskIds} onToggle={toggleTask} />
               <VarietySection list={varietyScores} />
-              <SectionTitle>AI 한마디 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(한 일은 체크 → 기록)</span></SectionTitle>
-              <AiView ai={ai} checkable checked={doneChecks} onToggle={toggleCheck} />
+              <SectionTitle>AI 한마디</SectionTitle>
+              <AiView ai={ai} />
               <div style={careBanner}>
                 🍇 꼭 포도밭을 한 바퀴 돌고<br />포도나무 컨디션을 체크한 후 나무를 돌보세요!
               </div>
@@ -207,12 +218,14 @@ function SummaryView({ snap, onClose, onRedo }) {
       {snap.varietyScores?.length > 0 && (
         <VarietySection list={snap.varietyScores} />
       )}
-      {snap.doneChecks?.length > 0 && (
+      {snap.doneTasks?.length > 0 && (
         <>
-          <SectionTitle>✅ 오늘 한 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(AI 체크에서)</span></SectionTitle>
+          <SectionTitle>✅ 오늘 한 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(나무별)</span></SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14 }}>
-            {snap.doneChecks.map((c, i) => (
-              <div key={i} style={{ fontSize: '0.85rem', color: '#27500a' }}>✓ {c}</div>
+            {snap.doneTasks.map((t, i) => (
+              <div key={i} style={{ fontSize: '0.85rem', color: '#27500a' }}>
+                ✓ <b>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
+              </div>
             ))}
           </div>
         </>
@@ -237,6 +250,45 @@ function CmpRow({ label, mine, real }) {
       <span style={{ ...cmpCol, fontWeight: 700, color: off ? '#b45309' : GREEN }}>
         {real ?? '–'}{off ? ' ⚠️' : ''}
       </span>
+    </div>
+  );
+}
+
+// 진단 이유 → 작업 라벨 (체크리스트에 보일 "할 일")
+const TASK_ACTION = {
+  '해충많음': '해충 방제·확인',
+  '세력약함': '세력 보강 확인',
+  '세력과함': '세력 조절(과함)',
+  '균형낮음': '균형 점검',
+  '확인': '상태 확인',
+};
+function taskLabel(reasons = []) {
+  const acts = (reasons || []).map((r) => TASK_ACTION[r] || r);
+  return acts.join('·') || '상태 확인';
+}
+
+// 우선순위 나무 체크리스트 — 체크하면 그 나무 "한 일"로 기록
+function TaskChecklist({ tasks = [], watchCount = 0, checked = [], onToggle }) {
+  if (!tasks.length) {
+    return <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 14 }}>오늘 꼭 볼 나무가 없어요 — 한 바퀴만 돌아요.</div>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
+      {tasks.map((t) => {
+        const on = checked.includes(t.treeId);
+        return (
+          <label key={t.treeId} style={checkRow}>
+            <input type="checkbox" checked={on} onChange={() => onToggle?.(t.treeId)} style={{ marginTop: 3, flexShrink: 0 }} />
+            <span style={{ fontSize: '0.84rem', textDecoration: on ? 'line-through' : 'none', opacity: on ? 0.55 : 1 }}>
+              <b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}
+              <span style={{ color: '#9a6a1c' }}> — {t.label}</span>
+            </span>
+          </label>
+        );
+      })}
+      {watchCount > tasks.length && (
+        <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 2 }}>외 {watchCount - tasks.length}그루</div>
+      )}
     </div>
   );
 }

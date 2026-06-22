@@ -71,9 +71,11 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
                 🚨 {s.ai.alert}
               </div>
             )}
-            {Array.isArray(s.doneChecks) && s.doneChecks.length > 0 && (
+            {Array.isArray(s.doneTasks) && s.doneTasks.length > 0 && (
               <div style={{ fontSize: '0.8rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.5 }}>
-                {s.doneChecks.map((c, i) => <div key={i}>✓ {c}</div>)}
+                {s.doneTasks.map((t, i) => (
+                  <div key={i}>✓ <b>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}</div>
+                ))}
               </div>
             )}
             {(s.opinions || []).map((o, i) => (
