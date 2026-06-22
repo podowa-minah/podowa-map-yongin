@@ -29,6 +29,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
 
   // 농부 입력 state
   const [envNote, setEnvNote] = useState('');
+  const [growthNote, setGrowthNote] = useState('');   // 생육 농부 기록 (카테고리 저장)
+  const [pestNote, setPestNote] = useState('');       // 병해충 농부 기록 (카테고리 저장)
   const [envImageUrls, setEnvImageUrls] = useState([]);
   const [envThumbnails, setEnvThumbnails] = useState([]);
   const [oneLiner, setOneLiner] = useState('');
@@ -109,6 +111,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       setEnvNote(env.note || '');
       setEnvImageUrls(env.image_urls || []);
       setEnvThumbnails(env.thumbnails || []);
+      setGrowthNote(data?.journal_notes?.growth?.note || '');
+      setPestNote(data?.journal_notes?.pest?.note || '');
       setOneLiner(data?.content || '');
     })();
     return () => { alive = false; };
@@ -202,7 +206,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     setHistory(prev => prev.filter(h => h.id !== entry.id));
     if (entry.id === dayNote?.id) {
       setDayNote(null);
-      setEnvNote(''); setEnvImageUrls([]); setEnvThumbnails([]); setOneLiner('');
+      setEnvNote(''); setEnvImageUrls([]); setEnvThumbnails([]); setGrowthNote(''); setPestNote(''); setOneLiner('');
     }
     onSaved?.();
   }
@@ -219,6 +223,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         image_urls: envImageUrls,
         thumbnails: envThumbnails,
       },
+      growth: { note: growthNote.trim() },   // 생육 농부 기록
+      pest: { note: pestNote.trim() },        // 병해충 농부 기록
     };
     const payload = {
       content: oneLiner.trim(),
@@ -483,17 +489,18 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         <MetricBar label="해충" idealLabel="이상점 0 ★" today={report.metrics?.bugs} past={past5.metrics?.bugs} idealValue={0} reverse />
       </Section>
 
-      {/* ─── 농부 입력 ─── */}
-      <Section title="환경 메모" right="농부 입력" C={C}>
+      {/* ─── 농부 입력 (환경·생육·병해충 범주별 기록) ─── */}
+      <Section title="오늘 기록 · 환경 · 생육 · 병해충" right="농부 입력" C={C}>
         <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0 0 0.5rem' }}>
-          비, 바람, 토양, 하우스 내·외부 상태 등 자동 집계 안 되는 관찰
+          꼭 남길 관찰을 범주별로 적어요 — 나중에 자료로 모입니다.
         </p>
+        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0c447c', margin: '0 0 0.3rem' }}>환경 <span style={{ fontWeight: 400, color: C.muted }}>날씨·관수·토양</span></div>
         <textarea
           value={envNote}
           onChange={(e) => setEnvNote(e.target.value)}
           placeholder="예: 오전 비 30mm, 4동 배수 막힘 확인"
           style={{
-            width: '100%', minHeight: '70px', padding: '0.6rem',
+            width: '100%', minHeight: '60px', padding: '0.6rem',
             border: '1px solid #d6c8a8', borderRadius: '0.4rem',
             fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
           }}
@@ -525,9 +532,33 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
           </div>
         )}
         {uploading && <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.3rem' }}>업로드 중...</div>}
+
+        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#27500a', margin: '0.8rem 0 0.3rem' }}>생육 <span style={{ fontWeight: 400, color: C.muted }}>세력·균형·생육시기</span></div>
+        <textarea
+          value={growthNote}
+          onChange={(e) => setGrowthNote(e.target.value)}
+          placeholder="예: 매니큐어 세력 강함, 2-13 끝순 약함"
+          style={{
+            width: '100%', minHeight: '55px', padding: '0.6rem',
+            border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+            fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
+          }}
+        />
+
+        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#a32d2d', margin: '0.8rem 0 0.3rem' }}>병해충 <span style={{ fontWeight: 400, color: C.muted }}>발생·방제</span></div>
+        <textarea
+          value={pestNote}
+          onChange={(e) => setPestNote(e.target.value)}
+          placeholder="예: 1-5 유충 발견, 4-2 깍지 줄어듦"
+          style={{
+            width: '100%', minHeight: '55px', padding: '0.6rem',
+            border: '1px solid #d6c8a8', borderRadius: '0.4rem',
+            fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
+          }}
+        />
       </Section>
 
-      <Section title="오늘 한줄평" right="농부 입력" C={C}>
+      <Section title="오늘 한 줄 코멘트" right="농부 입력" C={C}>
         <textarea
           value={oneLiner}
           onChange={(e) => setOneLiner(e.target.value)}
@@ -636,6 +667,8 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
   const band = hasScore ? scoreBand(dayScore) : null;
 
   const env = entry.journal_notes?.env || {};
+  const growthNote = entry.journal_notes?.growth?.note || '';
+  const pestNote = entry.journal_notes?.pest?.note || '';
   const hasIrr = !!(entry.irrigation && (entry.irrigation.blocks?.length > 0 || entry.irrigation.duration_minutes));
   const hasPest = !!(entry.pest_treatment && entry.pest_treatment.chemical);
 
@@ -732,21 +765,30 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
           </div>
         )}
 
-        {/* 환경 메모 */}
+        {/* 농부 기록 — 환경·생육·병해충 (범주별) */}
         {env.note && (
           <div style={{ fontSize: '0.78rem', color: '#0c4a6e', marginBottom: '0.3rem', lineHeight: 1.4 }}>
             <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>{env.note}
           </div>
         )}
+        {growthNote && (
+          <div style={{ fontSize: '0.78rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.4 }}>
+            <span style={{ fontWeight: 700, marginRight: 4 }}>생육:</span>{growthNote}
+          </div>
+        )}
+        {pestNote && (
+          <div style={{ fontSize: '0.78rem', color: '#991b1b', marginBottom: '0.3rem', lineHeight: 1.4 }}>
+            <span style={{ fontWeight: 700, marginRight: 4 }}>병해충:</span>{pestNote}
+          </div>
+        )}
 
-        {/* ✨ AI 아침 진단 — 환경·생육·병해충 범주로 날짜별 기록 (브리핑에서 저장됨) */}
+        {/* ✨ AI 진단 — 환경·생육·병해충 "기록"만(요청성 alert는 아침 브리핑에만). 날짜별로 쌓임 */}
         {(() => {
           const aiD = entry?.journal_notes?.briefing?.snapshot?.ai;
-          if (!aiD || (!aiD.alert && !aiD.env && !aiD.growth && !aiD.pest)) return null;
+          if (!aiD || (!aiD.env && !aiD.growth && !aiD.pest)) return null;
           return (
             <div style={{ fontSize: '0.78rem', color: '#374151', marginBottom: '0.3rem', lineHeight: 1.5, background: '#f6f8f4', border: '1px solid #e3ebdc', borderRadius: '0.4rem', padding: '0.4rem 0.55rem' }}>
-              <div style={{ fontWeight: 700, color: '#2f6b3c', marginBottom: 2 }}>✨ AI 진단</div>
-              {aiD.alert ? <div style={{ color: '#854f0b' }}>· {aiD.alert}</div> : null}
+              <div style={{ fontWeight: 700, color: '#2f6b3c', marginBottom: 2 }}>✨ AI 진단 <span style={{ fontWeight: 400, color: '#9ca3af' }}>기록</span></div>
               {aiD.env ? <div><span style={{ fontWeight: 700, color: '#0c447c' }}>환경</span> {aiD.env}</div> : null}
               {aiD.growth ? <div><span style={{ fontWeight: 700, color: '#27500a' }}>생육</span> {aiD.growth}</div> : null}
               {aiD.pest ? <div><span style={{ fontWeight: 700, color: '#a32d2d' }}>병해충</span> {aiD.pest}</div> : null}
