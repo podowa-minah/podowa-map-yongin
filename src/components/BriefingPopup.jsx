@@ -264,15 +264,15 @@ function WatchSection({ watchTrees = [], watchCount = 0 }) {
 
 function VarietySection({ list = [] }) {
   if (!list.length) return null;
+  const idealLeft = Math.min(100, (POWER_IDEAL / 5) * 100);   // 적정 마커 위치(%)
   return (
     <>
       <SectionTitle>
-        품종별 점수 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(낮은 순 · 세=세력, 적정 {POWER_IDEAL})</span>
+        품종별 세력 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(막대=세력 · ┃적정 {POWER_IDEAL} · ▲과함 ▼약함)</span>
       </SectionTitle>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }}>
         {list.map((v) => {
           const sc = v.score == null ? null : Math.round(v.score * 10) / 10;
-          const col = sc == null ? '#9ca3af' : sc <= 2.5 ? '#e24b4a' : sc <= 3.5 ? '#eab308' : GREEN;
           const power = v.power ?? v.metrics?.power ?? null;
           const pw = power == null ? null : Math.round(power * 10) / 10;
           // 세력 적정 대비 — 높을수록 좋은 게 아니라 3.35 부근이 최적
@@ -281,14 +281,20 @@ function VarietySection({ list = [] }) {
             : pw > POWER_IDEAL ? { g: '▲', c: '#b45309' }   // 과함
             : { g: '▼', c: '#2563eb' };                      // 약함
           return (
-            <div key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <span style={{ fontSize: '0.8rem', flex: '0 0 3.6rem', color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.name}</span>
-              <span style={{ flex: 1, height: 7, background: '#ece9e0', borderRadius: 999, overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: '100%', width: `${Math.min(100, (sc || 0) / 5 * 100)}%`, background: col }} />
+            <div key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.8rem', flex: '0 0 3.2rem', color: '#1f2937', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.name}</span>
+              {/* 세력 게이지(0~5) + 적정 마커(┃) — '그래프에 세력 포인팅' */}
+              <span style={{ position: 'relative', flex: 1, height: 10, background: '#ece9e0', borderRadius: 999 }}>
+                {pw != null && (
+                  <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, pw / 5 * 100)}%`, background: dir.c, borderRadius: 999 }} />
+                )}
+                <span style={{ position: 'absolute', left: `${idealLeft}%`, top: -3, bottom: -3, width: 2, background: '#374151', borderRadius: 1 }} title={`적정 ${POWER_IDEAL}`} />
               </span>
-              <span style={{ fontSize: '0.8rem', flex: '0 0 1.4rem', textAlign: 'right', color: col, fontWeight: 700 }}>{sc ?? '–'}</span>
-              <span style={{ fontSize: '0.72rem', flex: '0 0 3.2rem', textAlign: 'right', color: dir ? dir.c : '#cbd5e1', fontWeight: 700 }} title={`세력 (적정 ${POWER_IDEAL})`}>
-                {pw == null ? '·' : `세 ${pw}${dir.g}`}
+              <span style={{ fontSize: '0.78rem', flex: '0 0 2.6rem', textAlign: 'right', color: dir ? dir.c : '#cbd5e1', fontWeight: 700 }} title={`세력 (적정 ${POWER_IDEAL})`}>
+                {pw == null ? '–' : `${pw}${dir.g}`}
+              </span>
+              <span style={{ fontSize: '0.68rem', flex: '0 0 2.4rem', textAlign: 'right', color: '#9ca3af' }} title="종합점수">
+                {sc == null ? '' : `점${sc}`}
               </span>
             </div>
           );
