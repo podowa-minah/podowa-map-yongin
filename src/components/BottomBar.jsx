@@ -14,7 +14,6 @@ export default function BottomBar({
   onOpenAnalysis,
   onOpenMenu,
   hasJournalToday,
-  briefingChecked,
   irrEval,
   pestEval,
 }) {
@@ -56,13 +55,13 @@ export default function BottomBar({
       />
 
       {/* 4: 밭상태 진단 보고 (핵심 daily task) */}
-      {/* 불 3상태: 깜빡(브리핑 안읽음) → 고정(브리핑 확인·보고 미작성) → 꺼짐(보고 완료) */}
+      {/* 불 2상태: 켜짐(빨강·오늘 보고 미작성) → 꺼짐(보고 완료) */}
+      {/*   아침 브리핑은 지도 앞 팝업으로 분리됨 — 더 이상 이 불과 안 묶임 */}
       <ActionItem
         icon={<ReportIcon active={activeTab === 'analysis' || !hasJournalToday} />}
         label="보고"
         badge={!hasJournalToday}
         litColor="red"
-        blink={!hasJournalToday && !briefingChecked}
         active={activeTab === 'analysis'}
         onClick={onOpenAnalysis}
         highlight

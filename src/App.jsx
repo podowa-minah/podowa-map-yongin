@@ -33,7 +33,7 @@ import usePrevMissionGap from './hooks/usePrevMissionGap';
 const IrrigationModal = lazy(() => import('./components/IrrigationModal'));
 const PestTreatmentModal = lazy(() => import('./components/PestTreatmentModal'));
 import { hasJournalData, isBriefingChecked } from './lib/journal';
-import { getFarmDiagnosis } from './lib/diagnosis';
+import { getFarmDiagnosis, watchReasonText } from './lib/diagnosis';
 import { getActiveStreak } from './lib/streak';
 import FarmVisitor from './components/FarmVisitor';
 import { playCelebration } from './utils/sounds';
@@ -45,6 +45,7 @@ import { getDominantSeason } from './lib/dailyReport';
 import { evaluateCycle } from './lib/treatment-cycles';
 import TabNav from './components/TabNav';
 const AnalysisPage = lazy(() => import('./AnalysisPage'));
+const BriefingPopup = lazy(() => import('./components/BriefingPopup'));
 const ScoreReferencePage = lazy(() => import('./ScoreReferencePage'));
 const VarietyGuideModal = lazy(() => import('./components/VarietyGuideModal'));
 import { monthOfStageName } from './lib/variety-guide';
@@ -102,7 +103,10 @@ export default function App() {
   // 영농일지 — Podowa 버튼 클릭 시 열림. 오늘 일지 있으면 불 꺼짐
   // (영농일지 모달 제거됨 — 현황분석 페이지로 통합)
   const [journalHasToday, setJournalHasToday] = useState(false);
-  const [briefingCheckedToday, setBriefingCheckedToday] = useState(false);  // 아침 브리핑 확인 여부 → 불 깜빡/고정
+  const [briefingCheckedToday, setBriefingCheckedToday] = useState(false);  // 오늘 아침 브리핑 확인 여부
+  const [briefingLoaded, setBriefingLoaded] = useState(false);       // 오늘 브리핑 확인여부 fetch 완료
+  const [showBriefing, setShowBriefing] = useState(false);            // 아침 브리핑 팝업 (지도 앞)
+  const [briefingAutoShown, setBriefingAutoShown] = useState(false);  // 이번 세션에 자동표시 1회만
   const [journalRefreshKey, setJournalRefreshKey] = useState(0);
   const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
@@ -357,9 +361,22 @@ export default function App() {
       if (!alive) return;
       setJournalHasToday(hasJournalData(data?.[0]));
       setBriefingCheckedToday(isBriefingChecked(data?.[0]));
+      setBriefingLoaded(true);
     })();
     return () => { alive = false; };
   }, [user, journalRefreshKey]);
+
+  // 아침 브리핑 팝업 — 앱 켜면 지도 보기 전에 하루 한 번 자동으로.
+  //   오늘 확인 안 했고(briefingCheckedToday=false) + 나무 데이터 준비됨 + 나무지도 화면일 때.
+  //   이번 세션에 1회만(briefingAutoShown). 확인하면 그날은 다시 안 뜸.
+  useEffect(() => {
+    if (briefingAutoShown) return;
+    if (!user || !briefingLoaded || briefingCheckedToday) return;
+    if (activeTab !== 'map' || viewMode !== 'farm') return;
+    if (!freshTreeLoaded || Object.keys(treeData || {}).length === 0) return;
+    setShowBriefing(true);
+    setBriefingAutoShown(true);
+  }, [user, briefingLoaded, briefingCheckedToday, activeTab, viewMode, freshTreeLoaded, treeData, briefingAutoShown]);
 
   const authorName = user?.user_metadata?.nickname || user?.email || '';
 
@@ -375,7 +392,7 @@ export default function App() {
   // 분모: 불이 켜진 나무 전체 (오늘 기록 제외 후 판단, 기록없는 나무도 시계불 포함)
   // 분자: 그 중 오늘 입력해서 불 끈 나무
   // greenDots: 불 상관없이 오늘 입력한 나무 수 (별도 표시)
-  const { completed, total, greenDots, litTreeIds, doneTreeIds, fakeDoneTreeIds, fakeDoneCount, todayWorkers, tomorrowTotal, statsReady } = useMemo(() => {
+  const { completed, total, greenDots, litTreeIds, doneTreeIds, fakeDoneTreeIds, fakeDoneReasons, fakeDoneCount, todayWorkers, tomorrowTotal, statsReady } = useMemo(() => {
     const now = new Date();
     const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     const kstToday = kst.toISOString().slice(0, 10);
@@ -388,7 +405,7 @@ export default function App() {
     if (activeLabelCount < 5 || !hasTreeData || !freshTreeLoaded) {
       return {
         completed: null, total: null, greenDots: null,
-        litTreeIds: new Set(), doneTreeIds: new Set(), fakeDoneTreeIds: new Set(),
+        litTreeIds: new Set(), doneTreeIds: new Set(), fakeDoneTreeIds: new Set(), fakeDoneReasons: {},
         fakeDoneCount: null, todayWorkers: [], tomorrowTotal: null,
         statsReady: false,
       };
@@ -402,6 +419,7 @@ export default function App() {
     const litSet = new Set();
     const doneSet = new Set(); // 불 켜져 있었는데 오늘 입력한 나무
     const fakeDoneSet = new Set(); // 헛돌봄: 입력은 했지만 해당 메트릭 미입력
+    const fakeReasons = {};        // 헛돌봄 왜인지 (호버 툴팁용)
 
     for (let c = 1; c <= COLS; c++) {
       for (let r = 1; r <= ROWS; r++) {
@@ -432,20 +450,26 @@ export default function App() {
             const hasBugs = todayRecords.some(r => r.bugs != null && r.bugs !== undefined && r.bugs !== '');
             const hasAnyMetric = hasPower || hasBal || hasBugs;
 
-            let isFake = false;
-            if (signals.powerLevel !== 'off' && !hasPower) isFake = true;
-            if (signals.balLevel !== 'off' && !hasBal) isFake = true;
-            if (signals.bugLevel !== 'off' && !hasBugs) isFake = true;
-            // 시계: 5일+ 된 메트릭을 입력해야 정돌봄
-            if (signals.clockLevel !== 'off') {
-              if (signals.clockNeedsPower && !hasPower) isFake = true;
-              if (signals.clockNeedsBal && !hasBal) isFake = true;
-              if (signals.clockNeedsBugs && !hasBugs) isFake = true;
-              // 메트릭 이력 자체가 없는 경우 (아무거나라도 입력 필요)
-              if (!signals.clockNeedsPower && !signals.clockNeedsBal && !signals.clockNeedsBugs && !hasAnyMetric) isFake = true;
+            const missed = [];
+            if ((signals.powerLevel !== 'off' && !hasPower) ||
+                (signals.clockLevel !== 'off' && signals.clockNeedsPower && !hasPower)) missed.push('세력');
+            if ((signals.balLevel !== 'off' && !hasBal) ||
+                (signals.clockLevel !== 'off' && signals.clockNeedsBal && !hasBal)) missed.push('균형');
+            if ((signals.bugLevel !== 'off' && !hasBugs) ||
+                (signals.clockLevel !== 'off' && signals.clockNeedsBugs && !hasBugs)) missed.push('방제(해충)');
+            let isFake = missed.length > 0;
+            // 시계만 켜졌는데 메트릭 이력 자체가 없는 경우 (아무거나라도 입력 필요)
+            if (signals.clockLevel !== 'off' &&
+                !signals.clockNeedsPower && !signals.clockNeedsBal && !signals.clockNeedsBugs && !hasAnyMetric) {
+              isFake = true;
+              if (missed.length === 0) missed.push('오늘 상태');
             }
 
-            if (isFake) { fakeDoneTrees++; fakeDoneSet.add(numericId); }
+            if (isFake) {
+              fakeDoneTrees++;
+              fakeDoneSet.add(numericId);
+              fakeReasons[numericId] = `헛돌봄 — ${missed.join('·')} 기록을 빠뜨렸어요`;
+            }
           } else {
             litSet.add(numericId);
             litTrees++;
@@ -513,6 +537,7 @@ export default function App() {
       litTreeIds: litSet,
       doneTreeIds: doneSet,
       fakeDoneTreeIds: fakeDoneSet,
+      fakeDoneReasons: fakeReasons,
       fakeDoneCount: fakeDoneTrees,
       todayWorkers,
       tomorrowTotal,
@@ -626,11 +651,17 @@ export default function App() {
     setShowVarietyGuide(true);
   };
 
-  // 유심히 볼 나무(이상치) id Set — 맵에서 강조 표시 (브리핑과 같은 진단 함수)
-  const watchTreeIds = useMemo(() => {
+  // 유심히 볼 나무(이상치) — id Set + 왜인지 이유(호버 툴팁용). 브리핑과 같은 진단 함수.
+  const watchInfo = useMemo(() => {
     const tIso = getKSTToday();
     const diag = getFarmDiagnosis(treeData, labels, tIso);
-    return new Set((diag.watchTrees || []).map(w => w.id));
+    const ids = new Set();
+    const reasons = {};
+    for (const w of (diag.watchTrees || [])) {
+      ids.add(w.id);
+      reasons[w.id] = (w.reasons || []).join('·');   // 맵 칩용 짧은 이유 (평균↓·급락·세력약)
+    }
+    return { ids, reasons };
   }, [treeData, labels]);
 
   // 송이크기정리/알솎이 "최종완료" 집계 — 헤더 진행률(%) + 맵 테두리(노랑/파랑).
@@ -803,7 +834,7 @@ export default function App() {
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} watchTreeIds={watchTreeIds} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
             ) : (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             )
@@ -816,6 +847,7 @@ export default function App() {
               onSaved={() => { setJournalRefreshKey(k => k + 1); setTreatmentRefreshKey(k => k + 1); }}
               onOpenScores={() => setActiveTab('scores')}
               onOpenTree={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
+              onOpenBriefing={() => setShowBriefing(true)}
               onClose={() => setActiveTab(previousTab || 'map')}
             />
           )}
@@ -836,10 +868,25 @@ export default function App() {
           onOpenAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
           onOpenMenu={() => setHeaderOpen((v) => !v)}
           hasJournalToday={journalHasToday}
-          briefingChecked={briefingCheckedToday}
           irrEval={irrEval}
           pestEval={pestEval}
         />
+
+        {/* 아침 브리핑 팝업 — 지도 보기 전 하루 한 번 (확인하면 그날 브리핑이 현황분석에 쌓임) */}
+        {showBriefing && (
+          <BriefingPopup
+            treeData={treeData}
+            labels={labels}
+            user={user}
+            onChecked={() => setJournalRefreshKey((k) => k + 1)}
+            onClose={() => setShowBriefing(false)}
+            onOpenTree={(id) => {
+              setShowBriefing(false);
+              window.history.pushState({ modal: true }, '');
+              setSelectedTree(id);
+            }}
+          />
+        )}
 
         {selectedTree && (
           <TreeModal treeId={selectedTree} initialData={null} user={user} onClose={() => { setSelectedTree(null); if (window.history.state?.modal) window.history.back(); setTimeout(loadAllRows, 500); }} onOpenGrass={(grassId) => { setSelectedTree(null); setTimeout(() => setSelectedGrassCell(grassId), 100); }} />

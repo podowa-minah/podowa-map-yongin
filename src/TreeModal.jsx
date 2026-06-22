@@ -594,6 +594,45 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
     [history],
   );
 
+  // 최종완료 취소 — 비밀번호(6687) 확인 후 올해 기록에서 그 마커 제거 (잠금 해제)
+  async function cancelFinalMark(markKey, markName) {
+    const pw = window.prompt(`${markName} 최종완료를 취소할까요?\n취소하려면 비밀번호를 입력하세요.`);
+    if (pw == null) return;
+    if (pw !== '6687') { alert('비밀번호가 틀려요'); return; }
+    const yr = new Date().getFullYear();
+    const yrOf = (d) => {
+      const s = String(d || '');
+      if (s.includes('-')) return parseInt(s.slice(0, 4), 10);
+      if (s.includes('/')) return parseInt(s.split('/')[2], 10);
+      return null;
+    };
+    const clear = (sd) => {
+      const out = {};
+      for (const k of Object.keys(sd || {})) {
+        const o = sd[k];
+        out[k] = (o && typeof o === 'object' && o[markKey]) ? { ...o, [markKey]: false } : o;
+      }
+      return out;
+    };
+    // DB: 올해 기록 중 마커 있는 것에서 제거
+    for (const rec of history) {
+      if (yrOf(rec.date) !== yr) continue;
+      const sd = rec.season_data || {};
+      const has = Object.values(sd).some((o) => o && typeof o === 'object' && o[markKey]);
+      if (has) {
+        await supabase.from('trees').update({ season_data: clear(sd) })
+          .eq('id', actualTreeId).eq('date', rec.date).is('archived_at', null);
+      }
+    }
+    // 로컬 갱신 → finalMarks 재계산 → 잠금 해제
+    setHistory((prev) => prev.map((rec) => (yrOf(rec.date) === yr ? { ...rec, season_data: clear(rec.season_data) } : rec)));
+    setTreeData((prev) => ({
+      ...prev,
+      season_data: { ...prev.season_data, [currentSeason]: { ...(prev.season_data[currentSeason] || {}), [markKey]: false } },
+    }));
+    alert('최종완료를 취소했어요');
+  }
+
   return (
     <div
       style={{
@@ -1187,26 +1226,37 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     {labelText}
                   </label>
                   {markKey && (
-                    <label
-                      title={markDoneThisYear ? '올해 이미 최종완료된 나무예요 (한 번이면 끝)' : '다 끝낸 나무면 눌러요 — 한 번이면 끝'}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                        marginLeft: '0.5rem', padding: '0.2rem 0.6rem',
-                        borderRadius: '999px', cursor: markDoneThisYear ? 'default' : 'pointer', whiteSpace: 'nowrap',
-                        fontSize: '0.85rem', fontWeight: 700,
-                        border: `1.5px solid ${markColor}`,
-                        backgroundColor: markOn ? markColor : '#fff',
-                        color: markOn ? '#fff' : markColor,
-                      }}>
-                      <input
-                        type="checkbox"
-                        checked={markOn}
-                        disabled={markDoneThisYear}
-                        onChange={(e) => handleCheckboxChange(currentSeason, markKey, e.target.checked)}
-                        style={{ width: '1.1rem', height: '1.1rem', margin: 0, accentColor: markColor }}
-                      />
-                      {markDoneThisYear ? '✓ 최종완료' : '최종완료'}
-                    </label>
+                    <>
+                      <label
+                        title={markDoneThisYear ? '올해 이미 최종완료된 나무예요 (한 번이면 끝)' : '다 끝낸 나무면 눌러요 — 한 번이면 끝'}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          marginLeft: '0.5rem', padding: '0.2rem 0.6rem',
+                          borderRadius: '999px', cursor: markDoneThisYear ? 'default' : 'pointer', whiteSpace: 'nowrap',
+                          fontSize: '0.85rem', fontWeight: 700,
+                          border: `1.5px solid ${markColor}`,
+                          backgroundColor: markOn ? markColor : '#fff',
+                          color: markOn ? '#fff' : markColor,
+                        }}>
+                        <input
+                          type="checkbox"
+                          checked={markOn}
+                          disabled={markDoneThisYear}
+                          onChange={(e) => handleCheckboxChange(currentSeason, markKey, e.target.checked)}
+                          style={{ width: '1.1rem', height: '1.1rem', margin: 0, accentColor: markColor }}
+                        />
+                        {markDoneThisYear ? '✓ 최종완료' : '최종완료'}
+                      </label>
+                      {markDoneThisYear && (
+                        <button
+                          type="button"
+                          onClick={() => cancelFinalMark(markKey, labelText)}
+                          style={{ marginLeft: '0.35rem', background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.78rem', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+                        >
+                          취소
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               );

@@ -18,7 +18,7 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
     return (
       <p style={{ color: C.muted, fontSize: '0.85rem', margin: 0, lineHeight: 1.6 }}>
         아직 저장된 브리핑이 없어요.<br />
-        아침에 브리핑에서 <b style={{ color: '#15803d' }}>“오늘 일 시작”</b>을 누르면 그날 브리핑이 여기 쌓여요.
+        아침 브리핑에서 <b style={{ color: '#15803d' }}>“나무 돌보러 가기”</b>를 누르면<br />그날 브리핑(내 판단·AI 한마디)이 여기 쌓여요.
       </p>
     );
   }
@@ -47,6 +47,17 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
                 </span>
               )}
             </div>
+            {s.eyeCheck && (
+              <div style={{ fontSize: '0.82rem', color: '#1f2937', marginBottom: '0.3rem' }}>
+                내 판단: 세력 <b>{s.eyeCheck.vigor ?? '–'}</b> · 해충 <b>{s.eyeCheck.pest ?? '–'}</b>
+                {s.eyeCheck.note ? <span style={{ color: '#6b7280' }}> · “{s.eyeCheck.note}”</span> : null}
+              </div>
+            )}
+            {s.ai?.alert && (
+              <div style={{ fontSize: '0.82rem', color: '#854f0b', marginBottom: '0.3rem', lineHeight: 1.5 }}>
+                🚨 {s.ai.alert}
+              </div>
+            )}
             {(s.opinions || []).map((o, i) => (
               <div key={i} style={opRow}>
                 <span style={opLabel}>{o.label}</span>
