@@ -18,7 +18,6 @@ import { missionsByDate } from './lib/manual';
 import { finalMarksByDate } from './lib/cluster-thinning';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
-import BriefingHistory from './components/BriefingHistory';
 
 const ENV_MAX_PHOTOS = 2;
 
@@ -415,27 +414,20 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         );
       })()}
 
-      {/* ═══ ① 지난 브리핑 — 아침에 본 브리핑이 여기 쌓임 (읽기 전용) ═══ */}
-      {/*   아침 브리핑 자체는 앱 켤 때 지도 앞 팝업으로 뜨고, 확인하면 여기 저장됨 */}
-      <ZoneHeader num="①" title="지난 브리핑" subtitle="아침에 본 브리핑 다시 보기" C={C} />
+      {/* 오늘 브리핑 다시 보기 — 지난 브리핑 기록은 아래 영농일지 카드에 통합됨 */}
       {onOpenBriefing && (
         <button onClick={onOpenBriefing} style={todayBriefingBtn}>
           ☀️ 오늘 브리핑 보기
         </button>
       )}
-      <Section
-        title="브리핑 기록"
-        right={`총 ${history.filter(h => h?.journal_notes?.briefing?.snapshot).length}건`}
-        C={C}
-      >
-        <BriefingHistory history={history} C={C} onSelectDate={setSelectedDate} />
-      </Section>
 
-      {/* ═══ ② 오늘의 보고 — 하루 마무리 기록 ═══ */}
+      {/* ═══ ① 오늘 작성 — 매일 꼭 쓰는 보고(강조) ═══ */}
       <ZoneHeader
-        num="②"
-        title={isToday ? '오늘의 보고' : `${formatDateLine(selectedDate)} 보고`}
-        subtitle="하루 끝에 작성 · 활동과 한줄평"
+        num="①"
+        title={isToday ? '오늘 작성' : `${formatDateLine(selectedDate)} 작성`}
+        subtitle="활동 · 환경/생육/병해충 · 한 줄 코멘트"
+        highlight
+        badge="매일 꼭"
         C={C}
       />
 
@@ -482,13 +474,6 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         </ul>
       </Section>
 
-      {/* 오늘 돌본 나무 분포 (오늘 vs 5일 평균) */}
-      <Section title="오늘 돌본 나무 분포" right="오늘 vs 5일 평균" C={C}>
-        <MetricBar label="세력" idealLabel="이상점 3 ★" today={report.metrics?.power} past={past5.metrics?.power} idealValue={3} />
-        <MetricBar label="균형도" idealLabel="이상점 5 ★" today={report.metrics?.balance} past={past5.metrics?.balance} idealValue={5} />
-        <MetricBar label="해충" idealLabel="이상점 0 ★" today={report.metrics?.bugs} past={past5.metrics?.bugs} idealValue={0} reverse />
-      </Section>
-
       {/* ─── 농부 입력 (환경·생육·병해충 범주별 기록) ─── */}
       <Section title="오늘 기록 · 환경 · 생육 · 병해충" right="농부 입력" C={C}>
         <p style={{ fontSize: '0.78rem', color: C.muted, margin: '0 0 0.5rem' }}>
@@ -505,34 +490,6 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
             fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical', boxSizing: 'border-box',
           }}
         />
-        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.45rem' }}>
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
-            style={uploadBtn(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
-          >촬영</button>
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
-          <button
-            onClick={() => galleryInputRef.current?.click()}
-            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
-            style={uploadBtnOutline(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
-          >갤러리</button>
-          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: 'none' }}
-            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
-        </div>
-        {envImageUrls.length > 0 && (
-          <div style={{ display: 'flex', gap: '5px', marginTop: '0.5rem' }}>
-            {envImageUrls.map((url, idx) => (
-              <div key={idx} style={{ position: 'relative', width: 56, height: 56 }}>
-                <img src={envThumbnails[idx] || url} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 5, border: '1px solid #bfdbfe' }} />
-                <button onClick={() => handleEnvDelete(idx)} style={deletePhotoBtn}>×</button>
-              </div>
-            ))}
-          </div>
-        )}
-        {uploading && <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.3rem' }}>업로드 중...</div>}
-
         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#27500a', margin: '0.8rem 0 0.3rem' }}>생육 <span style={{ fontWeight: 400, color: C.muted }}>세력·균형·생육시기</span></div>
         <textarea
           value={growthNote}
@@ -571,6 +528,36 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         />
       </Section>
 
+      <Section title="오늘 사진" right="선택" C={C}>
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
+            style={uploadBtn(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
+          >촬영</button>
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
+          <button
+            onClick={() => galleryInputRef.current?.click()}
+            disabled={uploading || envImageUrls.length >= ENV_MAX_PHOTOS}
+            style={uploadBtnOutline(envImageUrls.length >= ENV_MAX_PHOTOS, '#0284c7')}
+          >갤러리</button>
+          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+            onChange={(e) => { handleEnvUpload(e.target.files?.[0]); e.target.value = ''; }} />
+        </div>
+        {envImageUrls.length > 0 && (
+          <div style={{ display: 'flex', gap: '5px', marginTop: '0.5rem' }}>
+            {envImageUrls.map((url, idx) => (
+              <div key={idx} style={{ position: 'relative', width: 56, height: 56 }}>
+                <img src={envThumbnails[idx] || url} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 5, border: '1px solid #bfdbfe' }} />
+                <button onClick={() => handleEnvDelete(idx)} style={deletePhotoBtn}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {uploading && <div style={{ fontSize: '0.78rem', color: C.muted, marginTop: '0.3rem' }}>업로드 중...</div>}
+      </Section>
+
       {/* 보고서 완료 버튼 */}
       <div style={{ marginTop: '2rem' }}>
         <button
@@ -596,7 +583,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       </div>
 
       {/* ═══ ③ 영농일지 — 지난 기록 다시 보기 ═══ */}
-      <ZoneHeader num="③" title="영농일지" subtitle="달·절기·점수까지 한 장으로" C={C} />
+      <ZoneHeader num="②" title="영농일지" subtitle="브리핑·활동·기록이 날짜별 한 장으로" C={C} />
       <Section title="지난 기록" right={`총 ${history.length}건`} C={C}>
         {history.length === 0 ? (
           <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 일지가 없어요.</p>
@@ -796,6 +783,24 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
           );
         })()}
 
+        {/* 그날 한 일(AI 체크에서) + 아침 시작 시각 — 브리핑 기록 통합 */}
+        {(() => {
+          const snap = entry?.journal_notes?.briefing?.snapshot;
+          const done = snap?.doneTasks || [];
+          const started = snap?.startedAt ? new Date(snap.startedAt) : null;
+          if (!done.length && !started) return null;
+          return (
+            <div style={{ fontSize: '0.78rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.5 }}>
+              {started && (
+                <div style={{ color: '#6b7280' }}>🌅 아침 시작 {started.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</div>
+              )}
+              {done.map((t, i) => (
+                <div key={i}>✓ {t.kind === 'field' ? t.cat : t.treeId}{t.kind !== 'field' && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}</div>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* 사진 썸네일 (env + 최상위 legacy 합쳐서 보여줌) */}
         <JournalPhotos env={env} entry={entry} />
 
@@ -959,24 +964,37 @@ function Section({ title, right, C, children }) {
 }
 
 // ①②③ 구역 헤더 — 큰 번호 + 제목 + 부제 (농부 뇌구조 구분용)
-function ZoneHeader({ num, title, subtitle, C }) {
+//   highlight=true → 매일 꼭 작성하는 보고처럼 강조(크림 카드 + 배지)
+function ZoneHeader({ num, title, subtitle, C, highlight, badge }) {
+  const base = {
+    display: 'flex', alignItems: 'center', gap: '0.7rem',
+    margin: '2.2rem 0 1rem',
+    paddingBottom: '0.5rem',
+    borderBottom: `2.5px solid ${C.border}`,
+  };
+  const hi = highlight ? {
+    padding: '0.85rem 1rem',
+    background: '#fdf3df',
+    border: `2px solid ${C.border}`,
+    borderBottom: `2px solid ${C.border}`,
+    borderRadius: '0.7rem',
+    boxShadow: '0 2px 8px rgba(146,64,14,0.10)',
+  } : {};
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '0.7rem',
-      margin: '2.2rem 0 1rem',
-      paddingBottom: '0.5rem',
-      borderBottom: `2.5px solid ${C.border}`,
-    }}>
+    <div style={{ ...base, ...hi }}>
       <span style={{
         flexShrink: 0,
-        width: 34, height: 34, borderRadius: '50%',
+        width: highlight ? 38 : 34, height: highlight ? 38 : 34, borderRadius: '50%',
         background: C.border, color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: C.headlineFont, fontSize: '1.05rem', fontWeight: 700,
+        fontFamily: C.headlineFont, fontSize: highlight ? '1.15rem' : '1.05rem', fontWeight: 700,
       }}>{num}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: C.headlineFont, fontSize: '1.25rem', fontWeight: 700, color: C.text, lineHeight: 1.15 }}>
+        <div style={{ fontFamily: C.headlineFont, fontSize: highlight ? '1.4rem' : '1.25rem', fontWeight: 700, color: C.text, lineHeight: 1.15, display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
           {title}
+          {badge && (
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', background: '#fde68a', padding: '2px 9px', borderRadius: '999px' }}>{badge}</span>
+          )}
         </div>
         {subtitle && (
           <div style={{ fontSize: '0.74rem', color: C.muted, marginTop: '1px' }}>{subtitle}</div>
