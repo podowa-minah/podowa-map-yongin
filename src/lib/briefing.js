@@ -10,7 +10,7 @@
 // 입력: App이 가진 treeData(나무별 raw) + labels + 오늘 메모들
 // 출력: /api/briefing 에 그대로 POST 할 수 있는 평범한 객체
 
-import { getFarmDiagnosis, getVarietyAverages } from './diagnosis';
+import { getFarmDiagnosis, getVarietyAverages, getFarmTrend } from './diagnosis';
 
 // "YYYY-MM-DD" 또는 "MM/DD/YYYY" → 연도 숫자
 function yearOf(dateStr) {
@@ -64,6 +64,7 @@ export function buildBriefingContext({
   const diag = getFarmDiagnosis(yearData, labels, todayIso);
   const varieties = getVarietyAverages(yearData, labels);
   const farmerNotes = recentFarmerNotes(yearData, labels);
+  const tr = getFarmTrend(yearData, todayIso || '', 7);   // 최근 1주 vs 직전 1주 추세
 
   return {
     date: todayIso || '',
@@ -75,6 +76,13 @@ export function buildBriefingContext({
       balance: r1(diag.metrics?.balance),
       pest: r1(diag.metrics?.bugs),
       score: r1(diag.score),
+    },
+    // 추세 (최근 1주 vs 직전 1주) — dir: 1 상승 / 0 유지 / -1 하락
+    trend: {
+      days: tr.days,
+      power: { dir: tr.power?.dir ?? 0, delta: r1(tr.power?.delta) },
+      balance: { dir: tr.balance?.dir ?? 0, delta: r1(tr.balance?.delta) },
+      bugs: { dir: tr.bugs?.dir ?? 0, delta: r1(tr.bugs?.delta) },
     },
     // 품종별 (낮은 점수 먼저)
     varieties: varieties.slice(0, 8).map((v) => ({

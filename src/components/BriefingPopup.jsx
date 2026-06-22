@@ -95,6 +95,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
       })),
       watchTrees: ctx.watchTrees,
       watchTotal: ctx.watchCount,
+      trend: ctx.trend,                 // 최근 1주 추세 (히스토리)
       ai: (ai && typeof ai === 'object') ? ai : null,
       tasks: taskList,                            // 오늘 계획(우선순위 5) — 하루 N/5 추적용
       doneTasks: taskList.filter((t) => doneTaskIds.includes(t.key)),  // 아침에 미리 체크한 것(선택)
@@ -150,6 +151,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
             <>
               <AiHero ai={ai} />
               <AiCats ai={ai} />
+              <TrendRow diag={ctx.diagnosis} trend={ctx.trend} />
 
               <SectionTitle>
                 🚩 오늘 꼭 할 일
@@ -198,6 +200,7 @@ function SummaryView({ snap, onClose, onRedo }) {
       )}
       {snap.ai?.alert && <AiHero ai={snap.ai} />}
       <AiCats ai={snap.ai} />
+      {snap.trend && <TrendRow diag={snap.diagnosis} trend={snap.trend} />}
       {plan.length > 0 && (
         <>
           <SectionTitle>오늘 할 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>({doneKeys.size}/{plan.length} 완료)</span></SectionTitle>
@@ -272,6 +275,31 @@ function AiCats({ ai }) {
 // 좌표 → 품종 이름 (AI 나무 할 일 표시용)
 function labelName(coord, labels) {
   return (labels?.[`Tree-${coord}`]?.name || '').trim();
+}
+
+// 밭 추세(최근 1주) — 세력/균형/해충 현재값 + 방향 화살표. 해충은 ↘이 좋음(색 반전).
+function TrendRow({ diag = {}, trend = {} }) {
+  if (!trend) return null;
+  const cell = (label, val, dir, reverse) => {
+    const sym = dir > 0 ? '↗' : dir < 0 ? '↘' : '→';
+    const good = reverse ? dir < 0 : dir > 0;
+    const bad = reverse ? dir > 0 : dir < 0;
+    const col = good ? '#16a34a' : bad ? '#dc2626' : '#9ca3af';
+    return (
+      <span key={label} style={{ fontSize: '0.8rem', marginRight: 12 }}>
+        {label} <b style={{ color: '#1f2937' }}>{val ?? '–'}</b>{' '}
+        <span style={{ color: col, fontWeight: 700 }}>{sym}</span>
+      </span>
+    );
+  };
+  return (
+    <div style={trendBox}>
+      <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginRight: 8 }}>밭 추세 1주</span>
+      {cell('세력', diag.vigor, trend.power?.dir, false)}
+      {cell('균형', diag.balance, trend.balance?.dir, false)}
+      {cell('해충', diag.pest, trend.bugs?.dir, true)}
+    </div>
+  );
 }
 
 // 내 눈 vs 기록 한 줄 — 차이가 크면 노랑 강조(눈이 빗나간 항목)
@@ -552,6 +580,11 @@ const redoBtn = {
 const checkRow = {
   display: 'flex', alignItems: 'flex-start', gap: 7, padding: '3px 0',
   cursor: 'pointer', lineHeight: 1.45,
+};
+const trendBox = {
+  display: 'flex', alignItems: 'center', flexWrap: 'wrap',
+  background: '#f7f6f1', border: '1px solid #ece0c4', borderRadius: 8,
+  padding: '7px 11px', marginBottom: 16,
 };
 const fieldTag = {
   display: 'inline-block', background: '#e6f1fb', color: '#0c447c',

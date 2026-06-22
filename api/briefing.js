@@ -30,12 +30,19 @@ export default async function handler(req, res) {
       stage = '',
       weather = '',
       diagnosis = {},          // { vigor, balance, pest } 1~5
+      trend = null,            // { days, power:{dir,delta}, balance:{...}, bugs:{...} } 최근 추세
       varieties = [],          // [{ name, score }] 점수 낮은 품종들
       watchCount = 0,          // 유심히 볼 나무 수
       watchTrees = [],         // [{ id, name, reasons[] }] 유심히 볼 나무(좌표 포함)
       yesterdayNote = '',      // 어제 영농일지 한줄 (사람)
       farmerNotes = [],        // 농부가 쓴 나무 진단 메모들 (좌표 포함)
     } = req.body || {};
+
+    // 추세 한 줄 (최근 N일 vs 직전 N일) — AI가 악화 중인 항목을 우선시하도록
+    const arrow = (d) => (d > 0 ? '↗ 오름' : d < 0 ? '↘ 내림' : '→ 유지');
+    const trendLine = trend
+      ? `최근 ${trend.days || 7}일 추세 — 세력 ${arrow(trend.power?.dir)}, 균형 ${arrow(trend.balance?.dir)}, 해충 ${arrow(trend.bugs?.dir)} (해충은 ↘이 좋음)`
+      : '';
 
     // 클로드에게 줄 "사실" 묶음 (숫자는 이미 계산된 것 + 사람이 쓴 메모)
     const watchLine = (watchTrees || [])
@@ -46,6 +53,7 @@ export default async function handler(req, res) {
       stage && `생육시기: ${stage}`,
       weather && `날씨: ${weather}`,
       `밭 전체 — 세력 ${diagnosis.vigor ?? '?'}/5, 균형 ${diagnosis.balance ?? '?'}/5, 해충 ${diagnosis.pest ?? '?'}/5 (해충은 낮을수록 좋음)`,
+      trendLine,
       watchLine ? `유심히 볼 나무(좌표): ${watchLine}` : `유심히 볼 나무: ${watchCount}그루`,
       varieties.length && `점수 낮은 품종: ${varieties.map((v) => `${v.name} ${v.score}`).join(', ')}`,
       yesterdayNote && `어제 일지(사람이 씀): "${yesterdayNote}"`,
