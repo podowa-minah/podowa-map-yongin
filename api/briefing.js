@@ -9,7 +9,8 @@
 //   숫자(세력·균형·해충 점수) = 규칙엔진(lib/diagnosis)이 계산해서 여기로 넘겨줌.
 //   글(경각심·체크·정보 종합) = 농부의 자유 메모를 클로드가 읽고 써준다.
 //
-// 응답: { alert: string, checks: string[], info: string }
+// 응답: { alert: string, env: string, growth: string, pest: string }
+//   alert = 히어로 한마디 / env·growth·pest = 환경·생육·병해충 범주 진단 (영농일지에 날짜별 기록)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -50,12 +51,17 @@ export default async function handler(req, res) {
     const system = `너는 포도밭 "포도와" 농장의 아침 브리핑을 써주는 보조야.
 세력·균형·해충 점수는 이미 규칙엔진이 계산했어. 너의 일은 농부가 직접 쓴 자유 메모(어제 일지, 나무 진단)를 읽고 종합해서, 농부가 아침에 밭을 둘러보기 전에 도움이 될 브리핑을 쓰는 거야.
 
+너는 두 가지를 만든다:
+1. alert: 오늘 가장 신경 쓸 핵심 한마디(1~2문장). 정말 없으면 "오늘은 특별히 급한 건 없어요" 식으로.
+2. 오늘 진단을 아래 3개 범주로 나눠 각각 기록한다(영농일지에 날짜별로 쌓여 나중에 다시 본다):
+   - env (환경): 날씨·습도·관수·토양 관련 오늘 메모.
+   - growth (생육): 세력·균형·생육시기 관련 오늘 메모.
+   - pest (병해충): 해충 발생·방제 관련 오늘 메모.
+
 규칙:
-- 한국어로, 농부에게 말하듯 간결하고 따뜻하게. 군더더기 빼고.
-- alert(경각심): 메모와 숫자에서 오늘 가장 신경 쓸 것 1~2문장. 정말 없으면 "오늘은 특별히 급한 건 없어요" 식으로.
-- checks(오늘 체크): 오늘 둘러보며 확인할 구체적 항목 2~4개, 각 한 줄.
-- info(정보): 생육시기·절기 관련 알아두면 좋은 한 줄.
-- 데이터에 없는 사실을 지어내지 마. 과장 금지.`;
+- 한국어로, 농부에게 말하듯 간결하고 따뜻하게. 각 범주는 1~2문장.
+- 해당 범주에 특별히 적을 게 없으면 그 범주는 빈 문자열("")로 둬. 억지로 채우지 마.
+- 데이터(숫자·사람 메모)에 없는 사실을 지어내지 마. 과장 금지.`;
 
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -78,10 +84,11 @@ export default async function handler(req, res) {
               type: 'object',
               properties: {
                 alert: { type: 'string' },
-                checks: { type: 'array', items: { type: 'string' } },
-                info: { type: 'string' },
+                env: { type: 'string' },     // 환경
+                growth: { type: 'string' },  // 생육
+                pest: { type: 'string' },    // 병해충
               },
-              required: ['alert', 'checks', 'info'],
+              required: ['alert', 'env', 'growth', 'pest'],
               additionalProperties: false,
             },
           },
@@ -112,8 +119,9 @@ export default async function handler(req, res) {
     // 토큰 사용량도 같이 (비용 확인용)
     res.status(200).json({
       alert: parsed.alert,
-      checks: Array.isArray(parsed.checks) ? parsed.checks : [],
-      info: parsed.info || '',
+      env: parsed.env || '',        // 환경
+      growth: parsed.growth || '',  // 생육
+      pest: parsed.pest || '',      // 병해충
       _usage: data.usage || null,
     });
   } catch (e) {

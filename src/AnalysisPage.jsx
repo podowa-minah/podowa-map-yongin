@@ -739,6 +739,21 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
           </div>
         )}
 
+        {/* ✨ AI 아침 진단 — 환경·생육·병해충 범주로 날짜별 기록 (브리핑에서 저장됨) */}
+        {(() => {
+          const aiD = entry?.journal_notes?.briefing?.snapshot?.ai;
+          if (!aiD || (!aiD.alert && !aiD.env && !aiD.growth && !aiD.pest)) return null;
+          return (
+            <div style={{ fontSize: '0.78rem', color: '#374151', marginBottom: '0.3rem', lineHeight: 1.5, background: '#f6f8f4', border: '1px solid #e3ebdc', borderRadius: '0.4rem', padding: '0.4rem 0.55rem' }}>
+              <div style={{ fontWeight: 700, color: '#2f6b3c', marginBottom: 2 }}>✨ AI 진단</div>
+              {aiD.alert ? <div style={{ color: '#854f0b' }}>· {aiD.alert}</div> : null}
+              {aiD.env ? <div><span style={{ fontWeight: 700, color: '#0c447c' }}>환경</span> {aiD.env}</div> : null}
+              {aiD.growth ? <div><span style={{ fontWeight: 700, color: '#27500a' }}>생육</span> {aiD.growth}</div> : null}
+              {aiD.pest ? <div><span style={{ fontWeight: 700, color: '#a32d2d' }}>병해충</span> {aiD.pest}</div> : null}
+            </div>
+          );
+        })()}
+
         {/* 사진 썸네일 (env + 최상위 legacy 합쳐서 보여줌) */}
         <JournalPhotos env={env} entry={entry} />
 

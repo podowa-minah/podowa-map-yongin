@@ -19,13 +19,9 @@ const GREEN = '#2f6b3c';
 export default function BriefingPopup({ treeData = {}, labels = {}, user, onChecked, onClose }) {
   const today = todayKST();
   const [doneToday, setDoneToday] = useState(undefined);   // undefined=확인중 | true | false
-  const [savedSnap, setSavedSnap] = useState(null);        // 오늘 이미 한 경우의 스냅샷
-  const [step, setStep] = useState('report');              // 'report' | 'predict'
-  const [vigor, setVigor] = useState(null);
-  const [pest, setPest] = useState(null);
-  const [note, setNote] = useState('');
+  const [savedSnap, setSavedSnap] = useState(null);        // 오늘 이미 시작한 경우의 스냅샷
   const [ai, setAi] = useState('loading');                 // 'loading' | 'error' | {alert,checks,info}
-  const [doneTaskIds, setDoneTaskIds] = useState([]);      // 체크한 나무 번호(=한 일) 목록
+  const [doneTaskIds, setDoneTaskIds] = useState([]);      // (선택) 아침에 미리 체크한 할 일
   const [saving, setSaving] = useState(false);
 
   const toggleTask = (treeId) =>
@@ -34,9 +30,9 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
   const ctx = useMemo(() => buildBriefingContext({ treeData, labels, todayIso: today }), [treeData, labels, today]);
   const varietyScores = useMemo(() => getVarietyAverages(treeData, labels), [treeData, labels]);
 
-  // 진단기반 우선순위 체크리스트 — 유심히 볼 나무(번호·이유)에 작업 라벨을 붙임
+  // 오늘 꼭 할 일 — 우선순위 5 (진단 우선순위 나무 = 좌표+작업). 밭 할일(관수·방제)은 다음 단계.
   const taskList = useMemo(
-    () => (ctx.watchTrees || []).map((w) => ({ treeId: w.id, name: w.name, label: taskLabel(w.reasons) })),
+    () => (ctx.watchTrees || []).slice(0, 5).map((w) => ({ treeId: w.id, name: w.name, label: taskLabel(w.reasons) })),
     [ctx],
   );
 
@@ -76,7 +72,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
     setSaving(true);
     const author = user?.user_metadata?.nickname || user?.email || '';
     const snapshot = {
-      eyeCheck: { vigor, pest, note: note.trim() },
+      startedAt: new Date().toISOString(),       // 아침 업무 시작 시각
       diagnosis: ctx.diagnosis,
       varietyScores: varietyScores.map((v) => ({
         name: v.name,
@@ -86,8 +82,8 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
       watchTrees: ctx.watchTrees,
       watchTotal: ctx.watchCount,
       ai: (ai && typeof ai === 'object') ? ai : null,
-      // 체크한 우선순위 나무 = "한 일" (나무 번호로 연결 → 개별 히스토리에서 읽어 표시)
-      doneTasks: taskList.filter((t) => doneTaskIds.includes(t.treeId)),
+      tasks: taskList,                            // 오늘 계획(우선순위 5) — 하루 N/5 추적용
+      doneTasks: taskList.filter((t) => doneTaskIds.includes(t.treeId)),  // 아침에 미리 체크한 것(선택)
     };
     const { data: existing } = await supabase
       .from('daily_notes').select('id, journal_notes')
@@ -105,73 +101,58 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
     onClose?.();
   }
 
-  // 요약에서 "처음부터 다시 작성" — 보고→나무 돌보세요→예측 흐름을 다시 (저장하면 오늘 기록 덮어씀)
+  // 요약에서 "다시" — 아침 보고를 다시 (저장하면 오늘 기록 덮어씀)
   function redo() {
     setSavedSnap(null);
-    setVigor(null); setPest(null); setNote('');
     setDoneTaskIds([]);
     setAi('loading');
-    setStep('report');
-    setDoneToday(false);   // → AI 다시 받아오고 보고 흐름 표시
+    setDoneToday(false);
   }
-
-  const canStart = vigor != null && pest != null;
 
   return (
     <div style={overlay} onClick={onClose}>
       <div style={sheet} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
-          <span style={{ fontWeight: 700 }}>
-            {shortDate(today)} 아침 브리핑{doneToday ? ' · 요약' : step === 'predict' ? ' · 오늘 세력' : ''}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={hIcon}>✨</span>
+            <span>
+              <span style={{ display: 'block', fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.1 }}>AI 아침보고</span>
+              <span style={{ display: 'block', fontSize: '0.72rem', opacity: 0.85, marginTop: 2 }}>{shortDate(today)}{doneToday ? ' · 요약' : ''}</span>
+            </span>
+          </div>
           <button onClick={onClose} aria-label="닫기" title="닫기" style={closeBtn}>✕</button>
         </div>
 
         <div style={body}>
           {doneToday === undefined && <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0 }}>불러오는 중…</p>}
 
-          {/* ── 요약 모드: 오늘 이미 함 ── */}
+          {/* ── 요약 모드: 오늘 이미 시작함 ── */}
           {doneToday === true && (
             <SummaryView snap={savedSnap} onClose={onClose} onRedo={redo} />
           )}
 
-          {/* ── ① 보고 + 나무 돌보세요 ── */}
-          {doneToday === false && step === 'report' && (
+          {/* ── 아침 보고 (단일 화면) ── */}
+          {doneToday === false && (
             <>
+              <AiHero ai={ai} />
+
               <SectionTitle>
-                <span style={{ color: '#854f0b' }}>오늘 꼭 볼 나무 {ctx.watchCount}그루</span>
-                <span style={{ fontWeight: 400, color: '#9ca3af' }}> (우선순위 · 한 건 체크 → 기록)</span>
+                🚩 오늘 꼭 할 일
+                <span style={{ fontWeight: 400, color: '#9ca3af' }}> 우선순위 {taskList.length} · 하면 자동 기록</span>
               </SectionTitle>
               <TaskChecklist tasks={taskList} watchCount={ctx.watchCount} checked={doneTaskIds} onToggle={toggleTask} />
-              <VarietySection list={varietyScores} />
-              <SectionTitle>AI 한마디</SectionTitle>
-              <AiView ai={ai} />
-              <div style={careBanner}>
-                🍇 꼭 포도밭을 한 바퀴 돌고<br />포도나무 컨디션을 체크한 후 나무를 돌보세요!
-              </div>
-              <button onClick={() => setStep('predict')} style={primaryBtn}>확인 — 오늘 세력 보기</button>
-            </>
-          )}
 
-          {/* ── ② 오늘 세력 예측 ── */}
-          {doneToday === false && step === 'predict' && (
-            <>
-              <SectionTitle>오늘 밭 상태 어때 보여요?</SectionTitle>
-              <Field label="전체 세력" hint="1 약함 — 5 강함">
-                <Pills opts={[1, 2, 3, 4, 5]} value={vigor} onPick={setVigor} />
-              </Field>
-              <Field label="해충 정도" hint="0 없음 — 5 심함">
-                <Pills opts={[0, 1, 2, 3, 4, 5]} value={pest} onPick={setPest} />
-              </Field>
-              <Field label="걱정 구역 · 한마디" hint="선택 (기록에 저장돼요)">
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
-                  placeholder="예: 매니큐어 세력 강함, 함부르크 진딧물 시작" style={textareaStyle} />
-              </Field>
-              <button disabled={!canStart || saving} onClick={startDay}
-                style={{ ...primaryBtn, opacity: (canStart && !saving) ? 1 : 0.45, cursor: (canStart && !saving) ? 'pointer' : 'not-allowed' }}>
-                {saving ? '저장 중…' : '나무 돌보러 가기'}
+              <VarietySection list={varietyScores} />
+
+              <div style={careBanner}>
+                🍇 꼭 포도밭을 한 바퀴 돌고<br />나무 컨디션을 체크한 후 돌봄을 시작하세요
+              </div>
+
+              <button onClick={startDay} disabled={saving}
+                style={{ ...primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.6 : 1 }}>
+                <span style={farmerBadge}>👨‍🌾</span>{saving ? '시작 중…' : '아침 업무 시작'}
               </button>
-              <p style={hintLine}>세력·해충 찍어야 시작돼요 · 보고·세력·걱정 모두 기록에 저장</p>
+              <p style={hintLine}>누르면 시작 시각이 기록돼요 · 할 일은 하면 자동 체크돼요</p>
             </>
           )}
         </div>
@@ -180,62 +161,74 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
   );
 }
 
-// ── 요약(읽기 전용) ──
+// ── 요약(읽기 전용) — 오늘 이미 시작함 ──
 function SummaryView({ snap, onClose, onRedo }) {
   if (!snap) {
     return (
       <>
-        <p style={{ fontSize: '0.9rem', color: '#5f5e5a' }}>오늘 브리핑을 이미 확인했어요. ✅</p>
+        <p style={{ fontSize: '0.9rem', color: '#5f5e5a' }}>오늘 아침 업무를 이미 시작했어요. ✅</p>
         <button onClick={onClose} style={primaryBtn}>닫기</button>
       </>
     );
   }
-  const e = snap.eyeCheck || {};
-  const d = snap.diagnosis || {};
+  const started = snap.startedAt ? new Date(snap.startedAt) : null;
+  const plan = snap.tasks || [];
+  const doneIds = new Set((snap.doneTasks || []).map((t) => t.treeId));
   return (
     <>
-      {/* 내 눈(아침 예측) vs 실제(기록 데이터) — 눈 훈련 비교 */}
-      <SectionTitle>오늘 세력·해충 — 내 눈 vs 기록</SectionTitle>
-      <div style={cmpTable}>
-        <div style={{ ...cmpRow, color: '#9ca3af', fontSize: '0.74rem', fontWeight: 700 }}>
-          <span style={cmpLabel} /><span style={cmpCol}>내 눈</span><span style={cmpCol}>기록(데이터)</span>
-        </div>
-        <CmpRow label="세력" mine={e.vigor} real={d.vigor} />
-        <CmpRow label="해충" mine={e.pest} real={d.pest} />
-      </div>
-      {d.score != null && (
-        <div style={{ fontSize: '0.82rem', color: '#1f2937', margin: '0 0 12px' }}>
-          밭 종합 점수 <b style={{ color: GREEN }}>{d.score}</b>
-          {d.balance != null && <span style={{ color: '#9ca3af' }}> · 균형 {d.balance}</span>}
+      {started && (
+        <div style={{ fontSize: '0.9rem', color: '#1f2937', marginBottom: 14 }}>
+          🌅 아침 업무 시작 <b style={{ color: GREEN }}>{hhmm(started)}</b>
         </div>
       )}
-      {e.note ? (
-        <div style={{ fontSize: '0.85rem', color: '#5f5e5a', margin: '0 0 14px' }}>걱정 메모: “{e.note}”</div>
-      ) : null}
-      {snap.watchTrees?.length > 0 && (
-        <WatchSection watchTrees={snap.watchTrees} watchCount={snap.watchTotal ?? snap.watchTrees.length} />
+      {snap.ai?.alert && <AiHero ai={snap.ai} />}
+      {plan.length > 0 && (
+        <>
+          <SectionTitle>오늘 할 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>({doneIds.size}/{plan.length} 완료)</span></SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
+            {plan.map((t, i) => {
+              const done = doneIds.has(t.treeId);
+              return (
+                <div key={i} style={{ fontSize: '0.85rem', color: done ? '#27500a' : '#1f2937' }}>
+                  {done ? '✓ ' : '☐ '}<b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
       {snap.varietyScores?.length > 0 && (
         <VarietySection list={snap.varietyScores} />
       )}
-      {snap.doneTasks?.length > 0 && (
-        <>
-          <SectionTitle>✅ 오늘 한 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(나무별)</span></SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14 }}>
-            {snap.doneTasks.map((t, i) => (
-              <div key={i} style={{ fontSize: '0.85rem', color: '#27500a' }}>
-                ✓ <b>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {snap.ai && (<><SectionTitle>AI 한마디</SectionTitle><AiView ai={snap.ai} /></>)}
       <button onClick={onClose} style={{ ...primaryBtn, marginTop: 6 }}>닫기</button>
       {onRedo && (
-        <button onClick={onRedo} style={redoBtn}>✏️ 오늘 브리핑 처음부터 다시 작성</button>
+        <button onClick={onRedo} style={redoBtn}>✏️ 오늘 아침 보고 다시</button>
       )}
     </>
+  );
+}
+
+// AI 한마디 — 히어로(아바타 + 큰 글씨). 강조.
+function AiHero({ ai }) {
+  const loading = ai === 'loading';
+  let msg;
+  if (loading) msg = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#6b7280' }}>
+      <span style={spinner} />
+      AI가 오늘 밭을 읽고 있어요… 잠깐만요
+    </span>
+  );
+  else if (ai === 'error') msg = <span style={{ color: '#9ca3af' }}>AI 한마디는 배포본(인터넷)에서 떠요</span>;
+  else if (ai && typeof ai === 'object') msg = <span style={{ color: '#1f2937' }}>{ai.alert}</span>;
+  else msg = <span style={{ color: '#9ca3af' }}>—</span>;
+  return (
+    <div style={aiHero}>
+      <span style={{ ...aiAvatar, animation: loading ? 'spin 1.6s linear infinite' : 'none' }}>✨</span>
+      <div>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: GREEN, marginBottom: 3 }}>AI 한마디 · 오늘의 진단</div>
+        <div style={{ fontSize: '0.95rem', lineHeight: 1.55 }}>{msg}</div>
+      </div>
+    </div>
   );
 }
 
@@ -315,15 +308,17 @@ function WatchSection({ watchTrees = [], watchCount = 0 }) {
 }
 
 function VarietySection({ list = [] }) {
+  const [open, setOpen] = useState(false);
   if (!list.length) return null;
   const idealLeft = Math.min(100, (POWER_IDEAL / 5) * 100);   // 적정 마커 위치(%)
+  const shown = open ? list : list.slice(0, 2);   // list는 약한 순 → 기본 약한 2개만
   return (
     <>
       <SectionTitle>
-        품종별 세력 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(막대=세력 · ┃적정 {POWER_IDEAL} · ▲과함 ▼약함)</span>
+        품종별 세력 <span style={{ fontWeight: 400, color: '#9ca3af' }}>(막대=세력 · ┃적정 {POWER_IDEAL})</span>
       </SectionTitle>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }}>
-        {list.map((v) => {
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 8 }}>
+        {shown.map((v) => {
           const sc = v.score == null ? null : Math.round(v.score * 10) / 10;
           const power = v.power ?? v.metrics?.power ?? null;
           const pw = power == null ? null : Math.round(power * 10) / 10;
@@ -352,6 +347,11 @@ function VarietySection({ list = [] }) {
           );
         })}
       </div>
+      {list.length > 2 && (
+        <button onClick={() => setOpen((o) => !o)} style={moreVarBtn}>
+          {open ? '접기 ▴' : `품종 ${list.length}종 자세히 ▾`}
+        </button>
+      )}
     </>
   );
 }
@@ -429,6 +429,10 @@ function shortDate(iso) {
   const dow = ['일', '월', '화', '수', '목', '금', '토'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   return `${m}/${d} (${dow})`;
 }
+function hhmm(date) {
+  try { return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }); }
+  catch { return ''; }
+}
 
 // ── 스타일 ──
 const overlay = {
@@ -437,8 +441,34 @@ const overlay = {
 };
 const sheet = { width: '100%', maxWidth: '420px', margin: 'auto' };
 const header = {
-  background: GREEN, color: '#fff', padding: '13px 16px', borderRadius: '14px 14px 0 0',
-  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  background: GREEN, color: '#fff', padding: '14px 16px', borderRadius: '14px 14px 0 0',
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+};
+const hIcon = {
+  width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.16)',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.05rem', flexShrink: 0,
+};
+const aiHero = {
+  display: 'flex', gap: 10, background: '#f1f7ee', border: '1px solid #cfe3cc',
+  borderRadius: 12, padding: '12px 13px', marginBottom: 18,
+};
+const aiAvatar = {
+  flexShrink: 0, width: 34, height: 34, borderRadius: '50%', background: GREEN, color: '#fff',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.05rem',
+};
+const spinner = {
+  width: 16, height: 16, border: '2px solid #d8e3d2', borderTopColor: GREEN,
+  borderRadius: '50%', display: 'inline-block', flexShrink: 0,
+  animation: 'spin 0.8s linear infinite',   // @keyframes spin = App.css 전역
+};
+const farmerBadge = {
+  width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.25)',
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
+};
+const moreVarBtn = {
+  width: '100%', marginBottom: 14, padding: '7px', background: 'none',
+  border: '1px solid #ece0c4', borderRadius: 8, color: '#6b7280',
+  fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
 };
 const body = { background: '#fff', borderRadius: '0 0 14px 14px', padding: '15px 16px' };
 const closeBtn = {

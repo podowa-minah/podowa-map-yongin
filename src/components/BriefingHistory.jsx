@@ -71,6 +71,13 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
                 🚨 {s.ai.alert}
               </div>
             )}
+            {s.ai && (s.ai.env || s.ai.growth || s.ai.pest) && (
+              <div style={{ fontSize: '0.8rem', color: '#374151', marginBottom: '0.3rem', lineHeight: 1.55 }}>
+                {s.ai.env ? <div><b style={{ color: '#0c447c' }}>환경</b> · {s.ai.env}</div> : null}
+                {s.ai.growth ? <div><b style={{ color: '#27500a' }}>생육</b> · {s.ai.growth}</div> : null}
+                {s.ai.pest ? <div><b style={{ color: '#a32d2d' }}>병해충</b> · {s.ai.pest}</div> : null}
+              </div>
+            )}
             {Array.isArray(s.doneTasks) && s.doneTasks.length > 0 && (
               <div style={{ fontSize: '0.8rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.5 }}>
                 {s.doneTasks.map((t, i) => (
