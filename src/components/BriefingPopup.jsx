@@ -296,6 +296,11 @@ const header = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
 };
 const body = { background: '#fff', borderRadius: '0 0 14px 14px', padding: '15px 16px' };
+const closeBtn = {
+  background: 'rgba(255,255,255,0.18)', color: '#fff', border: 'none',
+  borderRadius: 8, width: 30, height: 30, fontSize: '0.95rem',
+  cursor: 'pointer', lineHeight: 1, flexShrink: 0,
+};
 const textareaStyle = {
   width: '100%', boxSizing: 'border-box', font: 'inherit', fontSize: '0.9rem',
   padding: 8, borderRadius: 8, border: '1px solid #d3d1c7', resize: 'none',
