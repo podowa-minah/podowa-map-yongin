@@ -40,7 +40,7 @@ function recentFarmerNotes(treeDataYear, labels, limit = 8) {
     const name = (labels?.[`Tree-${id}`]?.name || '').trim();
     for (const r of treeDataYear[id]) {
       const t = (r.comments || '').trim();
-      if (t) notes.push({ date: r.date, name, text: t });
+      if (t) notes.push({ date: r.date, id, name, text: t });   // id = 나무 좌표(AI가 메모를 좌표에 연결)
     }
   }
   notes.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -87,7 +87,8 @@ export function buildBriefingContext({
     })),
     // 사람이 쓴 자유 메모 (어제 일지 + 나무 진단) — 학습 핵심
     yesterdayNote: yesterdayNote || '',
-    farmerNotes: farmerNotes.map((n) => (n.name ? `[${n.name}] ${n.text}` : n.text)),
+    // 좌표 + 품종 + 글 → AI가 "1-5에 유충"처럼 좌표에 연결해 판단
+    farmerNotes: farmerNotes.map((n) => `[${[n.id, n.name].filter(Boolean).join(' ')}] ${n.text}`),
     // 오늘 아침 눈파악 (사람 판단)
     eyeCheck: eyeCheck || null,
     // 작년 참고 — 데이터 쌓이면 같은 시기 요약을 여기에. 올해 숫자엔 합산 X.

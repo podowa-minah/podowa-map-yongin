@@ -878,6 +878,8 @@ export default function App() {
             treeData={treeData}
             labels={labels}
             user={user}
+            irrEval={irrEval}
+            pestEval={pestEval}
             onChecked={() => setJournalRefreshKey((k) => k + 1)}
             onClose={() => setShowBriefing(false)}
             onOpenTree={(id) => {

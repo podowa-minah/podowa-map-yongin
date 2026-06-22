@@ -80,9 +80,10 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
             )}
             {Array.isArray(s.doneTasks) && s.doneTasks.length > 0 && (
               <div style={{ fontSize: '0.8rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.5 }}>
-                {s.doneTasks.map((t, i) => (
-                  <div key={i}>✓ <b>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}</div>
-                ))}
+                {s.doneTasks.map((t, i) => {
+                  const isField = t.kind === 'field';
+                  return <div key={i}>✓ <b>{isField ? t.cat : t.treeId}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}</div>;
+                })}
               </div>
             )}
             {(s.opinions || []).map((o, i) => (

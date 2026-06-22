@@ -16,7 +16,7 @@ import { POWER_IDEAL } from '../lib/scoring';
 
 const GREEN = '#2f6b3c';
 
-export default function BriefingPopup({ treeData = {}, labels = {}, user, onChecked, onClose }) {
+export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEval = null, pestEval = null, onChecked, onClose }) {
   const today = todayKST();
   const [doneToday, setDoneToday] = useState(undefined);   // undefined=확인중 | true | false
   const [savedSnap, setSavedSnap] = useState(null);        // 오늘 이미 시작한 경우의 스냅샷
@@ -30,11 +30,25 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
   const ctx = useMemo(() => buildBriefingContext({ treeData, labels, todayIso: today }), [treeData, labels, today]);
   const varietyScores = useMemo(() => getVarietyAverages(treeData, labels), [treeData, labels]);
 
-  // 오늘 꼭 할 일 — 우선순위 5 (진단 우선순위 나무 = 좌표+작업). 밭 할일(관수·방제)은 다음 단계.
-  const taskList = useMemo(
-    () => (ctx.watchTrees || []).slice(0, 5).map((w) => ({ treeId: w.id, name: w.name, label: taskLabel(w.reasons) })),
-    [ctx],
-  );
+  // 오늘 꼭 할 일 — 우선순위 5. AI가 메모·데이터·추이로 뽑은 할 일(밭=파란 태그 / 나무=좌표).
+  //   AI가 못 주면(로컬·실패) 규칙기반(유심히 볼 나무)으로 대체. 관수·방제는 버튼 불이라 제외.
+  const validIds = useMemo(() => new Set(Object.keys(treeData || {})), [treeData]);
+  const taskList = useMemo(() => {
+    if (ai && typeof ai === 'object' && Array.isArray(ai.tasks) && ai.tasks.length) {
+      const out = ai.tasks.map((t, i) => {
+        if (t.scope === 'field') {
+          return { key: `f-${i}`, kind: 'field', cat: `밭·${t.category || ''}`, label: t.action };
+        }
+        if (validIds.has(String(t.coord))) {
+          return { key: `t-${t.coord}-${i}`, kind: 'tree', treeId: String(t.coord), name: labelName(t.coord, labels), label: t.action };
+        }
+        return null;   // 좌표 검증 실패는 버림
+      }).filter(Boolean);
+      if (out.length) return out.slice(0, 5);
+    }
+    // 대체: 진단 우선순위 나무
+    return (ctx.watchTrees || []).slice(0, 5).map((w) => ({ key: w.id, kind: 'tree', treeId: w.id, name: w.name, label: taskLabel(w.reasons) }));
+  }, [ai, ctx, validIds, labels]);
 
   // 오늘 이미 브리핑 했나? → 했으면 요약만
   useEffect(() => {
@@ -83,7 +97,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
       watchTotal: ctx.watchCount,
       ai: (ai && typeof ai === 'object') ? ai : null,
       tasks: taskList,                            // 오늘 계획(우선순위 5) — 하루 N/5 추적용
-      doneTasks: taskList.filter((t) => doneTaskIds.includes(t.treeId)),  // 아침에 미리 체크한 것(선택)
+      doneTasks: taskList.filter((t) => doneTaskIds.includes(t.key)),  // 아침에 미리 체크한 것(선택)
     };
     const { data: existing } = await supabase
       .from('daily_notes').select('id, journal_notes')
@@ -135,12 +149,13 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
           {doneToday === false && (
             <>
               <AiHero ai={ai} />
+              <AiCats ai={ai} />
 
               <SectionTitle>
                 🚩 오늘 꼭 할 일
                 <span style={{ fontWeight: 400, color: '#9ca3af' }}> 우선순위 {taskList.length} · 하면 자동 기록</span>
               </SectionTitle>
-              <TaskChecklist tasks={taskList} watchCount={ctx.watchCount} checked={doneTaskIds} onToggle={toggleTask} />
+              <TaskChecklist tasks={taskList} checked={doneTaskIds} onToggle={toggleTask} />
 
               <VarietySection list={varietyScores} />
 
@@ -173,7 +188,7 @@ function SummaryView({ snap, onClose, onRedo }) {
   }
   const started = snap.startedAt ? new Date(snap.startedAt) : null;
   const plan = snap.tasks || [];
-  const doneIds = new Set((snap.doneTasks || []).map((t) => t.treeId));
+  const doneKeys = new Set((snap.doneTasks || []).map((t) => t.key || t.treeId));
   return (
     <>
       {started && (
@@ -182,15 +197,17 @@ function SummaryView({ snap, onClose, onRedo }) {
         </div>
       )}
       {snap.ai?.alert && <AiHero ai={snap.ai} />}
+      <AiCats ai={snap.ai} />
       {plan.length > 0 && (
         <>
-          <SectionTitle>오늘 할 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>({doneIds.size}/{plan.length} 완료)</span></SectionTitle>
+          <SectionTitle>오늘 할 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>({doneKeys.size}/{plan.length} 완료)</span></SectionTitle>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
             {plan.map((t, i) => {
-              const done = doneIds.has(t.treeId);
+              const done = doneKeys.has(t.key || t.treeId);
+              const isField = t.kind === 'field';
               return (
                 <div key={i} style={{ fontSize: '0.85rem', color: done ? '#27500a' : '#1f2937' }}>
-                  {done ? '✓ ' : '☐ '}<b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
+                  {done ? '✓ ' : '☐ '}<b style={{ color: isField ? '#0c447c' : '#b45309' }}>{taskTagText(t)}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
                 </div>
               );
             })}
@@ -232,6 +249,31 @@ function AiHero({ ai }) {
   );
 }
 
+// AI 진단 범주 — 생육·병해충·환경 (아침에 같이 봄, 영농일지에도 쌓임)
+function AiCats({ ai }) {
+  if (!ai || typeof ai !== 'object') return null;
+  const rows = [
+    ['생육', ai.growth, '#27500a'],
+    ['병해충', ai.pest, '#a32d2d'],
+    ['환경', ai.env, '#0c447c'],
+  ].filter(([, v]) => v);
+  if (!rows.length) return null;
+  return (
+    <div style={{ marginBottom: 16, fontSize: '0.84rem', lineHeight: 1.55 }}>
+      {rows.map(([label, text, col]) => (
+        <div key={label} style={{ marginBottom: 4 }}>
+          <span style={{ fontWeight: 700, color: col }}>{label}</span> <span style={{ color: '#1f2937' }}>{text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// 좌표 → 품종 이름 (AI 나무 할 일 표시용)
+function labelName(coord, labels) {
+  return (labels?.[`Tree-${coord}`]?.name || '').trim();
+}
+
 // 내 눈 vs 기록 한 줄 — 차이가 크면 노랑 강조(눈이 빗나간 항목)
 function CmpRow({ label, mine, real }) {
   const diff = (mine != null && real != null) ? Math.abs(mine - real) : null;
@@ -260,30 +302,33 @@ function taskLabel(reasons = []) {
   return acts.join('·') || '상태 확인';
 }
 
-// 우선순위 나무 체크리스트 — 체크하면 그 나무 "한 일"로 기록
-function TaskChecklist({ tasks = [], watchCount = 0, checked = [], onToggle }) {
+// 우선순위 체크리스트 — 밭(파란 태그) + 나무(좌표). 체크하면 "한 일"로 기록.
+function TaskChecklist({ tasks = [], checked = [], onToggle }) {
   if (!tasks.length) {
-    return <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 14 }}>오늘 꼭 볼 나무가 없어요 — 한 바퀴만 돌아요.</div>;
+    return <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 14 }}>오늘 급한 할 일이 없어요 — 한 바퀴만 가볍게 돌아요.</div>;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
       {tasks.map((t) => {
-        const on = checked.includes(t.treeId);
+        const on = checked.includes(t.key);
         return (
-          <label key={t.treeId} style={checkRow}>
-            <input type="checkbox" checked={on} onChange={() => onToggle?.(t.treeId)} style={{ marginTop: 3, flexShrink: 0 }} />
+          <label key={t.key} style={checkRow}>
+            <input type="checkbox" checked={on} onChange={() => onToggle?.(t.key)} style={{ marginTop: 3, flexShrink: 0 }} />
             <span style={{ fontSize: '0.84rem', textDecoration: on ? 'line-through' : 'none', opacity: on ? 0.55 : 1 }}>
-              <b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}
-              <span style={{ color: '#9a6a1c' }}> — {t.label}</span>
+              {t.kind === 'field'
+                ? <><span style={fieldTag}>{t.cat}</span><span style={{ color: '#1f2937' }}>{t.label}</span></>
+                : <><b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}<span style={{ color: '#9a6a1c' }}> — {t.label}</span></>}
             </span>
           </label>
         );
       })}
-      {watchCount > tasks.length && (
-        <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 2 }}>외 {watchCount - tasks.length}그루</div>
-      )}
     </div>
   );
+}
+
+// 밭 할 일 파란 태그
+function taskTagText(t) {
+  return t.kind === 'field' ? t.cat : t.treeId;
 }
 
 function WatchSection({ watchTrees = [], watchCount = 0 }) {
@@ -507,4 +552,9 @@ const redoBtn = {
 const checkRow = {
   display: 'flex', alignItems: 'flex-start', gap: 7, padding: '3px 0',
   cursor: 'pointer', lineHeight: 1.45,
+};
+const fieldTag = {
+  display: 'inline-block', background: '#e6f1fb', color: '#0c447c',
+  fontSize: '0.68rem', fontWeight: 700, padding: '1px 6px', borderRadius: 5,
+  marginRight: 5, verticalAlign: '1px',
 };
