@@ -115,26 +115,42 @@ export function getFarmDiagnosis(treeData, labels, todayIso) {
 // 개별 나무 점수의 단순 평균이 아니라, 품종 전체를 하나로 본 "종합 점수":
 // 각 나무 최신 기록을 모아 평균 세력/균형/해충 → calcTreeScore로 종합점수 1개 산출.
 // 반환: [{ name, score, count }] — 낮은 점수 순 (주의 품종 먼저)
+// 한 나무의 "직전(최근) 값" — 점수 유무와 무관하게, 가장 최근에 입력된 그 항목 값.
+//   (최신 기록의 세력칸이 비어 있어도, 그 전 기록의 세력을 끌어온다)
+function latestField(records, key) {
+  const sorted = [...records].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  for (const r of sorted) { const v = toNum(r[key]); if (v != null) return v; }
+  return null;
+}
+
 export function getVarietyAverages(treeData, labels) {
-  const groups = {};   // name -> [latest records]
+  const groups = {};   // name -> { count, pw:[], bal:[], bug:[] } (나무별 직전값 모음)
   for (const id of Object.keys(treeData || {})) {
     const labelId = `Tree-${id}`;
     if (labels?.[labelId]?.disabled) continue;
     const name = (labels?.[labelId]?.name || '').trim();
     if (!name) continue;
-    const { latest } = pickScored(treeData[id] || []);
-    if (!latest) continue;
-    (groups[name] = groups[name] || []).push(latest.rec);
+    const recs = treeData[id] || [];
+    const { latest } = pickScored(recs);
+    if (!latest) continue;   // 올해 점수기록이 한 번도 없는 나무는 제외
+    const g = groups[name] || (groups[name] = { count: 0, pw: [], bal: [], bug: [] });
+    g.count += 1;
+    const p = latestField(recs, 'power');   if (p != null) g.pw.push(p);
+    const b = latestField(recs, 'balance'); if (b != null) g.bal.push(b);
+    const k = latestField(recs, 'bugs');    if (k != null) g.bug.push(k);
   }
+  const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
   return Object.entries(groups)
-    .map(([name, recs]) => {
-      const m = avgMetrics(recs);   // 품종 평균 세력/균형/해충
+    .map(([name, g]) => {
+      // 세력/균형/해충 = 각 나무의 "직전값"을 품종 평균 (네가 원래 쓰던 방식)
+      const metrics = { power: avg(g.pw), balance: avg(g.bal), bugs: avg(g.bug) };
+      const hasAny = metrics.power != null || metrics.balance != null || metrics.bugs != null;
       return {
         name,
-        score: calcTreeScore(m),    // → 종합점수
-        count: recs.length,
-        metrics: m ? { power: m.power, balance: m.balance, bugs: m.bugs } : null,
-        reason: weakestReason(m),   // 점수를 가장 끌어내린 요인 (왜 낮은지)
+        score: calcTreeScore(metrics),   // → 종합점수 (직전값 기준)
+        count: g.count,
+        metrics: hasAny ? metrics : null,
+        reason: weakestReason(metrics),  // 점수를 가장 끌어내린 요인
       };
     })
     .filter(v => v.score != null)
