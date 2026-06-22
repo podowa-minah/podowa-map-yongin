@@ -80,10 +80,10 @@ export function buildBriefingContext({
     varieties: varieties.slice(0, 8).map((v) => ({
       name: v.name, score: r1(v.score), reason: v.reason || null,
     })),
-    // 유심히 볼 나무
+    // 유심히 볼 나무 (id = 나무 번호 "열-행", 예: 1-5)
     watchCount: diag.watchTotal || 0,
     watchTrees: (diag.watchTrees || []).map((w) => ({
-      name: w.name || w.id, reasons: w.reasons,
+      id: w.id, name: w.name || '', reasons: w.reasons,
     })),
     // 사람이 쓴 자유 메모 (어제 일지 + 나무 진단) — 학습 핵심
     yesterdayNote: yesterdayNote || '',
