@@ -88,6 +88,15 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
     onClose?.();
   }
 
+  // 요약에서 "처음부터 다시 작성" — 보고→나무 돌보세요→예측 흐름을 다시 (저장하면 오늘 기록 덮어씀)
+  function redo() {
+    setSavedSnap(null);
+    setVigor(null); setPest(null); setNote('');
+    setAi('loading');
+    setStep('report');
+    setDoneToday(false);   // → AI 다시 받아오고 보고 흐름 표시
+  }
+
   const canStart = vigor != null && pest != null;
 
   return (
@@ -105,7 +114,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
 
           {/* ── 요약 모드: 오늘 이미 함 ── */}
           {doneToday === true && (
-            <SummaryView snap={savedSnap} onClose={onClose} />
+            <SummaryView snap={savedSnap} onClose={onClose} onRedo={redo} />
           )}
 
           {/* ── ① 보고 + 나무 돌보세요 ── */}
@@ -150,7 +159,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, onChec
 }
 
 // ── 요약(읽기 전용) ──
-function SummaryView({ snap, onClose }) {
+function SummaryView({ snap, onClose, onRedo }) {
   if (!snap) {
     return (
       <>
@@ -160,13 +169,27 @@ function SummaryView({ snap, onClose }) {
     );
   }
   const e = snap.eyeCheck || {};
+  const d = snap.diagnosis || {};
   return (
     <>
-      <SectionTitle>오늘 내 판단</SectionTitle>
-      <div style={{ fontSize: '0.9rem', color: '#1f2937', marginBottom: 12, lineHeight: 1.6 }}>
-        세력 <b>{e.vigor ?? '–'}</b> · 해충 <b>{e.pest ?? '–'}</b>
-        {e.note ? <div style={{ color: '#5f5e5a', marginTop: 3 }}>“{e.note}”</div> : null}
+      {/* 내 눈(아침 예측) vs 실제(기록 데이터) — 눈 훈련 비교 */}
+      <SectionTitle>오늘 세력·해충 — 내 눈 vs 기록</SectionTitle>
+      <div style={cmpTable}>
+        <div style={{ ...cmpRow, color: '#9ca3af', fontSize: '0.74rem', fontWeight: 700 }}>
+          <span style={cmpLabel} /><span style={cmpCol}>내 눈</span><span style={cmpCol}>기록(데이터)</span>
+        </div>
+        <CmpRow label="세력" mine={e.vigor} real={d.vigor} />
+        <CmpRow label="해충" mine={e.pest} real={d.pest} />
       </div>
+      {d.score != null && (
+        <div style={{ fontSize: '0.82rem', color: '#1f2937', margin: '0 0 12px' }}>
+          밭 종합 점수 <b style={{ color: GREEN }}>{d.score}</b>
+          {d.balance != null && <span style={{ color: '#9ca3af' }}> · 균형 {d.balance}</span>}
+        </div>
+      )}
+      {e.note ? (
+        <div style={{ fontSize: '0.85rem', color: '#5f5e5a', margin: '0 0 14px' }}>걱정 메모: “{e.note}”</div>
+      ) : null}
       {snap.watchTrees?.length > 0 && (
         <WatchSection watchTrees={snap.watchTrees} watchCount={snap.watchTotal ?? snap.watchTrees.length} />
       )}
@@ -175,7 +198,25 @@ function SummaryView({ snap, onClose }) {
       )}
       {snap.ai && (<><SectionTitle>AI 한마디</SectionTitle><AiView ai={snap.ai} /></>)}
       <button onClick={onClose} style={{ ...primaryBtn, marginTop: 6 }}>닫기</button>
+      {onRedo && (
+        <button onClick={onRedo} style={redoBtn}>✏️ 오늘 브리핑 처음부터 다시 작성</button>
+      )}
     </>
+  );
+}
+
+// 내 눈 vs 기록 한 줄 — 차이가 크면 노랑 강조(눈이 빗나간 항목)
+function CmpRow({ label, mine, real }) {
+  const diff = (mine != null && real != null) ? Math.abs(mine - real) : null;
+  const off = diff != null && diff >= 1.5;
+  return (
+    <div style={cmpRow}>
+      <span style={cmpLabel}>{label}</span>
+      <span style={{ ...cmpCol, fontWeight: 700, color: '#1f2937' }}>{mine ?? '–'}</span>
+      <span style={{ ...cmpCol, fontWeight: 700, color: off ? '#b45309' : GREEN }}>
+        {real ?? '–'}{off ? ' ⚠️' : ''}
+      </span>
+    </div>
   );
 }
 
@@ -314,4 +355,18 @@ const careBanner = {
   background: '#eef6ec', border: '1px solid #cfe3cc', borderRadius: 10,
   padding: '10px 12px', margin: '2px 0 10px', fontSize: '0.85rem',
   color: '#27500a', lineHeight: 1.5, fontWeight: 600, textAlign: 'center',
+};
+const cmpTable = {
+  border: '1px solid #ece0c4', borderRadius: 10, overflow: 'hidden', marginBottom: 10,
+};
+const cmpRow = {
+  display: 'flex', alignItems: 'center', padding: '8px 12px',
+  borderTop: '1px solid #f0ece2', fontSize: '0.9rem',
+};
+const cmpLabel = { flex: '0 0 3.5rem', color: '#5f5e5a', fontSize: '0.85rem' };
+const cmpCol = { flex: 1, textAlign: 'center' };
+const redoBtn = {
+  width: '100%', marginTop: 8, padding: '9px', background: 'none',
+  border: '1px solid #d3d1c7', borderRadius: 10, color: '#6b7280',
+  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
 };

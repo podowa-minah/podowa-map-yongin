@@ -30,7 +30,8 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
       {shown.map(entry => {
         const b = entry.journal_notes.briefing;
         const s = b.snapshot || {};
-        const band = s.score != null ? scoreBand(s.score) : null;
+        const fieldScore = s.diagnosis?.score ?? s.score ?? null;
+        const band = fieldScore != null ? scoreBand(fieldScore) : null;
         const time = b.checked_at
           ? new Date(b.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
           : '';
@@ -41,16 +42,28 @@ export default function BriefingHistory({ history = [], C, onSelectDate }) {
                 {entry.date}
               </button>
               {time && <span style={{ color: '#a89968', fontSize: '0.72rem' }}>{time} 확인</span>}
-              {s.score != null && band && (
+              {fieldScore != null && band && (
                 <span style={{ marginLeft: 'auto', fontWeight: 700, color: band.color, fontSize: '0.85rem' }}>
-                  밭 {s.score.toFixed(1)} · {band.label}
+                  밭 {fieldScore.toFixed(1)} · {band.label}
                 </span>
               )}
             </div>
             {s.eyeCheck && (
               <div style={{ fontSize: '0.82rem', color: '#1f2937', marginBottom: '0.3rem' }}>
-                내 판단: 세력 <b>{s.eyeCheck.vigor ?? '–'}</b> · 해충 <b>{s.eyeCheck.pest ?? '–'}</b>
+                내 눈: 세력 <b>{s.eyeCheck.vigor ?? '–'}</b> · 해충 <b>{s.eyeCheck.pest ?? '–'}</b>
                 {s.eyeCheck.note ? <span style={{ color: '#6b7280' }}> · “{s.eyeCheck.note}”</span> : null}
+              </div>
+            )}
+            {s.diagnosis && (s.diagnosis.vigor != null || s.diagnosis.pest != null) && (
+              <div style={{ fontSize: '0.82rem', color: '#1f2937', marginBottom: '0.3rem' }}>
+                기록(데이터): 세력 <b>{s.diagnosis.vigor ?? '–'}</b> · 해충 <b>{s.diagnosis.pest ?? '–'}</b>
+                {s.diagnosis.balance != null ? <span style={{ color: '#9ca3af' }}> · 균형 {s.diagnosis.balance}</span> : null}
+              </div>
+            )}
+            {Array.isArray(s.varietyScores) && s.varietyScores.length > 0 && (
+              <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '0.3rem', lineHeight: 1.5 }}>
+                품종: {s.varietyScores.slice(0, 4).map((v) => `${v.name} ${v.score ?? '–'}`).join(' · ')}
+                {s.varietyScores.length > 4 ? ' …' : ''}
               </div>
             )}
             {s.ai?.alert && (
