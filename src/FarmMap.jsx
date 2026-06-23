@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useSignalLights } from "./SignalLightsContext";
 import RenamePopup from "./RenamePopup";
+import AiPriorityMarks from "./components/AiPriorityMarks";
 import { useLabels } from "./LabelContext";
 import { getFarmDiagnosis } from "./lib/diagnosis";
 
@@ -36,7 +37,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), fakeDoneReasons = {}, watchTreeIds = new Set(), watchReasons = {}, clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), fakeDoneReasons = {}, watchTreeIds = new Set(), watchReasons = {}, aiTrees = {}, clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -515,6 +516,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
 
         {/* 유심히 볼 나무 이유 칩 — 호버 대신 맵에 상시 표시(모바일). 나무 위에 작은 칩. */}
         {[...watchTreeIds].map((nid) => {
+          if (aiTrees[nid]) return null;   // AI 1순위면 보라가 대신 — 주황칩 숨겨 겹침 방지
           const reason = watchReasons[nid] || watchReasonsLocal[nid];
           if (!reason) return null;
           const [c, r] = String(nid).split('-').map(Number);
@@ -549,6 +551,9 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
             </div>
           );
         })}
+
+        {/* ⚡ AI 1순위 나무 — 타일 전체 보라 + "AI 긴급" 배지 + 이유 말풍선 (하면 자동으로 빠짐) */}
+        <AiPriorityMarks aiTrees={aiTrees} cellW={cellW} cellH={cellH} gapX={gapX} gapY={gapY} />
 
         {/* 입구 문 — 3-1, 4-1 자리 위 (남쪽 입구). 격자와 함께 줌됨 */}
         <GateMark cellW={cellW} cellH={cellH} gapX={gapX} />

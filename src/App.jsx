@@ -113,6 +113,7 @@ export default function App() {
   // (영농일지 모달 제거됨 — 현황분석 페이지로 통합)
   const [journalHasToday, setJournalHasToday] = useState(false);
   const [briefingCheckedToday, setBriefingCheckedToday] = useState(false);  // 오늘 아침 브리핑 확인 여부
+  const [aiTasksToday, setAiTasksToday] = useState([]);   // 오늘 AI 우선순위 할 일(나무) — 맵 보라 강조용
   const [briefingLoaded, setBriefingLoaded] = useState(false);       // 오늘 브리핑 확인여부 fetch 완료
   const [showBriefing, setShowBriefing] = useState(false);            // 아침 브리핑 팝업 (지도 앞)
   const [briefingAutoShown, setBriefingAutoShown] = useState(false);  // 이번 세션에 자동표시 1회만
@@ -370,10 +371,24 @@ export default function App() {
       if (!alive) return;
       setJournalHasToday(hasJournalData(data?.[0]));
       setBriefingCheckedToday(isBriefingChecked(data?.[0]));
+      const tasks = data?.[0]?.journal_notes?.briefing?.snapshot?.tasks || [];
+      // 저장된 tasks는 {kind:'tree'|'field', treeId, name, label}. 나무 것만 좌표+이유로.
+      setAiTasksToday(tasks.filter((t) => t.kind === 'tree' && t.treeId).map((t) => ({ coord: String(t.treeId), action: t.label || '오늘 할 일' })));
       setBriefingLoaded(true);
     })();
     return () => { alive = false; };
   }, [user, journalRefreshKey]);
+
+  // 맵 보라 강조 — AI 1순위 나무 중 "아직 오늘 기록 없는(=안 한)" 것만. 하면 자동으로 빠짐.
+  const aiTreesMap = useMemo(() => {
+    const today = getKSTToday();
+    const out = {};
+    for (const t of aiTasksToday) {
+      const recs = treeData[t.coord] || [];
+      if (!recs.some((r) => r.date === today)) out[t.coord] = t.action || '오늘 할 일';
+    }
+    return out;
+  }, [aiTasksToday, treeData]);
 
   // 아침 브리핑 팝업 — 앱 켜면 지도 보기 전에 하루 한 번 자동으로.
   //   오늘 확인 안 했고(briefingCheckedToday=false) + 나무 데이터 준비됨 + 나무지도 화면일 때.
@@ -848,7 +863,7 @@ export default function App() {
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
             ) : (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             )
