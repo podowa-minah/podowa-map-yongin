@@ -32,6 +32,16 @@ export function filterTreeDataByYear(treeData = {}, year) {
 }
 
 const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);   // 소수1 반올림
+const toNum = (v) => { if (v == null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+const avgOf = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+// "YYYY-MM-DD" 또는 "MM/DD/YYYY" → 월(1~12)
+function monthOf(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr);
+  if (s.includes('-')) return parseInt(s.slice(5, 7), 10);
+  if (s.includes('/')) return parseInt(s.split('/')[0], 10);
+  return null;
+}
 
 // 올해 나무 메모(진단 텍스트) 최신순 — 사람이 쓴 자유 글 = 학습 핵심 재료
 function recentFarmerNotes(treeDataYear, labels, limit = 8) {
@@ -72,6 +82,39 @@ export function buildRecentHistory(rows = [], todayIso, days = 7) {
     if (parts.length) out.push(`${r.date} — ${parts.join(' / ')}`);
   }
   return out;   // 문자열 배열 (최신→과거)
+}
+
+// Tier2 기억 — 이번 시즌을 "월별 한 줄"로 압축해 AI에 먹인다(지난달 대비 흐름).
+//   올해 기록만(작년 안 섞음). 각 달: 세력·균형·해충 월평균 + 기록일수. 새 저장 X(§10).
+//   treeDataYear = 올해로 필터된 treeData. 반환: 문자열 배열(오래된→최근 달).
+export function buildMonthlyRollup(treeDataYear = {}, todayIso) {
+  const curMonth = monthOf(todayIso);
+  const months = {};   // 월 -> { pw:[], bal:[], bug:[], days:Set }
+  for (const id of Object.keys(treeDataYear)) {
+    for (const r of treeDataYear[id] || []) {
+      const m = monthOf(r.date);
+      if (!m) continue;
+      const g = months[m] || (months[m] = { pw: [], bal: [], bug: [], days: new Set() });
+      const p = toNum(r.power), b = toNum(r.balance), k = toNum(r.bugs);
+      if (p != null) g.pw.push(p);
+      if (b != null) g.bal.push(b);
+      if (k != null) g.bug.push(k);
+      g.days.add(r.date);
+    }
+  }
+  const out = [];
+  for (const m of Object.keys(months).map(Number).sort((a, b) => a - b)) {
+    const g = months[m];
+    const parts = [];
+    const pw = avgOf(g.pw), bal = avgOf(g.bal), bug = avgOf(g.bug);
+    if (pw != null) parts.push(`세력 ${r1(pw)}`);
+    if (bal != null) parts.push(`균형 ${r1(bal)}`);
+    if (bug != null) parts.push(`해충 ${r1(bug)}`);
+    if (!parts.length) continue;
+    const tag = m === curMonth ? ' (이번달·진행중)' : '';
+    out.push(`${m}월${tag} — ${parts.join(' · ')} · 기록 ${g.days.size}일`);
+  }
+  return out;
 }
 
 // 메인: 클로드에 보낼 컨텍스트 (올해 현황 + 사람 메모 + 작년 참고 자리)
@@ -126,6 +169,8 @@ export function buildBriefingContext({
     farmerNotes: farmerNotes.map((n) => `[${[n.id, n.name].filter(Boolean).join(' ')}] ${n.text}`),
     // 오늘 아침 눈파악 (사람 판단)
     eyeCheck: eyeCheck || null,
+    // 이번 시즌 월별 흐름(지난달 대비) — Tier2 기억
+    monthly: buildMonthlyRollup(yearData, todayIso),
     // 작년 참고 — 데이터 쌓이면 같은 시기 요약을 여기에. 올해 숫자엔 합산 X.
     lastYear: null,
   };
