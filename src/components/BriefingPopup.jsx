@@ -10,7 +10,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
-import { buildBriefingContext } from '../lib/briefing';
+import { buildBriefingContext, buildRecentHistory } from '../lib/briefing';
 import { getVarietyAverages } from '../lib/diagnosis';
 import { POWER_IDEAL } from '../lib/scoring';
 
@@ -22,6 +22,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
   const [savedSnap, setSavedSnap] = useState(null);        // 오늘 이미 시작한 경우의 스냅샷
   const [ai, setAi] = useState('loading');                 // 'loading' | 'error' | {alert,checks,info}
   const [doneTaskIds, setDoneTaskIds] = useState([]);      // (선택) 아침에 미리 체크한 할 일
+  const [recentHistory, setRecentHistory] = useState(undefined);  // 최근 7일 요약(과거 먹이기) — undefined=로딩전
   const [saving, setSaving] = useState(false);
 
   const toggleTask = (treeId) =>
@@ -50,29 +51,34 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     return (ctx.watchTrees || []).slice(0, 5).map((w) => ({ key: w.id, kind: 'tree', treeId: w.id, name: w.name, label: taskLabel(w.reasons) }));
   }, [ai, ctx, validIds, labels]);
 
-  // 오늘 이미 브리핑 했나? → 했으면 요약만
+  // 오늘 이미 브리핑 했나? + 최근 7일 기억(과거 먹이기) — 최근 daily_notes 한 번에 가져옴
   useEffect(() => {
     let alive = true;
     (async () => {
       const { data } = await supabase
-        .from('daily_notes').select('journal_notes')
-        .eq('date', today).eq('type', 'journal').maybeSingle();
+        .from('daily_notes').select('date, journal_notes')
+        .eq('type', 'journal').lte('date', today)
+        .order('date', { ascending: false }).limit(15);
       if (!alive) return;
-      const b = data?.journal_notes?.briefing;
+      const rows = data || [];
+      const todayRow = rows.find((r) => r.date === today);
+      const b = todayRow?.journal_notes?.briefing;
       if (b?.checked_at) { setSavedSnap(b.snapshot || null); setDoneToday(true); }
       else setDoneToday(false);
+      setRecentHistory(buildRecentHistory(rows, today, 7));   // 과거→AI에 흐름으로 먹임
     })();
     return () => { alive = false; };
   }, [today]);
 
-  // AI 한마디 — 아직 안 한 날만 새로 받아온다 (요약 모드는 저장된 글 사용)
+  // AI 한마디 — 아직 안 한 날만, 최근 기억(recentHistory) 준비된 뒤 1회 호출
   useEffect(() => {
-    if (doneToday !== false) return;
+    if (doneToday !== false || recentHistory === undefined) return;
     let alive = true;
     (async () => {
       try {
         const r = await fetch('/api/briefing', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ctx),
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ...ctx, recentHistory }),   // 과거 7일 흐름 같이 보냄
         });
         if (!r.ok) { if (alive) setAi('error'); return; }
         const data = await r.json();
@@ -80,7 +86,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
       } catch { if (alive) setAi('error'); }
     })();
     return () => { alive = false; };
-  }, [doneToday, ctx]);
+  }, [doneToday, ctx, recentHistory]);
 
   async function startDay() {
     setSaving(true);

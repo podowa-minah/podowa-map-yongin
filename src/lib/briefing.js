@@ -47,6 +47,33 @@ function recentFarmerNotes(treeDataYear, labels, limit = 8) {
   return notes.slice(0, limit);
 }
 
+// Tier1 기억 — 최근 N일 영농일지(daily_notes)를 날짜별 한 줄로 압축해 AI에 먹인다.
+//   "어제 방제한 게 오늘 어떤지" 흐름을 잇기 위함. 오늘은 제외, 최신→과거.
+//   rows = daily_notes(type=journal) 행들. 새 저장 X, 있는 데이터에서 계산(§10).
+const cut = (s, n = 60) => (s && s.length > n ? s.slice(0, n) + '…' : s);
+export function buildRecentHistory(rows = [], todayIso, days = 7) {
+  const out = [];
+  const sorted = [...rows]
+    .filter((r) => r?.date && r.date < todayIso)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, days);
+  for (const r of sorted) {
+    const jn = r.journal_notes || {};
+    const ai = jn.briefing?.snapshot?.ai || {};
+    const parts = [];
+    // 사람이 쓴 기록 우선, 없으면 AI 진단 요약
+    if (jn.pest?.note)        parts.push(`병해충 ${cut(jn.pest.note)}`);
+    else if (ai.pest)         parts.push(`병해충 ${cut(ai.pest)}`);
+    if (jn.growth?.note)      parts.push(`생육 ${cut(jn.growth.note)}`);
+    else if (ai.growth)       parts.push(`생육 ${cut(ai.growth)}`);
+    if (jn.env?.note)         parts.push(`환경 ${cut(jn.env.note)}`);
+    const done = jn.briefing?.snapshot?.doneTasks || [];
+    if (done.length) parts.push(`한 일 ${done.map((t) => (t.kind === 'field' ? t.cat : t.treeId)).join(',')}`);
+    if (parts.length) out.push(`${r.date} — ${parts.join(' / ')}`);
+  }
+  return out;   // 문자열 배열 (최신→과거)
+}
+
 // 메인: 클로드에 보낼 컨텍스트 (올해 현황 + 사람 메모 + 작년 참고 자리)
 export function buildBriefingContext({
   treeData = {},

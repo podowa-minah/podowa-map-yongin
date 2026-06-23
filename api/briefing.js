@@ -36,6 +36,7 @@ export default async function handler(req, res) {
       watchTrees = [],         // [{ id, name, reasons[] }] 유심히 볼 나무(좌표 포함)
       yesterdayNote = '',      // 어제 영농일지 한줄 (사람)
       farmerNotes = [],        // 농부가 쓴 나무 진단 메모들 (좌표 포함)
+      recentHistory = [],      // 최근 7일 일지 요약(과거 흐름) — Tier1 기억
     } = req.body || {};
 
     // 추세 한 줄 (최근 N일 vs 직전 N일) — AI가 악화 중인 항목을 우선시하도록
@@ -58,6 +59,7 @@ export default async function handler(req, res) {
       varieties.length && `점수 낮은 품종: ${varieties.map((v) => `${v.name} ${v.score}`).join(', ')}`,
       yesterdayNote && `어제 일지(사람이 씀): "${yesterdayNote}"`,
       farmerNotes.length && `농부 진단 메모(좌표 포함, 사람이 씀): ${farmerNotes.map((n) => `"${n}"`).join(' / ')}`,
+      recentHistory.length && `최근 며칠 흐름(과거→오늘):\n${recentHistory.join('\n')}`,
     ].filter(Boolean).join('\n');
 
     // AI가 좌표를 지어내지 못하게 — 허용 좌표 집합
@@ -85,7 +87,8 @@ export default async function handler(req, res) {
 규칙:
 - 한국어로, 농부에게 말하듯 간결하고 따뜻하게. 각 범주·작업은 1~2문장.
 - 해당 범주에 특별히 적을 게 없으면 그 범주는 빈 문자열("")로 둬. 억지로 채우지 마.
-- 데이터(숫자·추이·사람 메모)에 없는 사실을 지어내지 마. 과장 금지.`;
+- **최근 며칠 흐름**이 있으면 이어서 판단해라(예: "어제 1-5 방제했는데 오늘도 보이면 재방제", "3일째 해충 오름세"). 단, 흐름도 데이터에 있는 것만.
+- 데이터(숫자·추이·사람 메모·최근 흐름)에 없는 사실을 지어내지 마. 과장 금지.`;
 
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
