@@ -25,6 +25,7 @@ import waterlink from './assets/icons/global_water_small.png';
 import trtlink from './assets/icons/global_trt_small.png';
 import grasslink from './assets/icons/grass.svg';
 import grapelink from './assets/icons/grape.svg';
+import farmerSVG from './assets/icons/farmer.svg';
 import TreatmentIcons from './components/TreatmentIcons';
 import MonthlyManualLine from './components/MonthlyManualLine';
 import ManualMissionCard from './components/ManualMissionCard';
@@ -78,6 +79,14 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  // 로딩 화면을 "맵 데이터가 다 들어올 때까지" 유지 — 안전망 4초(네트워크 느릴 때 무한 스피너 방지)
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    setLoadTimedOut(false);
+    const t = setTimeout(() => setLoadTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, [user]);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -736,11 +745,16 @@ export default function App() {
     prevPctRef.current = _pctNow;
   }, [_pctNow]);
 
-  if (loading || (user && dataLoading)) {
+  // 로그인 + 데이터(서버 fresh fetch) 다 들어올 때까지 로딩 스피너 → 그다음 맵.
+  //   freshTreeLoaded(서버 신선 데이터) 또는 안전망 타임아웃 전까지 스피너 유지.
+  if (loading || (user && (dataLoading || !(freshTreeLoaded || loadTimedOut)))) {
     return (
       <div className="loading-container">
+        <img src={farmerSVG} alt="농부" style={{ width: 96, height: 96, marginBottom: 14 }} />
         <div className="loading-spinner"></div>
-        <p>Loading...</p>
+        <p style={{ marginTop: 22, marginBottom: 0, fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.1em', color: '#2f6b3c' }}>PODOWA YONG-IN</p>
+        <p style={{ margin: '3px 0 0', fontSize: '0.95rem', fontWeight: 600, color: '#4b5563' }}>포도와 용인</p>
+        <p style={{ marginTop: 10 }}>포도밭을 불러오는 중…</p>
       </div>
     );
   }
