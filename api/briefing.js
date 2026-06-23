@@ -161,7 +161,11 @@ export default async function handler(req, res) {
     }
 
     // 우선순위 할 일 — 나무 좌표는 허용 집합만 통과(지어낸 좌표 차단), 최대 5개
-    const okCoords = new Set(validCoords);
+    // 허용 집합 = 점수 낮은 유심히 볼 나무 + 농부가 메모에 직접 적은 좌표.
+    //   → 점수는 괜찮아도 "찜찜한 메모"(병·열과·직감 등 점수 밖) 나무를 AI가 보라로 띄울 수 있게.
+    //   메모 좌표는 농부가 실제 입력한 값이라 "지어낸 좌표 차단"은 그대로 유지됨.
+    const noteCoords = (farmerNotes || []).map((s) => (String(s).match(/\[(\d+-\d+)/) || [])[1]).filter(Boolean);
+    const okCoords = new Set([...validCoords, ...noteCoords]);
     const tasks = (Array.isArray(parsed.tasks) ? parsed.tasks : [])
       .filter((t) => t && t.action && (t.scope === 'field' || (t.scope === 'tree' && okCoords.has(String(t.coord)))))
       .slice(0, 5)
