@@ -752,27 +752,37 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
           </div>
         )}
 
-        {/* 농부 기록 — 환경·생육·병해충 (범주별) */}
-        {env.note && (
-          <div style={{ fontSize: '0.78rem', color: '#0c4a6e', marginBottom: '0.3rem', lineHeight: 1.4 }}>
-            <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>{env.note}
-          </div>
-        )}
-        {growthNote && (
-          <div style={{ fontSize: '0.78rem', color: '#27500a', marginBottom: '0.3rem', lineHeight: 1.4 }}>
-            <span style={{ fontWeight: 700, marginRight: 4 }}>생육:</span>{growthNote}
-          </div>
-        )}
-        {pestNote && (
-          <div style={{ fontSize: '0.78rem', color: '#991b1b', marginBottom: '0.3rem', lineHeight: 1.4 }}>
-            <span style={{ fontWeight: 700, marginRight: 4 }}>병해충:</span>{pestNote}
+        {/* 농부 기록 — AI 진단처럼 박스 카드로. 범주별 환경·생육·병해충 */}
+        {(env.note || growthNote || pestNote) && (
+          <div style={{ marginBottom: '0.3rem', background: '#fbf8f3', border: '1px solid #ead9c2', borderRadius: '0.4rem', padding: '0.4rem 0.55rem', lineHeight: 1.45 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6b4f1d', marginBottom: 2 }}>🧑‍🌾 농부 기록</div>
+            {env.note && (
+              <div style={{ fontSize: '0.78rem', color: '#0c4a6e' }}>
+                <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>{env.note}
+              </div>
+            )}
+            {growthNote && (
+              <div style={{ fontSize: '0.78rem', color: '#27500a' }}>
+                <span style={{ fontWeight: 700, marginRight: 4 }}>생육:</span>{growthNote}
+              </div>
+            )}
+            {pestNote && (
+              <div style={{ fontSize: '0.78rem', color: '#991b1b' }}>
+                <span style={{ fontWeight: 700, marginRight: 4 }}>병해충:</span>{pestNote}
+              </div>
+            )}
           </div>
         )}
 
         {/* ✨ AI 진단 — 환경·생육·병해충 "기록"만(요청성 alert는 아침 브리핑에만). 날짜별로 쌓임 */}
         {(() => {
-          const aiD = entry?.journal_notes?.briefing?.snapshot?.ai;
-          if (!aiD || (!aiD.env && !aiD.growth && !aiD.pest)) return null;
+          const snap = entry?.journal_notes?.briefing?.snapshot;
+          const aiD = snap?.ai;
+          if (!aiD || (!aiD.env && !aiD.growth && !aiD.pest)) {
+            // 브리핑은 했는데(snapshot 있음) AI만 비었으면 = 그날 AI 호출 실패. 빈칸 헷갈림 방지로 표시.
+            if (snap) return <div style={{ fontSize: '0.74rem', color: '#9ca3af', marginBottom: '0.3rem' }}>✨ AI 진단 — 그날은 AI를 못 받았어요</div>;
+            return null;
+          }
           return (
             <div style={{ fontSize: '0.78rem', color: '#374151', marginBottom: '0.3rem', lineHeight: 1.5, background: '#f6f8f4', border: '1px solid #e3ebdc', borderRadius: '0.4rem', padding: '0.4rem 0.55rem' }}>
               <div style={{ fontWeight: 700, color: '#2f6b3c', marginBottom: 2 }}>✨ AI 진단 <span style={{ fontWeight: 400, color: '#9ca3af' }}>기록</span></div>
