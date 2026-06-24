@@ -70,20 +70,29 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     return () => { alive = false; };
   }, [today]);
 
-  // AI 한마디 — 아직 안 한 날만, 최근 기억(recentHistory) 준비된 뒤 1회 호출
+  // AI 한마디 — 아직 안 한 날만, 최근 기억(recentHistory) 준비된 뒤 호출. 실패하면 1회 재시도(일시 오류로 그날 AI 통째 누락 방지)
   useEffect(() => {
     if (doneToday !== false || recentHistory === undefined) return;
     let alive = true;
     (async () => {
-      try {
+      const callOnce = async () => {
         const r = await fetch('/api/briefing', {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ ...ctx, recentHistory }),   // 과거 7일 흐름 같이 보냄
         });
-        if (!r.ok) { if (alive) setAi('error'); return; }
+        if (!r.ok) return null;
         const data = await r.json();
-        if (alive) setAi(data && data.alert ? data : 'error');
-      } catch { if (alive) setAi('error'); }
+        return data && data.alert ? data : null;
+      };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const data = await callOnce();
+          if (!alive) return;
+          if (data) { setAi(data); return; }
+        } catch { /* 네트워크 등 — 재시도로 넘어감 */ }
+        if (attempt === 0) await new Promise((res) => setTimeout(res, 1200));   // 1회 재시도 전 잠깐 대기
+      }
+      if (alive) setAi('error');
     })();
     return () => { alive = false; };
   }, [doneToday, ctx, recentHistory]);
