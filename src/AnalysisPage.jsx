@@ -18,6 +18,7 @@ import { missionsByDate } from './lib/manual';
 import { finalMarksByDate } from './lib/cluster-thinning';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
+import AiUrgentTasks from './components/AiUrgentTasks';
 
 const ENV_MAX_PHOTOS = 2;
 
@@ -330,6 +331,9 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
           >점수기준 →</button>
         )}
       </header>
+
+      {/* 🤖 AI 긴급 오늘 할 일 — 좌표 없는 밭 할 일 체크리스트(오늘만). 체크 → doneTasks 누적 */}
+      {selectedDate === today && <AiUrgentTasks today={today} onChange={onSaved} />}
 
       {/* 생육시기 + 날씨 + 오늘의 하늘 카드 */}
       {(() => {
