@@ -114,6 +114,7 @@ export default function App() {
   const [journalHasToday, setJournalHasToday] = useState(false);
   const [briefingCheckedToday, setBriefingCheckedToday] = useState(false);  // 오늘 아침 브리핑 확인 여부
   const [aiTasksToday, setAiTasksToday] = useState([]);   // 오늘 AI 우선순위 할 일(나무) — 맵 보라 강조용
+  const [aiFieldUndone, setAiFieldUndone] = useState(false);   // 오늘 밭 AI 할일(좌표X) 미체크 있음 — 보고 불용
   const [briefingLoaded, setBriefingLoaded] = useState(false);       // 오늘 브리핑 확인여부 fetch 완료
   const [showBriefing, setShowBriefing] = useState(false);            // 아침 브리핑 팝업 (지도 앞)
   const [briefingAutoShown, setBriefingAutoShown] = useState(false);  // 이번 세션에 자동표시 1회만
@@ -371,9 +372,13 @@ export default function App() {
       if (!alive) return;
       setJournalHasToday(hasJournalData(data?.[0]));
       setBriefingCheckedToday(isBriefingChecked(data?.[0]));
-      const tasks = data?.[0]?.journal_notes?.briefing?.snapshot?.tasks || [];
+      const snap = data?.[0]?.journal_notes?.briefing?.snapshot;
+      const tasks = snap?.tasks || [];
       // 저장된 tasks는 {kind:'tree'|'field', treeId, name, label}. 나무 것만 좌표+이유로.
       setAiTasksToday(tasks.filter((t) => t.kind === 'tree' && t.treeId).map((t) => ({ coord: String(t.treeId), action: t.label || '오늘 할 일' })));
+      // 밭 AI 할일(좌표 없음) 중 아직 체크 안 한 게 있으면 보고 불 유지(영농일지와 OR)
+      const doneKeys = new Set((snap?.doneTasks || []).map((t) => t.key));
+      setAiFieldUndone(tasks.some((t) => t.kind === 'field' && !doneKeys.has(t.key)));
       setBriefingLoaded(true);
     })();
     return () => { alive = false; };
@@ -897,6 +902,7 @@ export default function App() {
           onOpenAnalysis={() => { setPreviousTab(activeTab); setActiveTab('analysis'); }}
           onOpenMenu={() => setHeaderOpen((v) => !v)}
           hasJournalToday={journalHasToday}
+          aiFieldUndone={aiFieldUndone}
           irrEval={irrEval}
           pestEval={pestEval}
         />
