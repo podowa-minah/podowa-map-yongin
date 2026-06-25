@@ -12,6 +12,7 @@ import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import { buildBriefingContext, buildRecentHistory } from '../lib/briefing';
 import { getVarietyAverages } from '../lib/diagnosis';
+import { getCarryOverFieldTasks } from '../lib/journal';
 import { POWER_IDEAL } from '../lib/scoring';
 
 const GREEN = '#2f6b3c';
@@ -23,6 +24,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
   const [ai, setAi] = useState('loading');                 // 'loading' | 'error' | {alert,checks,info}
   const [doneTaskIds, setDoneTaskIds] = useState([]);      // (선택) 아침에 미리 체크한 할 일
   const [recentHistory, setRecentHistory] = useState(undefined);  // 최근 7일 요약(과거 먹이기) — undefined=로딩전
+  const [carriedTasks, setCarriedTasks] = useState([]);    // 어제까지 안 한 밭 할일(이월) — 오늘 목록 앞에
   const [saving, setSaving] = useState(false);
 
   const toggleTask = (treeId) =>
@@ -35,8 +37,9 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
   //   AI가 못 주면(로컬·실패) 규칙기반(유심히 볼 나무)으로 대체. 관수·방제는 버튼 불이라 제외.
   const validIds = useMemo(() => new Set(Object.keys(treeData || {})), [treeData]);
   const taskList = useMemo(() => {
+    let base = [];
     if (ai && typeof ai === 'object' && Array.isArray(ai.tasks) && ai.tasks.length) {
-      const out = ai.tasks.map((t, i) => {
+      base = ai.tasks.map((t, i) => {
         if (t.scope === 'field') {
           return { key: `f-${i}`, kind: 'field', cat: `밭·${t.category || ''}`, label: t.action };
         }
@@ -44,12 +47,16 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
           return { key: `t-${t.coord}-${i}`, kind: 'tree', treeId: String(t.coord), name: labelName(t.coord, labels), label: t.action };
         }
         return null;   // 좌표 검증 실패는 버림
-      }).filter(Boolean);
-      if (out.length) return out.slice(0, 5);
+      }).filter(Boolean).slice(0, 5);
+    } else {
+      // 대체: 진단 우선순위 나무
+      base = (ctx.watchTrees || []).slice(0, 5).map((w) => ({ key: w.id, kind: 'tree', treeId: w.id, name: w.name, label: taskLabel(w.reasons) }));
     }
-    // 대체: 진단 우선순위 나무
-    return (ctx.watchTrees || []).slice(0, 5).map((w) => ({ key: w.id, kind: 'tree', treeId: w.id, name: w.name, label: taskLabel(w.reasons) }));
-  }, [ai, ctx, validIds, labels]);
+    // 이월된 밭 할일을 앞에(중복 내용 제거) — 안 한 건 할 때까지 따라옴
+    const fid = (t) => (t.kind === 'field' ? `${t.cat}|${t.label}` : null);
+    const carryIds = new Set(carriedTasks.map(fid));
+    return [...carriedTasks, ...base.filter((t) => !carryIds.has(fid(t)))].slice(0, 6);
+  }, [ai, ctx, validIds, labels, carriedTasks]);
 
   // 오늘 이미 브리핑 했나? + 최근 7일 기억(과거 먹이기) — 최근 daily_notes 한 번에 가져옴
   useEffect(() => {
@@ -66,6 +73,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
       if (b?.checked_at) { setSavedSnap(b.snapshot || null); setDoneToday(true); }
       else setDoneToday(false);
       setRecentHistory(buildRecentHistory(rows, today, 7));   // 과거→AI에 흐름으로 먹임
+      setCarriedTasks(getCarryOverFieldTasks(rows, today));   // 어제까지 안 한 밭 할일 → 오늘 이월
     })();
     return () => { alive = false; };
   }, [today]);
@@ -225,7 +233,7 @@ function SummaryView({ snap, onClose, onRedo }) {
               const isField = t.kind === 'field';
               return (
                 <div key={i} style={{ fontSize: '0.85rem', color: done ? '#27500a' : '#1f2937' }}>
-                  {done ? '✓ ' : '☐ '}<b style={{ color: isField ? '#0c447c' : '#b45309' }}>{taskTagText(t)}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
+                  {done ? '✓ ' : '☐ '}{t.carried ? <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span> : null}<b style={{ color: isField ? '#0c447c' : '#b45309' }}>{taskTagText(t)}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
                 </div>
               );
             })}
@@ -358,6 +366,7 @@ function TaskChecklist({ tasks = [], checked = [], onToggle }) {
           <label key={t.key} style={checkRow}>
             <input type="checkbox" checked={on} onChange={() => onToggle?.(t.key)} style={{ marginTop: 3, flexShrink: 0 }} />
             <span style={{ fontSize: '0.84rem', textDecoration: on ? 'line-through' : 'none', opacity: on ? 0.55 : 1 }}>
+              {t.carried && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span>}
               {t.kind === 'field'
                 ? <><span style={fieldTag}>{t.cat}</span><span style={{ color: '#1f2937' }}>{t.label}</span></>
                 : <><b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}<span style={{ color: '#9a6a1c' }}> — {t.label}</span></>}

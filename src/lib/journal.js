@@ -95,6 +95,34 @@ export function isBriefingChecked(row) {
   return !!(row?.journal_notes?.briefing?.checked_at);
 }
 
+// 이월(carry-over) — 어제까지 "안 한" 밭 AI 할일을 오늘 목록 앞에 끼우기 위해 모은다.
+//   rows = 최근 daily_notes(type=journal) [{date, journal_notes}], todayIso = 오늘(YYYY-MM-DD).
+//   '안 한' = 그 밭 할일(내용 cat|label)이 어느 날 doneTasks에도 없음. 내용으로 중복 제거.
+//   완료하면(어느 날이든 doneTasks에 들어가면) 더는 안 따라옴. 새 저장소 X(§10, snapshot 재사용).
+//   반환: [{ key, kind:'field', cat, label, carried:true }] — 오늘 taskList 앞에 prepend용.
+export function getCarryOverFieldTasks(rows = [], todayIso) {
+  const cid = (t) => `${t?.cat || ''}|${t?.label || ''}`;
+  const done = new Set();   // 전체 기간에 완료된 밭 할일 내용
+  for (const r of rows) {
+    for (const t of (r?.journal_notes?.briefing?.snapshot?.doneTasks || [])) {
+      if (t?.kind === 'field') done.add(cid(t));
+    }
+  }
+  const seen = new Set();
+  const out = [];
+  for (const r of rows) {   // rows는 최신→과거 정렬
+    if (!r?.date || r.date >= todayIso) continue;   // 오늘·미래 제외(이월 = 과거 미완)
+    for (const t of (r?.journal_notes?.briefing?.snapshot?.tasks || [])) {
+      if (t?.kind !== 'field') continue;
+      const id = cid(t);
+      if (done.has(id) || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ key: `carry-${out.length}`, kind: 'field', cat: t.cat, label: t.label, carried: true });
+    }
+  }
+  return out;
+}
+
 // checked_at 시각 (HH:MM, KST) — 표시용
 export function briefingCheckedTime(row) {
   const ts = row?.journal_notes?.briefing?.checked_at;
