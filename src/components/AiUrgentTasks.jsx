@@ -23,7 +23,6 @@ export default function AiUrgentTasks({ today, onChange }) {
 
   const tasks = (snap?.tasks || []).filter((t) => t.kind === 'field');
   const doneKeys = new Set((snap?.doneTasks || []).map((t) => t.key));
-  if (!tasks.length) return null;   // 오늘 밭 할 일 없으면 숨김
 
   const toggle = async (task) => {
     if (busy || !rowId) return;
@@ -48,10 +47,11 @@ export default function AiUrgentTasks({ today, onChange }) {
 
   return (
     <div style={{ marginBottom: '1.4rem', background: '#f4f1fb', border: '1.5px solid #c9bdf0', borderRadius: '0.6rem', padding: '0.7rem 0.85rem' }}>
-      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#5b3fb0', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#5b3fb0', marginBottom: tasks.length ? '0.5rem' : 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         🤖 AI 긴급 오늘 할 일
-        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: allDone ? '#3c8a4e' : '#7c3aed' }}>{doneCount}/{tasks.length}</span>
-        {allDone && <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#3c8a4e' }}>✓ 다 했어요</span>}
+        {tasks.length > 0
+          ? <><span style={{ fontSize: '0.82rem', fontWeight: 700, color: allDone ? '#3c8a4e' : '#7c3aed' }}>{doneCount}/{tasks.length}</span>{allDone && <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#3c8a4e' }}>✓ 다 했어요</span>}</>
+          : <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#9ca3af' }}>오늘은 없어요</span>}
       </div>
       {tasks.map((t) => {
         const on = doneKeys.has(t.key);
