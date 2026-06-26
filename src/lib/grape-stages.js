@@ -86,14 +86,24 @@ export function getStageTimelineFromBloom(bloomIso) {
 export function getCurrentStageFromBloom(bloomIso, todayIso) {
   if (!bloomIso) return null;
   const days = daysBetweenISO(bloomIso, todayIso);
-  if (days < 0) return { num: 3, name: '개화기 (만개 전)', daysFromBloom: days, daysToEnd: null };
+  if (days < 0) return { num: 3, name: '개화기 (만개 전)', daysFromBloom: days, daysToEnd: null, weekInStage: null };
   for (const s of STAGE_FROM_BLOOM) {
     if (days >= s.startDay && days < s.endDay) {
-      return { num: s.num, name: s.name, daysFromBloom: days, daysToEnd: s.endDay - days };
+      return { num: s.num, name: s.name, daysFromBloom: days, daysToEnd: s.endDay - days, weekInStage: Math.floor((days - s.startDay) / 7) + 1 };
     }
   }
-  return { num: 8, name: '수확 종료', daysFromBloom: days, daysToEnd: 0 };
+  return { num: 8, name: '수확 종료', daysFromBloom: days, daysToEnd: 0, weekInStage: null };
 }
+
+// 시기별 한 줄 핵심 (minari 농사 지식) — 오늘의 포도와 ①에 표시. num=STAGE_FROM_BLOOM의 단계 번호
+export const STAGE_FOCUS = {
+  3: '약해 조심. 세력이 세면 제어하세요.',
+  4: '쭉쭉 치고 나가야 해요. 경계에 세력이 닿으면 제어하세요.',
+  5: '튀지도 약하지도 않게. 매일 세력을 조절하세요.',
+  6: '환경 관리 + 마지막 병해충 주의하세요.',
+  7: '나무 컨디션을 마지막까지 잘 돌봐 주세요.',
+};
+export function getStageFocus(num) { return STAGE_FOCUS[num] || ''; }
 
 // 밭 전체 현재 생육시기 — 나무별 만개일 평균 → 그 평균 기준 현재 시기.
 //   오늘 기록이 없어도(만개 기록만 있으면) 항상 뜬다. 나무별 예측은 그대로 둠.

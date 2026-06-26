@@ -9,7 +9,7 @@ import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
 import { getSeasonalTermInfo } from './lib/seasonalTerms';
 import { getMoonPhase } from './lib/moonPhase';
 import { getMoonZodiac, FRAMEWORK_NAME } from './lib/zodiacMoon';
-import { getFarmCurrentStage } from './lib/grape-stages';
+import { getFarmCurrentStage, getStageFocus } from './lib/grape-stages';
 import MoonZodiacPopup from './components/MoonZodiacPopup';
 import Constellation from './components/Constellation';
 import DayTypeIcon from './components/DayTypeIcon';
@@ -352,17 +352,22 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
             border: `1.5px solid ${C.border}`,
             borderRadius: '0.5rem',
           }}>
-            {/* 생육시기 */}
+            {/* 생육시기 — 밭 평균 + N주차 + 한 줄 핵심 */}
             <div style={{
               fontFamily: C.headlineFont,
               fontSize: '1.35rem',
               fontWeight: 700,
               color: C.text,
-              marginBottom: '0.35rem',
+              marginBottom: farmStage && getStageFocus(farmStage.num) ? '0.15rem' : '0.35rem',
               letterSpacing: '0.3px',
             }}>
-              생육시기 · {farmStage?.name || report.dominantSeason || '기록 없음'}
+              생육시기 · {farmStage?.name || report.dominantSeason || '기록 없음'}{farmStage?.weekInStage ? ` ${farmStage.weekInStage}주차` : ''}
             </div>
+            {farmStage && getStageFocus(farmStage.num) && (
+              <div style={{ fontSize: '0.84rem', color: '#7a6a4a', marginBottom: '0.45rem', lineHeight: 1.45 }}>
+                {getStageFocus(farmStage.num)}
+              </div>
+            )}
 
             {/* 날씨 줄 */}
             {weather && (
