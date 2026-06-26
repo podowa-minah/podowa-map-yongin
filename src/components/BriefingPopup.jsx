@@ -188,11 +188,11 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
                 🍇 꼭 포도밭을 한 바퀴 돌고<br />나무 컨디션을 체크한 후 돌봄을 시작하세요
               </div>
 
-              <button onClick={startDay} disabled={saving}
-                style={{ ...primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.6 : 1 }}>
-                <span style={farmerBadge}>👨‍🌾</span>{saving ? '시작 중…' : '아침 업무 시작'}
+              <button onClick={startDay} disabled={saving || ai === 'loading'}
+                style={{ ...primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (saving || ai === 'loading') ? 0.6 : 1 }}>
+                <span style={farmerBadge}>👨‍🌾</span>{saving ? '시작 중…' : ai === 'loading' ? 'AI 분석 중… 잠시만요' : '아침 업무 시작'}
               </button>
-              <p style={hintLine}>누르면 시작 시각이 기록돼요 · 할 일은 하면 자동 체크돼요</p>
+              <p style={hintLine}>{ai === 'loading' ? 'AI 진단을 받은 뒤 시작할 수 있어요(놓치지 않게)' : '누르면 시작 시각이 기록돼요 · 할 일은 하면 자동 체크돼요'}</p>
             </>
           )}
         </div>
