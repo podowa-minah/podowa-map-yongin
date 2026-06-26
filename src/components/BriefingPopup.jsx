@@ -7,7 +7,7 @@
 // 저장(히스토리): daily_notes.journal_notes.briefing.snapshot (§10, 새 테이블 없음)
 //   - 걱정 코멘트는 snapshot.eyeCheck.note 에 저장된다.
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import { buildBriefingContext, buildRecentHistory } from '../lib/briefing';
@@ -78,32 +78,58 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     return () => { alive = false; };
   }, [today]);
 
-  // AI 한마디 — 아직 안 한 날만, 최근 기억(recentHistory) 준비된 뒤 호출. 실패하면 1회 재시도(일시 오류로 그날 AI 통째 누락 방지)
+  // /api/briefing 호출(실패 시 1회 재시도) → 성공 data | 실패 null. 첫 호출·자동 채움 두 곳에서 공유.
+  const callBriefing = useCallback(async () => {
+    const callOnce = async () => {
+      const r = await fetch('/api/briefing', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...ctx, recentHistory }),   // 과거 7일 흐름 같이 보냄
+      });
+      if (!r.ok) return null;
+      const data = await r.json();
+      return data && data.alert ? data : null;
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { const data = await callOnce(); if (data) return data; }
+      catch { /* 네트워크 등 — 재시도로 넘어감 */ }
+      if (attempt === 0) await new Promise((res) => setTimeout(res, 1200));   // 1회 재시도 전 잠깐 대기
+    }
+    return null;
+  }, [ctx, recentHistory]);
+
+  // AI 한마디 — 아직 안 한 날만, 최근 기억 준비된 뒤 호출
   useEffect(() => {
     if (doneToday !== false || recentHistory === undefined) return;
     let alive = true;
     (async () => {
-      const callOnce = async () => {
-        const r = await fetch('/api/briefing', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...ctx, recentHistory }),   // 과거 7일 흐름 같이 보냄
-        });
-        if (!r.ok) return null;
-        const data = await r.json();
-        return data && data.alert ? data : null;
-      };
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const data = await callOnce();
-          if (!alive) return;
-          if (data) { setAi(data); return; }
-        } catch { /* 네트워크 등 — 재시도로 넘어감 */ }
-        if (attempt === 0) await new Promise((res) => setTimeout(res, 1200));   // 1회 재시도 전 잠깐 대기
-      }
-      if (alive) setAi('error');
+      const data = await callBriefing();
+      if (alive) setAi(data || 'error');
     })();
     return () => { alive = false; };
-  }, [doneToday, ctx, recentHistory]);
+  }, [doneToday, recentHistory, callBriefing]);
+
+  // 오늘 시작은 했는데 AI 진단이 빠진 날(레이스로 null 저장) → 브리핑 열면 자동으로 다시 받아 채움(다시 작성/버튼 없이)
+  useEffect(() => {
+    if (doneToday !== true || !savedSnap || recentHistory === undefined) return;
+    if (savedSnap.ai && typeof savedSnap.ai === 'object') return;   // 이미 있으면 패스
+    let alive = true;
+    (async () => {
+      const data = await callBriefing();
+      if (!alive || !data) return;
+      const { data: row } = await supabase.from('daily_notes')
+        .select('id, journal_notes').eq('date', today).eq('type', 'journal').maybeSingle();
+      if (!alive || !row) return;
+      const jn = row.journal_notes || {};
+      const briefing = jn.briefing || {};
+      const snapshot = { ...(briefing.snapshot || {}), ai: data };   // ai만 채우고 나머지(할일·시작시각 등) 보존
+      const { error } = await supabase.from('daily_notes')
+        .update({ journal_notes: { ...jn, briefing: { ...briefing, snapshot } } }).eq('id', row.id);
+      if (!alive || error) return;
+      setSavedSnap(snapshot);   // 다시보기 즉시 반영
+      onChecked?.();            // 영농일지도 갱신
+    })();
+    return () => { alive = false; };
+  }, [doneToday, savedSnap, recentHistory, callBriefing]);
 
   async function startDay() {
     setSaving(true);
@@ -155,7 +181,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
             <span style={hIcon}>✨</span>
             <span>
               <span style={{ display: 'block', fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.1 }}>AI 아침보고</span>
-              <span style={{ display: 'block', fontSize: '0.72rem', opacity: 0.85, marginTop: 2 }}>{shortDate(today)}{doneToday ? ' · 요약' : ''}</span>
+              <span style={{ display: 'block', fontSize: '0.72rem', opacity: 0.85, marginTop: 2 }}>{shortDate(today)}{doneToday ? ' · 다시보기' : ''}</span>
             </span>
           </div>
           <button onClick={onClose} aria-label="닫기" title="닫기" style={closeBtn}>✕</button>
