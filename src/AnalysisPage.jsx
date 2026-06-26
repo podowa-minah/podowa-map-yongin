@@ -336,8 +336,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         )}
       </header>
 
-      {/* 🤖 AI 긴급 오늘 할 일 — 좌표 없는 밭 할 일 체크리스트(오늘만). 체크 → doneTasks 누적 */}
-      {selectedDate === today && <AiUrgentTasks today={today} onChange={onSaved} />}
+      {/* ═══ ① 오늘의 포도와 — 상태 한눈에 ═══ */}
+      <ZoneHeader num="①" title="오늘의 포도와" subtitle="생육시기 · 날씨 · 하늘" C={C} />
 
       {/* 생육시기 + 날씨 + 오늘의 하늘 카드 */}
       {(() => {
@@ -422,17 +422,23 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         );
       })()}
 
-      {/* 오늘 브리핑 다시 보기 — 지난 브리핑 기록은 아래 영농일지 카드에 통합됨 */}
+      {/* ═══ ② 오늘 할 일 — AI가 알려줘요 ═══ */}
+      <ZoneHeader num="②" title="오늘 할 일" subtitle="AI 브리핑 · 긴급 할일" C={C} />
+
+      {/* 오늘 AI 브리핑 다시 보기 (열면 풀 브리핑, 빠진 날은 자동 채움) */}
       {onOpenBriefing && (
         <button onClick={onOpenBriefing} style={todayBriefingBtn}>
           🤖 오늘 AI 브리핑 보기
         </button>
       )}
 
-      {/* ═══ ① 오늘 작성 — 매일 꼭 쓰는 보고(강조) ═══ */}
+      {/* AI 긴급 오늘 할 일 — 좌표 없는 밭 할 일 체크리스트(오늘만). 체크 → doneTasks 누적 */}
+      {selectedDate === today && <AiUrgentTasks today={today} onChange={onSaved} />}
+
+      {/* ═══ ③ 오늘 기록 — 매일 꼭 쓰는 보고(강조) ═══ */}
       <ZoneHeader
-        num="①"
-        title={isToday ? '오늘 작성' : `${formatDateLine(selectedDate)} 작성`}
+        num="③"
+        title={isToday ? '오늘 기록' : `${formatDateLine(selectedDate)} 기록`}
         subtitle="활동 · 환경/생육/병해충 · 한 줄 코멘트"
         highlight
         badge="매일 꼭"
@@ -590,8 +596,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         </p>
       </div>
 
-      {/* ═══ ③ 영농일지 — 지난 기록 다시 보기 ═══ */}
-      <ZoneHeader num="②" title="영농일지" subtitle="브리핑·활동·기록이 날짜별 한 장으로" C={C} />
+      {/* ═══ ④ 영농일지 — 지난 기록 다시 보기 ═══ */}
+      <ZoneHeader num="④" title="영농일지" subtitle="브리핑·활동·기록이 날짜별 한 장으로" C={C} />
       <Section title="지난 기록" right={`총 ${history.length}건`} C={C}>
         {history.length === 0 ? (
           <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 일지가 없어요.</p>
