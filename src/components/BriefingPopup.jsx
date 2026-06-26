@@ -203,10 +203,11 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
               <TrendRow diag={ctx.diagnosis} trend={ctx.trend} />
 
               <SectionTitle>
-                🚩 오늘 꼭 할 일
-                <span style={{ fontWeight: 400, color: '#9ca3af' }}> 우선순위 {taskList.length} · 하면 자동 기록</span>
+                🚩 AI가 진단한 오늘 꼭 할 일
+                <span style={{ fontWeight: 400, color: '#9ca3af' }}> 우선순위 {taskList.length}</span>
               </SectionTitle>
-              <TaskChecklist tasks={taskList} checked={doneTaskIds} onToggle={toggleTask} />
+              <TaskChecklist tasks={taskList} />
+              <div style={mapNote}>🟣 자동으로 포도와 맵에 보라색으로 표시돼 있어요</div>
 
               <VarietySection list={varietyScores} />
 
@@ -252,18 +253,18 @@ function SummaryView({ snap, onClose, onRedo }) {
       {snap.trend && <TrendRow diag={snap.diagnosis} trend={snap.trend} />}
       {plan.length > 0 && (
         <>
-          <SectionTitle>오늘 할 일 <span style={{ fontWeight: 400, color: '#9ca3af' }}>({doneKeys.size}/{plan.length} 완료)</span></SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
+          <SectionTitle>🚩 AI가 진단한 오늘 꼭 할 일</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
             {plan.map((t, i) => {
-              const done = doneKeys.has(t.key || t.treeId);
               const isField = t.kind === 'field';
               return (
-                <div key={i} style={{ fontSize: '0.85rem', color: done ? '#27500a' : '#1f2937' }}>
-                  {done ? '✓ ' : '☐ '}{t.carried ? <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span> : null}<b style={{ color: isField ? '#0c447c' : '#b45309' }}>{taskTagText(t)}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
+                <div key={i} style={{ fontSize: '0.85rem', color: '#1f2937', lineHeight: 1.5 }}>
+                  {t.carried ? <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span> : null}<b style={{ color: isField ? '#0c447c' : '#b45309' }}>{taskTagText(t)}</b>{!isField && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}
                 </div>
               );
             })}
           </div>
+          <div style={mapNote}>🟣 자동으로 포도와 맵에 보라색으로 표시돼 있어요</div>
         </>
       )}
       {snap.varietyScores?.length > 0 && (
@@ -380,26 +381,21 @@ function taskLabel(reasons = []) {
 }
 
 // 우선순위 체크리스트 — 밭(파란 태그) + 나무(좌표). 체크하면 "한 일"로 기록.
-function TaskChecklist({ tasks = [], checked = [], onToggle }) {
+// AI가 진단한 오늘 꼭 할 일 — 체크박스 없음(나무는 맵 보라로 자동 추적, 밭은 보고 체크리스트). 여긴 안내만.
+function TaskChecklist({ tasks = [] }) {
   if (!tasks.length) {
     return <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginBottom: 14 }}>오늘 급한 할 일이 없어요 — 한 바퀴만 가볍게 돌아요.</div>;
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
-      {tasks.map((t) => {
-        const on = checked.includes(t.key);
-        return (
-          <label key={t.key} style={checkRow}>
-            <input type="checkbox" checked={on} onChange={() => onToggle?.(t.key)} style={{ marginTop: 3, flexShrink: 0 }} />
-            <span style={{ fontSize: '0.84rem', textDecoration: on ? 'line-through' : 'none', opacity: on ? 0.55 : 1 }}>
-              {t.carried && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span>}
-              {t.kind === 'field'
-                ? <><span style={fieldTag}>{t.cat}</span><span style={{ color: '#1f2937' }}>{t.label}</span></>
-                : <><b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}<span style={{ color: '#9a6a1c' }}> — {t.label}</span></>}
-            </span>
-          </label>
-        );
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 8 }}>
+      {tasks.map((t) => (
+        <div key={t.key} style={{ fontSize: '0.84rem', lineHeight: 1.5 }}>
+          {t.carried && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#9a6a1c', background: '#fdf3e3', border: '1px solid #f0d9b0', borderRadius: 4, padding: '0 3px', marginRight: 3 }}>이월</span>}
+          {t.kind === 'field'
+            ? <><span style={fieldTag}>{t.cat}</span><span style={{ color: '#1f2937' }}>{t.label}</span></>
+            : <><b style={{ color: '#b45309' }}>{t.treeId}</b>{t.name ? <span style={{ color: '#5f5e5a' }}> {t.name}</span> : null}<span style={{ color: '#9a6a1c' }}> — {t.label}</span></>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -635,6 +631,12 @@ const trendBox = {
   display: 'flex', alignItems: 'center', flexWrap: 'wrap',
   background: '#f7f6f1', border: '1px solid #ece0c4', borderRadius: 8,
   padding: '7px 11px', marginBottom: 16,
+};
+// AI 할 일 아래 안내 — 맵 보라 표시 연동 (체크박스 대신). 맵 AI 보라 톤과 통일.
+const mapNote = {
+  fontSize: '0.78rem', color: '#5b3fb0', lineHeight: 1.45,
+  background: '#f4f1fb', border: '1px solid #e0d8f5', borderRadius: 6,
+  padding: '6px 10px', marginBottom: 16,
 };
 const fieldTag = {
   display: 'inline-block', background: '#e6f1fb', color: '#0c447c',
