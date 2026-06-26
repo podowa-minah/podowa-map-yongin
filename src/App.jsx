@@ -117,7 +117,6 @@ export default function App() {
   const [aiFieldUndone, setAiFieldUndone] = useState(false);   // 오늘 밭 AI 할일(좌표X) 미체크 있음 — 보고 불용
   const [briefingLoaded, setBriefingLoaded] = useState(false);       // 오늘 브리핑 확인여부 fetch 완료
   const [showBriefing, setShowBriefing] = useState(false);            // 아침 브리핑 팝업 (지도 앞)
-  const [briefingAutoShown, setBriefingAutoShown] = useState(false);  // 이번 세션에 자동표시 1회만
   const [journalRefreshKey, setJournalRefreshKey] = useState(0);
   const [treatmentRefreshKey, setTreatmentRefreshKey] = useState(0);
   const [prefetchedAnnouncements, setPrefetchedAnnouncements] = useState(null);
@@ -395,17 +394,14 @@ export default function App() {
     return out;
   }, [aiTasksToday, treeData]);
 
-  // 아침 브리핑 팝업 — 앱 켜면 지도 보기 전에 하루 한 번 자동으로.
-  //   오늘 확인 안 했고(briefingCheckedToday=false) + 나무 데이터 준비됨 + 나무지도 화면일 때.
-  //   이번 세션에 1회만(briefingAutoShown). 확인하면 그날은 다시 안 뜸.
+  // 아침 브리핑 팝업 — 나무지도 화면 + 오늘 "아침 업무 시작" 아직 안 함이면 자동으로 뜸.
+  //   X로 닫아도 시작(briefingCheckedToday=true) 전엔 지도로 돌아올 때마다 다시 뜬다(필수 보고 강제).
   useEffect(() => {
-    if (briefingAutoShown) return;
     if (!user || !briefingLoaded || briefingCheckedToday) return;
     if (activeTab !== 'map' || viewMode !== 'farm') return;
     if (!freshTreeLoaded || Object.keys(treeData || {}).length === 0) return;
     setShowBriefing(true);
-    setBriefingAutoShown(true);
-  }, [user, briefingLoaded, briefingCheckedToday, activeTab, viewMode, freshTreeLoaded, treeData, briefingAutoShown]);
+  }, [user, briefingLoaded, briefingCheckedToday, activeTab, viewMode, freshTreeLoaded, treeData]);
 
   const authorName = user?.user_metadata?.nickname || user?.email || '';
 
@@ -575,8 +571,9 @@ export default function App() {
   }, [treeData, labels, freshTreeLoaded]);
 
   // ── 어제치 daily_summary 자동 저장 (앱 로딩 시) ──
+  //   ⚠️ freshTreeLoaded(서버 신선 데이터)까지 기다림 — 캐시/부분 동기화 상태로 저장하면 완료율이 낮게 굳음(버그)
   useEffect(() => {
-    if (!user || dataLoading || Object.keys(treeData).length === 0) return;
+    if (!user || dataLoading || !freshTreeLoaded || Object.keys(treeData).length === 0) return;
 
     const DATA_START = '2026-04-09';
 
@@ -609,10 +606,12 @@ export default function App() {
       const existingMap = new Map((existing || []).map(r => [r.date, r]));
       const STALE_RATIO = 1.5;
 
+      const recentCut = offsetDate(today, -3);   // 최근 3일은 동기화 지연으로 굳은 값이 있을 수 있어 항상 재계산
       for (const d of dates) {
         const existingRow = existingMap.get(d);
-        // 신뢰할 만한 row면 skip, total이 비정상적으로 크면 stale로 보고 덮어씀
-        if (existingRow && existingRow.total != null) {
+        const isRecent = d >= recentCut;
+        // 오래된 날: 신뢰 row면 skip(캐시 유지). 단 최근 3일은 항상 재계산해 부분 동기화로 낮게 굳은 값을 교정.
+        if (existingRow && existingRow.total != null && !isRecent) {
           const isStale = existingRow.total > activeLabelCount * STALE_RATIO;
           if (!isStale) continue;
         }
@@ -652,7 +651,7 @@ export default function App() {
           if (data) setHistorySummaries(data);
         });
     });
-  }, [user, dataLoading, treeData, labels]);
+  }, [user, dataLoading, freshTreeLoaded, treeData, labels]);
 
   // 현재 포도밭의 생육시기 — 오늘 기록 우선, 없으면 어제 기록
   const currentDominantSeason = useMemo(() => {
