@@ -337,7 +337,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       </header>
 
       {/* ═══ ① 오늘의 포도와 — 상태 한눈에 ═══ */}
-      <ZoneHeader num="①" title="오늘의 포도와" subtitle="생육시기 · 날씨 · 하늘" C={C} />
+      <ZoneHeader num="1" title="오늘의 포도와" subtitle="생육시기 · 날씨 · 하늘" C={C} />
 
       {/* 생육시기 + 날씨 + 오늘의 하늘 카드 */}
       {(() => {
@@ -423,7 +423,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       })()}
 
       {/* ═══ ② 오늘 할 일 — AI가 알려줘요 ═══ */}
-      <ZoneHeader num="②" title="오늘 할 일" subtitle="AI 브리핑 · 긴급 할일" C={C} />
+      <ZoneHeader num="2" title="오늘 할 일" subtitle="AI 브리핑 · 긴급 할일" C={C} />
 
       {/* 오늘 AI 브리핑 다시 보기 (열면 풀 브리핑, 빠진 날은 자동 채움) */}
       {onOpenBriefing && (
@@ -437,10 +437,9 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
 
       {/* ═══ ③ 오늘 기록 — 매일 꼭 쓰는 보고(강조) ═══ */}
       <ZoneHeader
-        num="③"
+        num="3"
         title={isToday ? '오늘 기록' : `${formatDateLine(selectedDate)} 기록`}
         subtitle="활동 · 환경/생육/병해충 · 한 줄 코멘트"
-        highlight
         badge="매일 꼭"
         C={C}
       />
@@ -597,7 +596,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       </div>
 
       {/* ═══ ④ 영농일지 — 지난 기록 다시 보기 ═══ */}
-      <ZoneHeader num="④" title="영농일지" subtitle="브리핑·활동·기록이 날짜별 한 장으로" C={C} />
+      <ZoneHeader num="4" title="영농일지" subtitle="브리핑·활동·기록이 날짜별 한 장으로" C={C} />
       <Section title="지난 기록" right={`총 ${history.length}건`} C={C}>
         {history.length === 0 ? (
           <p style={{ color: C.muted, fontSize: '0.85rem' }}>아직 작성된 일지가 없어요.</p>
@@ -1004,10 +1003,10 @@ function ZoneHeader({ num, title, subtitle, C, highlight, badge }) {
     <div style={{ ...base, ...hi }}>
       <span style={{
         flexShrink: 0,
-        width: highlight ? 38 : 34, height: highlight ? 38 : 34, borderRadius: '50%',
+        width: 34, height: 34, borderRadius: '0.55rem',
         background: C.border, color: '#fff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: C.headlineFont, fontSize: highlight ? '1.15rem' : '1.05rem', fontWeight: 700,
+        fontFamily: C.headlineFont, fontSize: '1.25rem', fontWeight: 700,
       }}>{num}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: C.headlineFont, fontSize: highlight ? '1.4rem' : '1.25rem', fontWeight: 700, color: C.text, lineHeight: 1.15, display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
