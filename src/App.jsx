@@ -606,11 +606,11 @@ export default function App() {
       const existingMap = new Map((existing || []).map(r => [r.date, r]));
       const STALE_RATIO = 1.5;
 
-      const recentCut = offsetDate(today, -3);   // 최근 3일은 동기화 지연으로 굳은 값이 있을 수 있어 항상 재계산
+      const recentCut = offsetDate(today, -14);   // 최근 14일은 부분 동기화로 굳은 값이 있을 수 있어 항상 재계산(자가 교정)
       for (const d of dates) {
         const existingRow = existingMap.get(d);
         const isRecent = d >= recentCut;
-        // 오래된 날: 신뢰 row면 skip(캐시 유지). 단 최근 3일은 항상 재계산해 부분 동기화로 낮게 굳은 값을 교정.
+        // 오래된 날: 신뢰 row면 skip(캐시 유지). 단 최근 14일은 항상 재계산해 부분 동기화로 낮게 굳은 값을 교정.
         if (existingRow && existingRow.total != null && !isRecent) {
           const isStale = existingRow.total > activeLabelCount * STALE_RATIO;
           if (!isStale) continue;
