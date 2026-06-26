@@ -9,6 +9,7 @@ import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
 import { getSeasonalTermInfo } from './lib/seasonalTerms';
 import { getMoonPhase } from './lib/moonPhase';
 import { getMoonZodiac, FRAMEWORK_NAME } from './lib/zodiacMoon';
+import { getFarmCurrentStage } from './lib/grape-stages';
 import MoonZodiacPopup from './components/MoonZodiacPopup';
 import Constellation from './components/Constellation';
 import DayTypeIcon from './components/DayTypeIcon';
@@ -78,6 +79,9 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
 
   // 날짜별 "최종완료"(송이크기정리/알솎이) — trees에서 계산해 영농일지 칩으로 (저장 X, §10)
   const finalMap = useMemo(() => finalMarksByDate(treeData, labels), [treeData, labels]);
+
+  // 밭 평균 현재 생육시기 — 만개 기록만 있으면 그날 기록 없어도 항상 뜸(§10 계산)
+  const farmStage = useMemo(() => getFarmCurrentStage(treeData, selectedDate), [treeData, selectedDate]);
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -357,7 +361,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
               marginBottom: '0.35rem',
               letterSpacing: '0.3px',
             }}>
-              생육시기 · {report.dominantSeason || '기록 없음'}
+              생육시기 · {farmStage?.name || report.dominantSeason || '기록 없음'}
             </div>
 
             {/* 날씨 줄 */}
@@ -421,7 +425,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       {/* 오늘 브리핑 다시 보기 — 지난 브리핑 기록은 아래 영농일지 카드에 통합됨 */}
       {onOpenBriefing && (
         <button onClick={onOpenBriefing} style={todayBriefingBtn}>
-          ☀️ 오늘 브리핑 보기
+          🤖 오늘 AI 브리핑 보기
         </button>
       )}
 
@@ -749,17 +753,13 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
           {entry.author && <span style={{ marginLeft: 6 }}>· {entry.author}</span>}
         </div>
 
-        {/* 한줄평 */}
-        {entry.content && (
-          <div style={{ fontSize: '0.85rem', color: C.text, marginBottom: '0.3rem', lineHeight: 1.45 }}>
-            "{entry.content}"
-          </div>
-        )}
-
-        {/* 농부 기록 — AI 진단처럼 박스 카드로. 범주별 환경·생육·병해충 */}
-        {(env.note || growthNote || pestNote) && (
+        {/* 농부 기록 — 한 줄 코멘트 + 범주별 환경·생육·병해충 (AI 진단처럼 박스 카드) */}
+        {(entry.content || env.note || growthNote || pestNote) && (
           <div style={{ marginBottom: '0.3rem', background: '#fbf8f3', border: '1px solid #ead9c2', borderRadius: '0.4rem', padding: '0.4rem 0.55rem', lineHeight: 1.45 }}>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6b4f1d', marginBottom: 2 }}>🧑‍🌾 농부 기록</div>
+            {entry.content && (
+              <div style={{ fontSize: '0.82rem', color: C.text, marginBottom: 3, fontStyle: 'italic' }}>"{entry.content}"</div>
+            )}
             {env.note && (
               <div style={{ fontSize: '0.78rem', color: '#0c4a6e' }}>
                 <span style={{ fontWeight: 700, marginRight: 4 }}>환경:</span>{env.note}
@@ -1142,10 +1142,11 @@ const editBtnStyle = {
 };
 
 const todayBriefingBtn = {
-  width: '100%', margin: '0 0 1rem', padding: '0.7rem',
+  width: '100%', margin: '0 0 1rem', padding: '0.85rem',
   background: 'linear-gradient(135deg, #15803d 0%, #047857 100%)',
   color: '#fff', border: 'none', borderRadius: '0.6rem',
-  fontWeight: 700, cursor: 'pointer',
+  fontWeight: 800, fontSize: '1.02rem', cursor: 'pointer',
+  boxShadow: '0 3px 14px rgba(4,120,87,0.40)',
   fontFamily: 'Arvo, "Pretendard Variable", serif',
 };
 

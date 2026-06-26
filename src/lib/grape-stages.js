@@ -95,6 +95,20 @@ export function getCurrentStageFromBloom(bloomIso, todayIso) {
   return { num: 8, name: '수확 종료', daysFromBloom: days, daysToEnd: 0 };
 }
 
+// 밭 전체 현재 생육시기 — 나무별 만개일 평균 → 그 평균 기준 현재 시기.
+//   오늘 기록이 없어도(만개 기록만 있으면) 항상 뜬다. 나무별 예측은 그대로 둠.
+//   returns: { num, name, ... } | null (만개 기록이 하나도 없으면)
+export function getFarmCurrentStage(treeData = {}, todayIso) {
+  const times = [];
+  for (const id of Object.keys(treeData)) {
+    const b = getBloomDateFromHistory(treeData[id] || []);
+    if (b) times.push(new Date(b + 'T00:00:00Z').getTime());
+  }
+  if (!times.length) return null;
+  const avgIso = new Date(times.reduce((a, b) => a + b, 0) / times.length).toISOString().slice(0, 10);
+  return getCurrentStageFromBloom(avgIso, todayIso);
+}
+
 // 짧은 표시
 export function shortDate(iso) {
   if (!iso) return '';
