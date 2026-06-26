@@ -266,6 +266,11 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     accentBg: '#fffbeb',
     accentBorder: '#fde68a',
   };
+  // 존 카드 박스 — ① 생육시기 카드와 같은 톤(②③도 박스에 담기게)
+  const zoneBox = {
+    marginBottom: '1.8rem', padding: '0.95rem 1rem',
+    background: '#fffefb', border: `1.5px solid ${C.border}`, borderRadius: '0.5rem',
+  };
 
   return (
     <div style={{
@@ -430,16 +435,18 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       {/* ═══ ② 오늘 할 일 — AI가 알려줘요 ═══ */}
       <ZoneHeader num="2" title="오늘 할 일" subtitle="AI 브리핑 · 긴급 할일" C={C} />
 
-      {/* 오늘 AI 브리핑 다시 보기 (열면 풀 브리핑, 빠진 날은 자동 채움) */}
-      {onOpenBriefing && (
-        <button onClick={onOpenBriefing} style={todayBriefingBtn}>
-          <span>🤖 오늘 AI 브리핑 보기</span>
-          <span style={{ fontSize: '1.25rem', opacity: 0.85, lineHeight: 1 }}>›</span>
-        </button>
-      )}
+      <div style={zoneBox}>
+        {/* 오늘 AI 브리핑 다시 보기 (열면 풀 브리핑, 빠진 날은 자동 채움) */}
+        {onOpenBriefing && (
+          <button onClick={onOpenBriefing} style={todayBriefingBtn}>
+            <span>🤖 오늘 AI 브리핑 보기</span>
+            <span style={{ fontSize: '1.25rem', opacity: 0.85, lineHeight: 1 }}>›</span>
+          </button>
+        )}
 
-      {/* AI 긴급 오늘 할 일 — 좌표 없는 밭 할 일 체크리스트(오늘만). 체크 → doneTasks 누적 */}
-      {selectedDate === today && <AiUrgentTasks today={today} onChange={onSaved} />}
+        {/* AI 긴급 오늘 할 일 — 좌표 없는 밭 할 일 체크리스트(오늘만). 체크 → doneTasks 누적 */}
+        {selectedDate === today && <AiUrgentTasks today={today} onChange={onSaved} />}
+      </div>
 
       {/* ═══ ③ 오늘 기록 — 매일 꼭 쓰는 보고(강조) ═══ */}
       <ZoneHeader
@@ -450,6 +457,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         C={C}
       />
 
+      <div style={zoneBox}>
       {/* 오늘 활동 */}
       <Section title="오늘 활동" C={C}>
         <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', lineHeight: 1.7 }}>
@@ -599,6 +607,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         <p style={{ fontSize: '0.72rem', color: C.muted, textAlign: 'center', marginTop: '0.5rem' }}>
           저장하면 아래 '보고' 불이 꺼져요. 언제든 다시 수정 가능.
         </p>
+      </div>
       </div>
 
       {/* ═══ ④ 영농일지 — 지난 기록 다시 보기 ═══ */}
