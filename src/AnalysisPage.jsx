@@ -1147,11 +1147,11 @@ const editBtnStyle = {
 };
 
 const todayBriefingBtn = {
-  width: '100%', margin: '0 0 1rem', padding: '0.85rem',
-  background: 'linear-gradient(135deg, #15803d 0%, #047857 100%)',
+  width: '100%', margin: '0 0 0.7rem', padding: '0.85rem',
+  background: '#7c3aed',
   color: '#fff', border: 'none', borderRadius: '0.6rem',
   fontWeight: 800, fontSize: '1.02rem', cursor: 'pointer',
-  boxShadow: '0 3px 14px rgba(4,120,87,0.40)',
+  boxShadow: '0 3px 14px rgba(124,58,237,0.35)',
   fontFamily: 'Arvo, "Pretendard Variable", serif',
 };
 
