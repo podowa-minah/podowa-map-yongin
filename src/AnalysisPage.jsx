@@ -433,7 +433,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
       {/* 오늘 AI 브리핑 다시 보기 (열면 풀 브리핑, 빠진 날은 자동 채움) */}
       {onOpenBriefing && (
         <button onClick={onOpenBriefing} style={todayBriefingBtn}>
-          🤖 오늘 AI 브리핑 보기
+          <span>🤖 오늘 AI 브리핑 보기</span>
+          <span style={{ fontSize: '1.25rem', opacity: 0.85, lineHeight: 1 }}>›</span>
         </button>
       )}
 
@@ -1152,12 +1153,12 @@ const editBtnStyle = {
 };
 
 const todayBriefingBtn = {
-  width: '100%', margin: '0 0 0.7rem', padding: '0.85rem',
+  width: '100%', margin: '0 0 0.7rem', padding: '0.8rem 0.9rem',
   background: '#7c3aed',
   color: '#fff', border: 'none', borderRadius: '0.6rem',
-  fontWeight: 800, fontSize: '1.02rem', cursor: 'pointer',
-  boxShadow: '0 3px 14px rgba(124,58,237,0.35)',
+  fontWeight: 800, fontSize: '1rem', cursor: 'pointer',
   fontFamily: 'Arvo, "Pretendard Variable", serif',
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, textAlign: 'left',
 };
 
 function uploadBtn(disabled, color) {
