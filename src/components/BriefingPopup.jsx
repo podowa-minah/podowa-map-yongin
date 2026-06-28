@@ -7,7 +7,7 @@
 // 저장(히스토리): daily_notes.journal_notes.briefing.snapshot (§10, 새 테이블 없음)
 //   - 걱정 코멘트는 snapshot.eyeCheck.note 에 저장된다.
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import { buildBriefingContext, buildRecentHistory } from '../lib/briefing';
@@ -26,6 +26,8 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
   const [recentHistory, setRecentHistory] = useState(undefined);  // 최근 7일 요약(과거 먹이기) — undefined=로딩전
   const [carriedTasks, setCarriedTasks] = useState([]);    // 어제까지 안 한 밭 할일(이월) — 오늘 목록 앞에
   const [saving, setSaving] = useState(false);
+  const [lockedTasks, setLockedTasks] = useState(null);   // 오늘 한 번 생성된 브리핑 고정 — 재오픈해도 재생성 X
+  const genTriedRef = useRef(false);                       // 이번 마운트에 AI 호출 시도했나(에러 시 재호출 방지)
 
   const toggleTask = (treeId) =>
     setDoneTaskIds((prev) => (prev.includes(treeId) ? prev.filter((x) => x !== treeId) : [...prev, treeId]));
@@ -37,6 +39,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
   //   AI가 못 주면(로컬·실패) 규칙기반(유심히 볼 나무)으로 대체. 관수·방제는 버튼 불이라 제외.
   const validIds = useMemo(() => new Set(Object.keys(treeData || {})), [treeData]);
   const taskList = useMemo(() => {
+    if (lockedTasks) return lockedTasks;   // 그날 고정본 있으면 그대로(재생성·재계산 X)
     let base = [];
     if (ai && typeof ai === 'object' && Array.isArray(ai.tasks) && ai.tasks.length) {
       base = ai.tasks.map((t, i) => {
@@ -56,7 +59,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     const fid = (t) => (t.kind === 'field' ? `${t.cat}|${t.label}` : null);
     const carryIds = new Set(carriedTasks.map(fid));
     return [...carriedTasks, ...base.filter((t) => !carryIds.has(fid(t)))].slice(0, 6);
-  }, [ai, ctx, validIds, labels, carriedTasks]);
+  }, [ai, ctx, validIds, labels, carriedTasks, lockedTasks]);
 
   // 오늘 이미 브리핑 했나? + 최근 7일 기억(과거 먹이기) — 최근 daily_notes 한 번에 가져옴
   useEffect(() => {
@@ -71,7 +74,14 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
       const todayRow = rows.find((r) => r.date === today);
       const b = todayRow?.journal_notes?.briefing;
       if (b?.checked_at) { setSavedSnap(b.snapshot || null); setDoneToday(true); }
-      else setDoneToday(false);
+      else {
+        setDoneToday(false);
+        // 오늘 이미 생성된 브리핑(시작 전 draft)이 있으면 그대로 불러와 고정 — 재오픈해도 안 바뀜
+        if (b?.snapshot?.ai && typeof b.snapshot.ai === 'object') {
+          setAi(b.snapshot.ai);
+          setLockedTasks(b.snapshot.tasks || []);
+        }
+      }
       setRecentHistory(buildRecentHistory(rows, today, 7));   // 과거→AI에 흐름으로 먹임
       setCarriedTasks(getCarryOverFieldTasks(rows, today));   // 어제까지 안 한 밭 할일 → 오늘 이월
     })();
@@ -97,16 +107,18 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     return null;
   }, [ctx, recentHistory]);
 
-  // AI 한마디 — 아직 안 한 날만, 최근 기억 준비된 뒤 호출
+  // AI 한마디 — 아직 안 한 날만, 최근 기억 준비된 뒤 호출. 단 그날 고정본 있거나 이미 시도했으면 재호출 X(매번 바뀜 방지)
   useEffect(() => {
     if (doneToday !== false || recentHistory === undefined) return;
+    if (lockedTasks !== null || genTriedRef.current) return;
+    genTriedRef.current = true;
     let alive = true;
     (async () => {
       const data = await callBriefing();
       if (alive) setAi(data || 'error');
     })();
     return () => { alive = false; };
-  }, [doneToday, recentHistory, callBriefing]);
+  }, [doneToday, recentHistory, callBriefing, lockedTasks]);
 
   // 오늘 시작은 했는데 AI 진단이 빠진 날(레이스로 null 저장) → 브리핑 열면 자동으로 다시 받아 채움(다시 작성/버튼 없이)
   useEffect(() => {
@@ -130,6 +142,26 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     })();
     return () => { alive = false; };
   }, [doneToday, savedSnap, recentHistory, callBriefing]);
+
+  // 생성된 브리핑을 그날 draft로 저장(시작 전이라도) → X 닫고 재오픈해도 재생성 없이 그대로(고정)
+  useEffect(() => {
+    if (doneToday !== false || lockedTasks !== null) return;   // 시작했거나 이미 고정됐으면 패스
+    if (!(ai && typeof ai === 'object')) return;               // AI 성공해야 저장
+    let alive = true;
+    (async () => {
+      const { data: row } = await supabase.from('daily_notes')
+        .select('id, journal_notes').eq('date', today).eq('type', 'journal').maybeSingle();
+      if (!alive) return;
+      const jn = row?.journal_notes || {};
+      const briefing = jn.briefing || {};
+      if (briefing.checked_at) return;   // 이미 시작(확정)했으면 draft 저장 안 함
+      const snapshot = { ...(briefing.snapshot || {}), ai, tasks: taskList, diagnosis: ctx.diagnosis, trend: ctx.trend, varietyScores };
+      if (row) await supabase.from('daily_notes').update({ journal_notes: { ...jn, briefing: { ...briefing, snapshot } } }).eq('id', row.id);
+      else await supabase.from('daily_notes').insert({ date: today, type: 'journal', journal_notes: { briefing: { snapshot } }, content: '' });
+      if (alive) setLockedTasks(taskList);   // 고정(재오픈 시 이걸 그대로 씀)
+    })();
+    return () => { alive = false; };
+  }, [doneToday, ai, lockedTasks, taskList, ctx, varietyScores]);
 
   async function startDay() {
     setSaving(true);
@@ -165,12 +197,14 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     onClose?.();
   }
 
-  // 요약에서 "다시" — 아침 보고를 다시 (저장하면 오늘 기록 덮어씀)
+  // 요약에서 "다시" — 아침 보고를 다시 (저장하면 오늘 기록 덮어씀). 고정 해제해야 새로 생성됨
   function redo() {
     setSavedSnap(null);
     setDoneTaskIds([]);
     setAi('loading');
     setDoneToday(false);
+    setLockedTasks(null);        // 고정 해제 → 재생성 허용
+    genTriedRef.current = false;
   }
 
   return (
