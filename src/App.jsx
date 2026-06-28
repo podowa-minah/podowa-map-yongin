@@ -707,19 +707,23 @@ export default function App() {
 
   // 🦆 오리 말풍선 — 최신 공지 > 진행률별 기본 멘트
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
+  // 오늘 진짜 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일 다 함 — 3개 통합
+  const signalsComplete = total != null && total > 0 && completed === total;
+  const todayFullyDone = signalsComplete && journalHasToday && !aiFieldUndone;
   const duckMessage = useMemo(() => {
     const latest = (prefetchedAnnouncements || []).find(a => !a.deleted);
     if (latest?.message) {
       const text = latest.message.trim().split('\n')[0];
       return text.length > 26 ? text.slice(0, 24) + '…' : text;
     }
-    if (_pctNow === 100) return '오늘 다 완료! 🎉';
+    if (todayFullyDone) return '오늘 다 완료! 🎉';
+    if (signalsComplete) return '나무 끝! 영농일지·할일만 마무리하면 끝';
     if (_pctNow >= 80)   return '거의 다 왔어요!';
     if (_pctNow >= 50)   return '잘하고 있어요!';
     if (_pctNow >= 20)   return '오늘도 화이팅!';
     if (_pctNow > 0)     return '시작이 반!';
     return '오늘도 화이팅!';
-  }, [prefetchedAnnouncements, _pctNow]);
+  }, [prefetchedAnnouncements, _pctNow, todayFullyDone, signalsComplete]);
 
   // 🦆 오리 메시지 빠른 입력
   // - 오리 메시지는 author 앞에 '🦆 ' 마커로 구분
@@ -755,14 +759,14 @@ export default function App() {
     }
   }
 
-  // 🎊 100% 완료 — 처음 100% 도달 시 빵빠레 효과음
-  const prevPctRef = useRef(_pctNow);
+  // 🎊 오늘 진짜 100%(신호등+영농일지+AI) 처음 도달 시 빵빠레
+  const prevDoneRef = useRef(todayFullyDone);
   useEffect(() => {
-    if (prevPctRef.current < 100 && _pctNow === 100) {
+    if (!prevDoneRef.current && todayFullyDone) {
       playCelebration();
     }
-    prevPctRef.current = _pctNow;
-  }, [_pctNow]);
+    prevDoneRef.current = todayFullyDone;
+  }, [todayFullyDone]);
 
   // 로그인 + 데이터(서버 fresh fetch) 다 들어올 때까지 로딩 스피너 → 그다음 맵.
   //   freshTreeLoaded(서버 신선 데이터) 또는 안전망 타임아웃 전까지 스피너 유지.
@@ -902,6 +906,7 @@ export default function App() {
           onOpenMenu={() => setHeaderOpen((v) => !v)}
           hasJournalToday={journalHasToday}
           aiFieldUndone={aiFieldUndone}
+          signalsComplete={signalsComplete}
           irrEval={irrEval}
           pestEval={pestEval}
         />
