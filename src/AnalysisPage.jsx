@@ -830,7 +830,7 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
               )}
               {done.length > 0 && (
                 <div style={{ fontSize: '0.78rem', marginBottom: '0.3rem', lineHeight: 1.5, background: '#f4f1fb', border: '1px solid #e0d8f5', borderRadius: '0.4rem', padding: '0.4rem 0.55rem' }}>
-                  <div style={{ fontWeight: 700, color: '#5b3fb0', marginBottom: 2 }}>🤖 AI가 시킨 일 — 완료 <span style={{ fontWeight: 400, color: '#9ca3af' }}>{done.length}건</span></div>
+                  <div style={{ fontWeight: 700, color: '#5b3fb0', marginBottom: 2 }}>🤖 AI 진단 긴급 업무 — 완료 <span style={{ fontWeight: 400, color: '#9ca3af' }}>{done.length}건</span></div>
                   {done.map((t, i) => (
                     <div key={i} style={{ color: '#3c2a6e' }}>✓ <b>{t.kind === 'field' ? t.cat : t.treeId}</b>{t.kind !== 'field' && t.name ? ` ${t.name}` : ''}{t.label ? ` — ${t.label}` : ''}</div>
                   ))}
