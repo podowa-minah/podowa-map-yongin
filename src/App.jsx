@@ -885,7 +885,7 @@ export default function App() {
               onOpenScores={() => setActiveTab('scores')}
               onOpenTree={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
               onOpenBriefing={() => setShowBriefing(true)}
-              onClose={() => setActiveTab(previousTab || 'map')}
+              onClose={() => { setActiveTab('map'); setViewMode('farm'); }}
             />
           )}
           {activeTab === 'scores' && (
