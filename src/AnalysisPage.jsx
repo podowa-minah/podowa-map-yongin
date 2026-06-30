@@ -220,8 +220,12 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     setSaving(true);
     const author = user?.user_metadata?.nickname || user?.email || '';
     const isPastDate = selectedDate < today;
+    // ⚠️ 최신 row 다시 읽어 briefing.snapshot(AI 긴급할일 체크=doneTasks 등) 보존
+    //    — 페이지 연 뒤 체크한 게 옛 dayNote로 덮여 리셋되던 버그 방지
+    const { data: fresh } = await supabase.from('daily_notes')
+      .select('journal_notes').eq('date', selectedDate).eq('type', 'journal').maybeSingle();
     const journal_notes = {
-      ...(dayNote?.journal_notes || {}),
+      ...(fresh?.journal_notes || dayNote?.journal_notes || {}),
       env: {
         note: envNote.trim(),
         image_urls: envImageUrls,
