@@ -596,20 +596,24 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
           disabled={saving}
           style={{
             width: '100%',
-            padding: '1rem',
-            background: savedFlash ? '#16a34a' : '#1f2937',
+            padding: '1.1rem',
+            background: savedFlash ? '#15803d' : '#16a34a',
             color: '#fff',
             border: 'none', borderRadius: '0.6rem',
-            fontSize: '1rem', fontWeight: 700,
+            fontSize: '1.08rem', fontWeight: 800,
             cursor: saving ? 'wait' : 'pointer',
             transition: 'background 0.2s',
             fontFamily: C.headlineFont,
+            boxShadow: '0 3px 12px rgba(22,163,74,0.30)',
           }}
         >
-          {savedFlash ? '✓ 저장됨' : (saving ? '저장 중...' : '오늘 보고서 마무리하기')}
+          {savedFlash ? '✓ 저장됐어요!' : (saving ? '저장 중…' : '💾 오늘 보고서 저장하기')}
         </button>
-        <p style={{ fontSize: '0.72rem', color: C.muted, textAlign: 'center', marginTop: '0.5rem' }}>
-          저장하면 아래 '보고' 불이 꺼져요. 언제든 다시 수정 가능.
+        <p style={{ fontSize: '0.76rem', color: '#b45309', textAlign: 'center', marginTop: '0.5rem', fontWeight: 700 }}>
+          ⚠️ 이 버튼을 꼭 눌러야 영농일지에 저장돼요 (안 누르면 기록 안 됨)
+        </p>
+        <p style={{ fontSize: '0.7rem', color: C.muted, textAlign: 'center', marginTop: '0.2rem' }}>
+          저장하면 아래 '보고' 불이 꺼져요 · 언제든 다시 수정 가능
         </p>
       </div>
       </div>
