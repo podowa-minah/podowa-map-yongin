@@ -105,6 +105,20 @@ export function monthProgress(items = [], logs = {}) {
   return { done, total, pct: total ? Math.round((done / total) * 100) : 0 };
 }
 
+// 특정 날짜(보통 그 달 말일)까지의 완료만 반영한 진행률 — "그 시기" 마감 스냅샷용.
+//   왜: 6월 항목을 7월에 '했어요' 눌러도, 6월 마감 달성률엔 안 들어간다(그 시기엔 못한 것).
+//   그래서 done_on <= cutoff 인 완료만 골라 계산한다(미달일이 하루 지나면 굳는 것과 같은 개념).
+export function monthProgressAsOf(items = [], completions = [], cutoff) {
+  const upto = (completions || []).filter((c) => c.done_on && c.done_on <= cutoff);
+  return monthProgress(items, logsByItem(upto));
+}
+
+// 그 달 마지막 날 'YYYY-MM-DD' (month는 1~12). 마감 스냅샷의 날짜 키로 쓴다.
+export function monthEndDate(year, month) {
+  const last = new Date(year, month, 0).getDate();   // 다음 달 0일 = 이번 달 말일
+  return `${year}-${String(month).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+}
+
 // 한 달 항목을 범주별 카드로 묶기 (ORDER 순서, 비어 있는 범주는 제외)
 export function groupByCategory(items = []) {
   return ORDER

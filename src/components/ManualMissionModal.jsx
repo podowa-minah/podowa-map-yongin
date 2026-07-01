@@ -6,16 +6,18 @@
 // - 관리자 수정(1234) = 항목 추가/수정/삭제(soft) + 안내 한마디.  전체 보기 = 월별 달성률.
 // 톤앤매너·포털 규약은 IrrigationModal과 동일.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
 import {
   CATS, ORDER, STAGE, STRIP_MONTHS,
-  logsByItem, monthProgress, groupByCategory, itemsByMonth, yearOverview, parseGuides,
+  logsByItem, monthProgress, monthProgressAsOf, monthEndDate,
+  groupByCategory, itemsByMonth, yearOverview, parseGuides,
   personColor, shortDate, shortName,
 } from '../lib/manual';
 import ManualMissionEditPanel from './ManualMissionEditPanel';
+import MissionFreezeNote from './MissionFreezeNote';
 
 const CSS = `
 .pmm-backdrop{position:fixed; inset:0; background:rgba(34,46,36,.6); z-index:9999; display:flex; align-items:flex-start; justify-content:center; overflow:auto; -webkit-overflow-scrolling:touch; padding:3vh 0;}
@@ -39,9 +41,11 @@ const CSS = `
 .pmm-wrap .mon{flex:0 0 auto; width:40px; text-align:center; border-radius:12px; padding:7px 0; font-size:12px; font-weight:700; cursor:pointer; background:var(--pill-off); color:#b3ac9d; border:1.5px solid transparent; position:relative;}
 .pmm-wrap .mon small{display:block; font-size:9px; font-weight:600; opacity:.8;}
 .pmm-wrap .mon.done{background:var(--green-bg); color:var(--green);}
+.pmm-wrap .mon.frozen{background:#fbe7cf; color:#b5701a;}
 .pmm-wrap .mon.empty{opacity:.5;}
 .pmm-wrap .mon.sel{background:#fff; color:var(--ink); border-color:var(--green); box-shadow:0 1px 6px #5aa36a33;}
 .pmm-wrap .mon.done::after{content:"✓"; position:absolute; top:-6px; right:-2px; font-size:10px; background:var(--green); color:#fff; width:15px; height:15px; line-height:15px; border-radius:50%;}
+.pmm-wrap .mon.frozen::after{content:attr(data-pct); position:absolute; top:-7px; right:-6px; font-size:8.5px; font-weight:800; background:#e8912a; color:#fff; padding:1px 4px; border-radius:8px; line-height:1.35; white-space:nowrap;}
 .pmm-wrap .mhead{padding:10px 16px 4px; display:flex; align-items:center; gap:8px;}
 .pmm-wrap .mhead .t{font-size:20px; font-weight:800;}
 .pmm-wrap .mhead .stage{font-size:12px; color:#8a8472; font-weight:600;}
@@ -141,8 +145,10 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
   const [items, setItems] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [guides, setGuides] = useState({});
+  const [freezes, setFreezes] = useState([]);       // 지난 달 마감 스냅샷 (daily_notes type='mission_freeze')
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const freezingRef = useRef(false);                // 자동 마감 기록 중복 방지
 
   const [sel, setSel] = useState(initialMonth || curMonth);   // 푸쉬 배너로 열면 그 달(지난달)부터
   const [mode, setMode] = useState('month');     // 'month' | 'all'
@@ -164,15 +170,17 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
     let alive = true;
     setLoading(true);
     (async () => {
-      const [itRes, coRes, gRes] = await Promise.all([
+      const [itRes, coRes, gRes, fzRes] = await Promise.all([
         supabase.from('manual_items').select('*').eq('archived', false),
         supabase.from('manual_completions').select('*'),
         supabase.from('app_settings').select('key,value').like('key', 'manual_guide_%'),
+        supabase.from('daily_notes').select('id,content,journal_notes').eq('type', 'mission_freeze'),
       ]);
       if (!alive) return;
       setItems(itRes.data || []);
       setCompletions(coRes.data || []);
       setGuides(parseGuides(gRes.data || []));
+      setFreezes((fzRes.data || []).map((r) => ({ id: r.id, reason: r.content || '', ...(r.journal_notes || {}) })));
       setLoading(false);
     })();
     return () => { alive = false; };
@@ -195,6 +203,57 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
   const grouped = useMemo(() => groupByCategory(monthItems), [monthItems]);
   const prog = useMemo(() => monthProgress(monthItems, logs), [monthItems, logs]);
   const overview = useMemo(() => yearOverview(items, logs), [items, logs]);
+
+  // 지난 달 마감 스냅샷 (올해 것만) — { 달: {id, month, year, pct, done, total, reason} }
+  const curYear = parseInt(todayKST().split('-')[0], 10);
+  const frozenByMonth = useMemo(() => {
+    const m = {};
+    for (const f of freezes) if (f.year === curYear) m[f.month] = f;
+    return m;
+  }, [freezes, curYear]);
+  const fzSel = frozenByMonth[sel];
+  // 전체 평균 — 마감된 달은 얼린 %로 반영(그 시기 값 그대로)
+  const avgShown = useMemo(() => {
+    const rows = overview.rows.filter((r) => !r.empty || frozenByMonth[r.month]);
+    if (!rows.length) return overview.avg;
+    const sum = rows.reduce((a, r) => a + (frozenByMonth[r.month] ? frozenByMonth[r.month].pct : r.pct), 0);
+    return Math.round(sum / rows.length);
+  }, [overview, frozenByMonth]);
+
+  // ── 지난 달 자동 마감 기록 ──
+  // 오늘 기준 지난 달들 중 "항목이 있고 그 시기(말일)까지 100% 못 채운" 달 → 그 %로 1회 기록.
+  //   미달일이 하루 지나면 굳고 사유를 받는 것과 같은 개념. 이미 기록된 달은 건너뛴다(중복 방지).
+  useEffect(() => {
+    if (loading || freezingRef.current) return;
+    const frozen = new Set(freezes.filter((f) => f.year === curYear).map((f) => f.month));
+    const targets = STRIP_MONTHS
+      .filter((m) => m < curMonth && !frozen.has(m))
+      .map((m) => {
+        const its = byMonth[m] || [];
+        if (!its.length) return null;                     // 항목 없는 달은 기록 안 함
+        const p = monthProgressAsOf(its, completions, monthEndDate(curYear, m));
+        if (p.pct >= 100) return null;                    // 그 시기에 다 한 달은 ✓ (기록 불필요)
+        return { month: m, year: curYear, ...p };
+      })
+      .filter(Boolean);
+    if (!targets.length) return;
+    freezingRef.current = true;
+    (async () => {
+      const rows = targets.map((t) => ({
+        date: monthEndDate(t.year, t.month),
+        type: 'mission_freeze',
+        author: authorName,
+        content: '',
+        journal_notes: { month: t.month, year: t.year, pct: t.pct, done: t.done, total: t.total, frozen_at: todayKST() },
+      }));
+      const { data, error } = await supabase
+        .from('daily_notes').insert(rows).select('id,content,journal_notes');
+      if (!error && data) {
+        setFreezes((prev) => [...prev, ...data.map((r) => ({ id: r.id, reason: r.content || '', ...(r.journal_notes || {}) }))]);
+      }
+      freezingRef.current = false;
+    })();
+  }, [loading, freezes, byMonth, completions, curMonth, curYear, authorName]);
 
   function showToast(m) {
     setToast(m);
@@ -220,8 +279,9 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
     clearTimeout(window._pmmPop);
     window._pmmPop = setTimeout(() => setJustAddedId(null), 700);
 
-    // 완료 축하 — 이 항목이 마지막 하나였고, 이번에 처음 채워졌을 때만
-    if (!wasDone) {
+    // 완료 축하 — 이 항목이 마지막 하나였고, 이번에 처음 채워졌을 때만.
+    //   단 이미 마감된 지난 달이면 축하 X (그 달 달성률은 얼려져 있어 안 올라감).
+    if (!wasDone && !frozenByMonth[sel]) {
       const newProg = monthProgress(monthItems, logsByItem([...completions, optimistic]));
       if (newProg.total > 0 && newProg.done === newProg.total) {
         setTimeout(() => setCele({ text: `${sel}월 · ${STAGE[sel] || ''} 매뉴얼을\n전부 클리어했어요 🍇` }), 250);
@@ -365,10 +425,11 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
       <div className="strip">
         {STRIP_MONTHS.map((m) => {
           const its = byMonth[m] || [];
-          const done = its.length > 0 && its.every((i) => (logs[i.id] || []).length > 0);
-          const cls = 'mon' + (done ? ' done' : '') + (!its.length ? ' empty' : '') + (m === sel ? ' sel' : '');
+          const fz = frozenByMonth[m];                     // 마감된 지난 달이면 얼린 % 뱃지
+          const done = !fz && its.length > 0 && its.every((i) => (logs[i.id] || []).length > 0);
+          const cls = 'mon' + (done ? ' done' : '') + (fz ? ' frozen' : '') + (!its.length ? ' empty' : '') + (m === sel ? ' sel' : '');
           return (
-            <div key={m} className={cls} onClick={() => { setSel(m); setMode('month'); setEdit(false); setDraft(null); }}>
+            <div key={m} className={cls} data-pct={fz ? `${fz.pct}%` : undefined} onClick={() => { setSel(m); setMode('month'); setEdit(false); setDraft(null); }}>
               {m}월<small>{STAGE[m] || ''}</small>
             </div>
           );
@@ -458,16 +519,20 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
     return (
       <div>
         <div className="ovhead">
-          <div className="big">{overview.avg}%</div>
+          <div className="big">{avgShown}%</div>
           <div className="sub">올해 농장 매뉴얼 평균 달성</div>
         </div>
-        {overview.rows.map((r) => (
-          <div key={r.month} className={'ovcard' + (r.empty ? ' empty' : '')} onClick={() => { setSel(r.month); setMode('month'); }}>
-            <div className="nm">{r.month}월<small>{r.stage || '—'}</small></div>
-            <div className="pbar"><i style={{ width: `${r.empty ? 0 : r.pct}%` }} /></div>
-            <div className="pv">{r.empty ? '없음' : `${r.pct}%`}</div>
-          </div>
-        ))}
+        {overview.rows.map((r) => {
+          const fz = frozenByMonth[r.month];               // 마감된 달은 얼린 %
+          const blank = r.empty && !fz;
+          return (
+            <div key={r.month} className={'ovcard' + (blank ? ' empty' : '')} onClick={() => { setSel(r.month); setMode('month'); }}>
+              <div className="nm">{r.month}월<small>{r.stage || '—'}</small></div>
+              <div className="pbar"><i style={{ width: `${blank ? 0 : (fz ? fz.pct : r.pct)}%`, background: fz ? 'linear-gradient(90deg,#eaa64a,#e0912a)' : undefined }} /></div>
+              <div className="pv" style={fz ? { color: '#c47f1a' } : undefined}>{blank ? '없음' : (fz ? `🔒 ${fz.pct}%` : `${r.pct}%`)}</div>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -524,16 +589,25 @@ export default function ManualMissionModal({ user, onClose, onSaved, initialMont
               />
             ) : (
               <>
-                <div className="bar"><i style={{ width: `${prog.pct}%` }} /></div>
-                <div className="barlabel">
-                  <span>이번 달 진행</span>
-                  <span><b>{prog.pct}%</b> · {prog.done}/{prog.total}</span>
+                <div className="bar">
+                  <i style={{ width: `${fzSel ? fzSel.pct : prog.pct}%`, background: fzSel ? 'linear-gradient(90deg,#eaa64a,#e0912a)' : undefined }} />
                 </div>
+                <div className="barlabel">
+                  <span>{fzSel ? '🔒 이 달 마감' : '이번 달 진행'}</span>
+                  <span><b style={fzSel ? { color: '#c47f1a' } : undefined}>{fzSel ? fzSel.pct : prog.pct}%</b> · {fzSel ? `${fzSel.done}/${fzSel.total}` : `${prog.done}/${prog.total}`}</span>
+                </div>
+                {fzSel && (
+                  <MissionFreezeNote
+                    freeze={fzSel}
+                    authorName={authorName}
+                    onSaved={(reason) => setFreezes((prev) => prev.map((f) => (f.id === fzSel.id ? { ...f, reason } : f)))}
+                  />
+                )}
                 {guides[sel] && (
                   <div className="guide"><b>💬</b><span>{guides[sel]}</span></div>
                 )}
                 {renderView()}
-                <div className="foot">색칠된 달이 위 띠에 ✓로 쌓여요. 도장 색 = 누가 했는지.</div>
+                <div className="foot">색칠된 달이 위 띠에 ✓로 쌓여요. 지난 달은 그 시기 달성률로 마감돼요.</div>
               </>
             )}
           </>
