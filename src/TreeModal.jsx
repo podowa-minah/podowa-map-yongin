@@ -11,6 +11,8 @@ import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
 import { playSuccess } from './utils/sounds';
 import { CLUSTER_MARK, THINNING_MARK, markLabelsOf, treeMarkStatus } from './lib/cluster-thinning';
+import PestManager from './components/PestManager';
+import { bugsFromPests, readPests } from './lib/pests';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -585,6 +587,9 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
   }
 
   const currentSeason = Number(treeData.season);
+
+  // 해충관리 — 벌레별 점수(season_data.pests). 옛 기록(bugs만)은 '미분류'로 살려서 표시.
+  const pestScores = readPests(treeData.season_data, treeData.bugs);
 
   // 최종완료(송이크기정리/알솎이)는 "이 나무가 올해 끝냈나"로 본다 — 전체 기록(history) 기준.
   //   한 번 체크하면 끝(완료) → 다른 날 입력창을 다시 열어도 체크 상태가 유지/잠금된다.
@@ -1362,29 +1367,16 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             </div>
           </div>
 
-          {/* 6. Bugs — 2줄 (0 / 1~5) */}
-          <div style={{ marginBottom: '0.45rem' }}>
-            <label style={{ color: '#4b5563', fontWeight: 500 }}>해충관리</label>
-            <div style={{ marginLeft: '0.5rem', display: 'flex', marginTop: '0.3rem' }}>
-              <button
-                onClick={() => handleChange('bugs', treeData.bugs === '0' ? '' : '0')}
-                style={ratingBtnStyle(treeData.bugs === '0')}
-              >
-                0
-              </button>
-            </div>
-            <div style={{ marginLeft: '0.5rem', display: 'flex', flexWrap: 'nowrap', gap: '0.3rem', marginTop: '0.3rem' }}>
-              {[1, 2, 3, 4, 5].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => handleChange('bugs', treeData.bugs === String(num) ? '' : String(num))}
-                  style={ratingBtnStyle(treeData.bugs === String(num))}
-                >
-                  {num}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* 6. 해충관리 — 벌레별 점수 (PestManager로 분리, §2 보호파일 규칙).
+                 bugs = max(벌레점수)로 동기화 → 종합점수·신호등 알고리즘 그대로. */}
+          <PestManager
+            pests={pestScores}
+            onChange={(next) => setTreeData((prev) => ({
+              ...prev,
+              season_data: { ...prev.season_data, pests: next },
+              bugs: String(bugsFromPests(next)),
+            }))}
+          />
 
           {/* 6.5 부분방제 */}
           <div>
