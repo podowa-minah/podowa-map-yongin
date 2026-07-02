@@ -12,7 +12,7 @@ import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFrom
 import { playSuccess } from './utils/sounds';
 import { CLUSTER_MARK, THINNING_MARK, markLabelsOf, treeMarkStatus } from './lib/cluster-thinning';
 import PestManager from './components/PestManager';
-import { bugsFromPests, readPests } from './lib/pests';
+import { bugsFromPests, readPests, pestSummary } from './lib/pests';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -1574,7 +1574,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     <td style={cellStyle}>{SEASON_NAMES[row.season]}</td>
                     <td style={cellStyle}>{row.power}</td>
                     <td style={cellStyle}>{row.balance}</td>
-                    <td style={cellStyle}>{row.bugs}</td>
+                    <td style={cellStyle}>{pestSummary(row.season_data, row.bugs)}</td>
                     <td style={cellStyle}>{row.partial_treatment ? '✔' : ''}</td>
                     <td
                       style={{ ...cellStyle, maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}

@@ -6,7 +6,7 @@
 //   종합점수/신호등이 쓰는 bugs(0~5) = "가장 센 벌레 점수"(max).
 //   → scoring.js 는 1도 안 바뀐다. 벌레별 세부는 분포·도감용 '덤'일 뿐, 점수 계산엔 max만 들어간다.
 
-export const DEFAULT_PESTS = ['응애', '총채', '깍지', '개각충'];
+export const DEFAULT_PESTS = ['깍지', '응애', '총채', '개각충'];
 
 // 심각도 색 (0 깨끗 초록 → 5 가장 심함 빨강). 표시 전용 — 점수 공식과 무관.
 export const PEST_COLORS = ['#16a34a', '#7f9f12', '#d69e2e', '#e07b12', '#dc4a16', '#c0140f'];
@@ -46,4 +46,15 @@ export function readPests(seasonData = {}, bugs = null) {
   if (p && Object.keys(p).length) return p;
   const b = Number(bugs);
   return Number.isFinite(b) && b > 0 ? { 미분류: b } : {};
+}
+
+// 히스토리/표 한 줄 요약 — "깍지 3 · 총채 2" (센 순). 벌레 없으면 옛 bugs 숫자.
+//   더보기 '해충' 칸이 max 하나만 보여주던 걸 벌레별로 다 보이게 할 때 씀.
+export function pestSummary(seasonData = {}, bugs = null) {
+  const p = readPests(seasonData, bugs);
+  const entries = Object.entries(p)
+    .filter(([, v]) => Number(v) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+  if (!entries.length) return (bugs != null && bugs !== '') ? String(bugs) : '';
+  return entries.map(([n, v]) => `${n} ${v}`).join(' · ');
 }
