@@ -138,7 +138,7 @@ export default function PestManager({ pests = {}, onChange }) {
       </div>
       <div style={{ marginLeft: '0.5rem', display: 'flex', gap: '0.3rem', flexWrap: 'nowrap' }}>
         {[0, 1, 2, 3, 4, 5].map((n) => {
-          const on = n === sc;
+          const on = n === sc && sc > 0;   // 0(깨끗)·안 건드림 = 아무것도 안 눌린 상태로 보이게
           return (
             <button
               key={n}
