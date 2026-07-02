@@ -11,9 +11,9 @@ import { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabaseClient';
 import { todayKST } from '../lib/treatment-cycles';
-import { summarizeIrrigation } from '../lib/treatments';
+import { summarizeIrrigation, buildIrrigation, irrigationGroups } from '../lib/treatments';
+import IrrigationGroups from './IrrigationGroups';
 
-const BLOCKS = ['1', '2', '3', '4'];
 const PRESET_CYCLES = [2, 3, 5, 7, 10, 14];
 const HISTORY_LIMIT = 60;
 
@@ -28,8 +28,9 @@ function formatDateShort(iso) {
 export default function IrrigationModal({ user, onClose, onSaved }) {
   const today = todayKST();
   const [selectedDate, setSelectedDate] = useState(today);
-  const [selectedBlocks, setSelectedBlocks] = useState([]);
-  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [groups, setGroups] = useState([]);            // 담은 관수 그룹들 [{blocks:['1','2'],minutes:60}]
+  const [draftBlocks, setDraftBlocks] = useState([]);  // 지금 담을 동 선택
+  const [draftMinutes, setDraftMinutes] = useState(30);
   const [note, setNote] = useState('');
   const [cycleDays, setCycleDays] = useState(3);
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,9 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
     let alive = true;
     setLoading(true);
     setExisting(null);
-    setSelectedBlocks([]);
-    setDurationMinutes(30);
+    setGroups([]);
+    setDraftBlocks([]);
+    setDraftMinutes(30);
     setNote('');
     (async () => {
       const [dateRes, settingsRes, histRes] = await Promise.all([
@@ -65,24 +67,39 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
         setExisting(row);
         const irr = row.irrigation;
         if (irr) {
-          setSelectedBlocks(irr.blocks || []);
-          setDurationMinutes(irr.duration_minutes || 30);
+          // 한 그룹뿐이면 바로 수정 가능한 입력칸에(예전처럼 시간만 바꾸기 쉽게), 여러 그룹이면 장바구니에
+          const gs = irrigationGroups(irr);   // 옛 형태({blocks,duration}) → 한 그룹으로 자동 호환
+          if (gs.length <= 1) {
+            setDraftBlocks(gs[0]?.blocks || []);
+            setDraftMinutes(gs[0]?.minutes || 30);
+          } else {
+            setGroups(gs);
+          }
           setNote(irr.note || '');
         }
       }
       const cycle = parseInt(settingsRes?.data?.value);
       if (!isNaN(cycle)) setCycleDays(cycle);
       // 관수 있는 날만 (실제로 데이터 들어있는 경우)
-      setHistory((histRes.data || []).filter(h => h.irrigation && (h.irrigation.blocks?.length > 0 || h.irrigation.duration_minutes > 0)));
+      setHistory((histRes.data || []).filter(h => h.irrigation && irrigationGroups(h.irrigation).length > 0));
       setLoading(false);
     })();
     return () => { alive = false; };
   }, [selectedDate]);
 
   function toggleBlock(b) {
-    setSelectedBlocks(prev =>
+    setDraftBlocks(prev =>
       prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b].sort()
     );
+  }
+  // 지금 선택한 동+시간을 그룹으로 담기 (다른 시간의 동을 이어서 넣을 때)
+  function commitDraft() {
+    if (draftBlocks.length === 0) return;
+    setGroups(prev => [...prev, { blocks: [...draftBlocks], minutes: draftMinutes }]);
+    setDraftBlocks([]);
+  }
+  function removeGroup(i) {
+    setGroups(prev => prev.filter((_, idx) => idx !== i));
   }
 
   // 히스토리에서 그 날의 관수 데이터만 제거 (row는 유지 — journal/방제 있을 수 있음)
@@ -101,24 +118,28 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
     setHistory(prev => prev.filter(h => h.id !== entry.id));
     // 지금 그 날짜를 보고 있었으면 입력창도 초기화
     if (existing && entry.id === existing.id) {
-      setSelectedBlocks([]);
-      setDurationMinutes(30);
+      setGroups([]);
+      setDraftBlocks([]);
+      setDraftMinutes(30);
       setNote('');
     }
     onSaved?.();
   }
 
   async function handleSave() {
-    if (selectedBlocks.length === 0) {
+    // 담기 안 누르고 저장해도 현재 선택을 마지막 그룹으로 자동 포함 (한 번만 관수한 흔한 경우)
+    const finalGroups = draftBlocks.length > 0
+      ? [...groups, { blocks: [...draftBlocks].sort(), minutes: draftMinutes }]
+      : groups;
+    if (finalGroups.length === 0) {
       alert('동을 하나 이상 선택해주세요.');
       return;
     }
     setSaving(true);
     const author = user?.user_metadata?.nickname || user?.email || '';
     const irrigation = {
-      blocks: selectedBlocks,
-      duration_minutes: durationMinutes,
-      note: note.trim(),
+      ...buildIrrigation(finalGroups, note),   // groups + 하위호환 blocks/duration_minutes
+      author,                                  // 이 관수를 실제로 입력한 사람 (그날 행 작성자와 별개)
       saved_at: new Date().toISOString(),
     };
 
@@ -273,9 +294,9 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
                         <span style={{ fontSize: '0.78rem', color: '#1e3a8a', flex: 1 }}>
                           {summarizeIrrigation(entry.irrigation)}
                         </span>
-                        {entry.author && (
+                        {(entry.irrigation?.author || entry.author) && (
                           <span style={{ fontSize: '0.68rem', color: '#6b7280', whiteSpace: 'nowrap' }}>
-                            {entry.author}
+                            {entry.irrigation?.author || entry.author}
                           </span>
                         )}
                       </button>
@@ -314,82 +335,17 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
           )}
         </div>
 
-        {/* 동 선택 */}
-        <div style={{ marginBottom: '0.9rem' }}>
-          <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, marginBottom: '0.4rem' }}>
-            동 선택 (다중)
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-            {BLOCKS.map(b => {
-              const on = selectedBlocks.includes(b);
-              return (
-                <button
-                  key={b}
-                  onClick={() => toggleBlock(b)}
-                  disabled={loading}
-                  style={{
-                    padding: '0.85rem 0',
-                    border: on ? '2px solid #0ea5e9' : '2px solid #d6c8a8',
-                    background: on
-                      ? 'linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%)'
-                      : '#fffefb',
-                    color: on ? '#0c4a6e' : '#6b7280',
-                    fontSize: '1rem', fontWeight: 700,
-                    borderRadius: '0.6rem',
-                    cursor: 'pointer',
-                    boxShadow: on
-                      ? '0 3px 0 #0284c7, 0 4px 8px rgba(14, 165, 233, 0.25)'
-                      : '0 1px 2px rgba(120, 90, 40, 0.08)',
-                    transform: on ? 'translateY(-1px)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {b}동
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 시간 (분) */}
-        <div style={{ marginBottom: '0.9rem' }}>
-          <div style={{ fontSize: '0.85rem', color: '#374151', fontWeight: 600, marginBottom: '0.4rem' }}>
-            시간 (분)
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
-            <button
-              onClick={() => setDurationMinutes(d => Math.max(5, d - 5))}
-              style={{
-                width: 40, height: 40, flexShrink: 0,
-                fontSize: '1.2rem', fontWeight: 700,
-                border: '2px solid #d6c8a8', background: '#fffefb',
-                borderRadius: '0.5rem', cursor: 'pointer',
-              }}
-            >−</button>
-            <input
-              type="number"
-              value={durationMinutes}
-              onChange={(e) => setDurationMinutes(Math.max(1, parseInt(e.target.value) || 0))}
-              style={{
-                flex: 1, minWidth: 0,
-                padding: '0.6rem', fontSize: '1.1rem', fontWeight: 700,
-                textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '0.5rem',
-                background: '#f0f9ff', color: '#0c4a6e',
-                boxSizing: 'border-box',
-              }}
-            />
-            <button
-              onClick={() => setDurationMinutes(d => Math.min(300, d + 5))}
-              style={{
-                width: 40, height: 40, flexShrink: 0,
-                fontSize: '1.2rem', fontWeight: 700,
-                border: '2px solid #d6c8a8', background: '#fffefb',
-                borderRadius: '0.5rem', cursor: 'pointer',
-              }}
-            >+</button>
-            <span style={{ fontSize: '0.85rem', color: '#6b7280', flexShrink: 0 }}>분</span>
-          </div>
-        </div>
+        {/* 동 + 시간 — 그룹으로 담기 (동마다 시간 다를 때) */}
+        <IrrigationGroups
+          groups={groups}
+          draftBlocks={draftBlocks}
+          draftMinutes={draftMinutes}
+          onToggleBlock={toggleBlock}
+          onDraftMinutes={setDraftMinutes}
+          onCommit={commitDraft}
+          onRemoveGroup={removeGroup}
+          loading={loading}
+        />
 
         {/* 메모 */}
         <div style={{ marginBottom: '0.9rem' }}>
@@ -456,14 +412,14 @@ export default function IrrigationModal({ user, onClose, onSaved }) {
         <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
           <button
             onClick={handleSave}
-            disabled={saving || selectedBlocks.length === 0}
+            disabled={saving || (groups.length === 0 && draftBlocks.length === 0)}
             style={{
               flex: 1, minWidth: 0,
               backgroundColor: '#0ea5e9', color: '#fff',
               padding: '0.85rem 0.5rem',
               border: '3px solid #0369a1', borderRadius: '0.8rem',
-              cursor: saving || selectedBlocks.length === 0 ? 'not-allowed' : 'pointer',
-              opacity: selectedBlocks.length === 0 ? 0.5 : 1,
+              cursor: saving || (groups.length === 0 && draftBlocks.length === 0) ? 'not-allowed' : 'pointer',
+              opacity: (groups.length === 0 && draftBlocks.length === 0) ? 0.5 : 1,
               fontSize: '1.05rem', fontWeight: 700,
               boxShadow: '0 5px 0 rgba(3, 105, 161, 0.5)',
               boxSizing: 'border-box',

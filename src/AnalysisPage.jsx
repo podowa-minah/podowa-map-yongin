@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { todayKST } from './lib/treatment-cycles';
 import { buildDailyReport, getDominantSeason } from './lib/dailyReport';
+import { irrigationGroupsText } from './lib/treatments';
 import { getSeasonalTermInfo } from './lib/seasonalTerms';
 import { getMoonPhase } from './lib/moonPhase';
 import { getMoonZodiac, FRAMEWORK_NAME } from './lib/zodiacMoon';
@@ -467,7 +468,7 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', lineHeight: 1.7 }}>
           {dayNote?.irrigation && (dayNote.irrigation.blocks?.length > 0 || dayNote.irrigation.duration_minutes) && (
             <li>
-              관수: {dayNote.irrigation.blocks?.join('·')}동 · {dayNote.irrigation.duration_minutes}분
+              관수: {irrigationGroupsText(dayNote.irrigation)}
               {dayNote.irrigation.note && <span style={{ color: '#6b7280' }}> · {dayNote.irrigation.note}</span>}
               {onOpenIrrigation && (
                 <button onClick={onOpenIrrigation} style={editBtnStyle}>수정</button>
@@ -855,7 +856,7 @@ function JournalCard({ entry, treeData, today, selectedDate, missions = [], fina
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', fontSize: '0.72rem' }}>
           {hasIrr && (
             <Badge color="#0284c7" bg="#eff6ff" border="#bfdbfe">
-              관수 · {entry.irrigation.blocks?.join('·')}동 · {entry.irrigation.duration_minutes}분
+              관수 · {irrigationGroupsText(entry.irrigation)}
               {entry.irrigation.note && ` · ${entry.irrigation.note}`}
             </Badge>
           )}
