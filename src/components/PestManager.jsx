@@ -19,11 +19,14 @@ export default function PestManager({ pests = {}, onChange }) {
   });
 
   const names = [...new Set([...DEFAULT_PESTS, ...extra, ...Object.keys(pests)])];
-  const scoreOf = (n) => Number(pests[n] || 0);
+  const scoreOf = (n) => (pests[n] == null ? null : Number(pests[n]));  // null=안 건드림, 0~5=눌러서 기록됨
 
   const setScore = (n, v) => {
+    onChange?.({ ...pests, [n]: v });   // 0도 눌러서 기록('깨끗' 확인). 완전히 빼려면 removePest
+  };
+  const removePest = (n) => {
     const next = { ...pests };
-    if (v > 0) next[n] = v; else delete next[n];
+    delete next[n];
     onChange?.(next);
   };
   const addPest = () => {
@@ -138,7 +141,7 @@ export default function PestManager({ pests = {}, onChange }) {
       </div>
       <div style={{ marginLeft: '0.5rem', display: 'flex', gap: '0.3rem', flexWrap: 'nowrap' }}>
         {[0, 1, 2, 3, 4, 5].map((n) => {
-          const on = n === sc && sc > 0;   // 0(깨끗)·안 건드림 = 아무것도 안 눌린 상태로 보이게
+          const on = n === sc;   // sc=null(안 건드림)이면 아무것도 안 눌림, 눌러서 0~5 기록되면 그 버튼만
           return (
             <button
               key={n}
@@ -182,7 +185,7 @@ export default function PestManager({ pests = {}, onChange }) {
                     minWidth: 19, height: 19, lineHeight: '19px', textAlign: 'center',
                     borderRadius: 999, background: PEST_COLORS[s], color: '#fff', fontSize: '0.72rem', fontWeight: 700,
                   }}>{s}</span>
-                  <button onClick={() => setScore(n, 0)} aria-label={`${n} 빼기`} style={{
+                  <button onClick={() => removePest(n)} aria-label={`${n} 빼기`} style={{
                     border: 'none', background: 'transparent', color: '#b0a99a', fontSize: '0.9rem', lineHeight: 1, cursor: 'pointer', padding: '0 2px',
                   }}>✕</button>
                 </span>
