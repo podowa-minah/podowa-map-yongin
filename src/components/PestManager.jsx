@@ -6,7 +6,7 @@
 // 톤앤매너: TreeModal ratingBtnStyle/평가 카드와 동일.  점수 색만 심각도별(직관성, minari 요청).
 import { useState } from 'react';
 import {
-  DEFAULT_PESTS, PEST_COLORS, PEST_SHADOWS, worstPest, pestAlertBand,
+  DEFAULT_PESTS, PEST_COLORS, PEST_SHADOWS, worstPest, pestAlertBand, pestSeverityText,
 } from '../lib/pests';
 
 export default function PestManager({ pests = {}, onChange }) {
@@ -62,7 +62,7 @@ export default function PestManager({ pests = {}, onChange }) {
         <span style={{ fontSize: '1.5rem', lineHeight: 1, flex: '0 0 auto' }}>{band.em}</span>
         <div>
           <div style={{ fontSize: '1.15rem', fontWeight: 700, lineHeight: 1.15 }}>
-            {w ? `${w.name} ${w.score}점 — 오늘 봐요!` : '이 나무는 깨끗해요'}
+            {w ? `${w.name} ${w.score}점 — ${pestSeverityText(w.score)}` : '이 나무는 깨끗해요'}
           </div>
           {w
             ? (others.length > 0 && <div style={{ fontSize: '0.8rem', fontWeight: 500, opacity: 0.85, marginTop: 2 }}>같이 볼 것 · {others.join(' · ')}</div>)

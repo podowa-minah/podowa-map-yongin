@@ -34,9 +34,20 @@ export function worstPest(pests = {}) {
 // 알림 배너 색 밴드 (0 깨끗 / 1~2 노랑 / 3 주황 / 4~5 빨강)
 export function pestAlertBand(score) {
   if (!score || score <= 0) return { bg: '#f0fdf4', bd: '#bbf7d0', tx: '#166534', em: '✅' };
-  if (score <= 2) return { bg: '#fefce8', bd: '#fde68a', tx: '#854d0e', em: '⚠️' };
+  if (score <= 2) return { bg: '#fefce8', bd: '#fde68a', tx: '#854d0e', em: '🐛' };  // 약하게 — 경고 아님
   if (score <= 3) return { bg: '#fff7ed', bd: '#fed7aa', tx: '#9a3412', em: '⚠️' };
   return { bg: '#fef2f2', bd: '#fecaca', tx: '#991b1b', em: '🔴' };
+}
+
+// 점수별 한 줄 말투 — 오늘 봐서 준 점수니까, 1점은 약하게 / 5점은 급하게.
+export function pestSeverityText(score) {
+  const s = Number(score) || 0;
+  if (s <= 0) return '';
+  if (s === 1) return '약하게 있어요';
+  if (s === 2) return '지켜보세요';
+  if (s === 3) return '꽤 있어요';
+  if (s === 4) return '심해요 · 방제하세요';
+  return '아주 심해요 · 오늘 방제!';
 }
 
 // 기록에서 벌레 점수 읽기 — 옛 데이터(bugs만 있고 pests 없음)는 '미분류'로 살려서 보여준다.
