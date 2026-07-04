@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>품종별 재배 가이드 — 프로토타입</title>
+<style>
+  :root{
+    --bg:#f3efe6; --ink:#3a382f; --line:#ece6d8; --green:#2f6b3c;
+    --green-bg:#e9f4ec; --green-line:#bfe0c6; --gold:#8a6d2a; --gold-bg:#fff7e6; --gold-line:#f0e2bf;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:#cfc7b5; font-family:'Apple SD Gothic Neo',system-ui,-apple-system,'Malgun Gothic',sans-serif; color:var(--ink); line-height:1.45;}
+  .protobanner{background:#2f2c25; color:#e9e2cf; font-size:12px; text-align:center; padding:7px 12px; letter-spacing:.2px;}
+  .protobanner b{color:#f0c95a;}
+  .phone{max-width:440px; margin:0 auto; background:var(--bg); min-height:100vh; box-shadow:0 0 40px rgba(0,0,0,.25); overflow:hidden;}
+
+  /* 헤더 */
+  .top{position:sticky; top:0; z-index:20; background:var(--bg); padding:14px 16px 10px; border-bottom:1px solid var(--line);}
+  .top h1{font-size:18px; margin:0; display:flex; align-items:center; gap:7px;}
+  .top .sub{font-size:11px; color:#a08a6a; font-weight:700; margin-top:2px;}
+  .yearrow{display:flex; align-items:center; gap:8px; margin-top:11px;}
+  .yearpick{display:flex; gap:6px;}
+  .yearpick button{font:inherit; font-weight:800; font-size:13px; padding:6px 13px; border-radius:999px; border:1.5px solid var(--line); background:#fff; color:#9a8f76; cursor:pointer;}
+  .yearpick button.on{background:var(--green); border-color:var(--green); color:#fff;}
+  .adminbtn{margin-left:auto; font:inherit; font-weight:700; font-size:12px; padding:7px 11px; border-radius:9px; border:1px solid var(--line); background:#fff; color:#6b6456; cursor:pointer;}
+  .adminbtn.on{background:#8a6d2a; color:#fff; border-color:#8a6d2a;}
+
+  .hint{font-size:11px; color:#a39a88; padding:9px 16px 0;}
+
+  /* 탭 (연간 생육 / 송이관리) */
+  .tabs{display:flex; gap:6px; padding:10px 16px 2px;}
+  .tab{flex:1; font:inherit; font-weight:800; font-size:13px; padding:9px; border-radius:10px; border:1.5px solid var(--line); background:#fff; color:#9a8f76; cursor:pointer;}
+  .tab.on{background:var(--green); border-color:var(--green); color:#fff;}
+
+  /* 송이관리 표 */
+  .cwrap{overflow-x:auto; padding:6px 12px 4px; -webkit-overflow-scrolling:touch;}
+  table.ctable{border-collapse:separate; border-spacing:0; min-width:max-content; font-size:11px; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  table.ctable th, table.ctable td{padding:7px 8px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap;}
+  table.ctable thead .grp{font-size:10px; font-weight:800; color:#5b5446; background:#efe8da;}
+  table.ctable thead .sub{font-size:10px; font-weight:700; color:#8a8472; line-height:1.1; background:#f7f2e8;}
+  table.ctable .vcol{position:sticky; left:0; background:#fff; z-index:2; text-align:left; font-weight:800; color:#3a382f; box-shadow:1px 0 0 var(--line);}
+  table.ctable thead .vcol{background:#efe8da;}
+  table.ctable tbody tr{cursor:pointer;}
+  table.ctable tbody tr:active td{background:#f3eede;}
+  table.ctable tbody tr:active .vcol{background:#f3eede;}
+  .cdot{display:inline-block; width:18px; height:18px; line-height:18px; border-radius:50%; font-size:10px; font-weight:800;}
+  .cdot.o{background:var(--green); color:#fff;}
+  .cdot.x{background:#efece4; color:#c2bbab;}
+  .cdot.dash{color:#cdbf9e; font-weight:700;}
+  .cnum{font-weight:800; color:#8a6d2a;}
+  .cmemo{font-size:14px;}
+  .memocell{text-align:left; max-width:128px; min-width:96px;}
+  .memoclip{font-size:10.5px; line-height:1.3; color:#5b5446; text-align:left;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;}
+  .leaf{display:flex; flex-direction:column; gap:1px; align-items:center; line-height:1.25;}
+  .leaf span{font-size:10px; font-weight:800; color:#3a382f; white-space:nowrap;}
+
+  /* ───── 연간 생육 밴드 ───── */
+  .band{padding:10px 12px 2px;}
+  .brow{display:flex; align-items:center; gap:6px; margin-bottom:7px;}
+  .brow .vl{flex:0 0 46px; font-size:11px; font-weight:800; color:#3a382f; text-align:right; line-height:1.15; padding-right:2px;}
+  .brow .vl small{display:block; font-size:8px; color:#a08a6a; font-weight:700;}
+  .track{display:flex; gap:2px; flex:1;}
+  .seg{flex:1; min-width:0; height:46px; border-radius:7px; cursor:pointer; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  .seg .ph{inset:2px; border-radius:5px;}            /* 사진 썸네일 — 단계색 테두리 2px 남김 */
+  .seg .v{position:absolute; top:3px; right:3px; font-size:8px; color:#fff; background:#d9342b; width:14px; height:14px; border-radius:50%; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:0 0 0 1.5px #fff;}
+  .seg.now{outline:2.5px solid var(--green); outline-offset:1px; z-index:1;}
+
+  /* 월 헤더 행 */
+  .bhead .vl{color:transparent;}
+  .bhead .track{gap:2px;}
+  .mh{flex:1; min-width:0; text-align:center; font-size:9px; font-weight:800; color:#6b6456; line-height:1.15; padding-bottom:3px;}
+  .mh small{display:block; font-size:8px; color:#a08a6a; font-weight:700;}
+  .mh.now{color:var(--green);}
+  .mh.now small{color:var(--green);}
+
+  /* 생육단계 색 (월별 시즌 아크) */
+  .s-dorm {background:#e7e1d2;}
+  .s-bud  {background:#d7eccf;}
+  .s-bloom{background:#f6d4df;}
+  .s-hard {background:#c4e1b4;}
+  .s-fat  {background:#a9d394;}
+  .s-mat  {background:#e9cf95;}
+  .s-harv {background:#d6bfe9;}
+  .s-leaf {background:#ecd1ac;}
+  .s-prune{background:#d8c3ad;}
+
+  /* 범례 */
+  .legend{display:flex; flex-wrap:wrap; gap:6px 10px; padding:8px 16px 2px;}
+  .legend .lg{display:flex; align-items:center; gap:4px; font-size:10px; color:#7a7363; font-weight:700;}
+  .legend .lg i{width:11px; height:11px; border-radius:3px; display:inline-block;}
+
+  /* 사진 placeholder 색 (갤러리/업로드용) */
+  .ph{position:absolute; inset:0;}
+  .ph.g1{background:linear-gradient(135deg,#a7c98a,#6c9e57);}
+  .ph.g2{background:linear-gradient(135deg,#c9d98a,#9eae57);}
+  .ph.g3{background:linear-gradient(135deg,#8a9ec9,#5f73a8);}
+  .ph.g4{background:linear-gradient(135deg,#c98a9e,#a85f73);}
+  .ph.g5{background:linear-gradient(135deg,#bda77a,#8a6d3c);}
+  .ph .em{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; opacity:.85;}
+
+  /* 상세 시트 */
+  .scrim{position:fixed; inset:0; background:rgba(34,46,36,.6); z-index:50; display:none; align-items:flex-end; justify-content:center;}
+  .scrim.show{display:flex;}
+  .sheet{max-width:440px; width:100%; background:var(--bg); border-radius:22px 22px 0 0; max-height:88vh; overflow:auto; padding-bottom:26px; animation:rise .28s ease;}
+  @keyframes rise{from{transform:translateY(40px);opacity:0;} to{transform:none;opacity:1;}}
+  .sheet .shead{position:sticky; top:0; background:var(--bg); padding:16px 16px 10px; border-bottom:1px solid var(--line); display:flex; align-items:flex-start; gap:8px;}
+  .sheet .shead .t{font-size:17px; font-weight:800;}
+  .sheet .shead .s{font-size:12px; color:#8a8472; font-weight:600; margin-top:1px;}
+  .sheet .x{margin-left:auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:#fff; cursor:pointer; font-size:15px; color:#8a8472;}
+  .stagepill{display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:999px; margin-top:5px;}
+
+  .video{margin:14px 16px 0; border-radius:14px; overflow:hidden; aspect-ratio:16/9; background:linear-gradient(135deg,#7f9e6a,#4f6e3f); display:flex; align-items:center; justify-content:center; position:relative;}
+  .video .play{width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,.92); display:flex; align-items:center; justify-content:center; font-size:22px; color:#2f6b3c; padding-left:4px;}
+  .video .vlabel{position:absolute; left:10px; bottom:8px; color:#fff; font-size:11px; font-weight:700; background:rgba(0,0,0,.4); padding:2px 7px; border-radius:7px;}
+
+  .gallery{display:flex; gap:7px; overflow-x:auto; padding:12px 16px 2px;}
+  .gallery .gp{flex:0 0 auto; width:84px; height:84px; border-radius:12px; position:relative; overflow:hidden; border:1px solid var(--line);}
+
+  .knowhow{margin:10px 16px 0;}
+  .kcard{background:#fff; border:1px solid var(--line); border-left:4px solid var(--c,#bfe0c6); border-radius:12px; padding:11px 13px; margin-top:9px;}
+  .kcard .kl{font-size:12px; font-weight:800; color:var(--cl,#2f6b3c); margin-bottom:4px;}
+  .kcard .kt{font-size:13px; color:#4a463c; white-space:pre-line;}
+  .seclabel{font-size:12px; font-weight:800; color:#8a8472; margin:16px 16px 0;}
+  .manage-btn{display:block; width:calc(100% - 32px); margin:20px 16px 4px; padding:13px; border:none; border-radius:12px; background:var(--gold); color:#fff; font:inherit; font-weight:800; font-size:14px; cursor:pointer;}
+
+  /* 관리자 수정 */
+  .editbar{margin:12px 16px 0; background:var(--gold-bg); border:1px solid var(--gold-line); border-radius:12px; padding:11px 13px; font-size:12px; color:var(--gold); font-weight:700;}
+  .erow{margin:10px 16px 0;}
+  .erow label{display:block; font-size:11px; font-weight:800; color:#8a8472; margin-bottom:5px;}
+  .erow select, .erow input, .erow textarea{width:100%; font:inherit; font-size:13px; border:1px solid var(--line); border-radius:9px; padding:9px 10px; background:#fff;}
+  .erow textarea{min-height:54px; resize:vertical;}
+  .erow .two{display:flex; gap:8px;}
+  .uploadbox{display:flex; gap:8px; flex-wrap:wrap;}
+  .upbtn{width:70px; height:70px; border-radius:12px; border:1.5px dashed var(--green-line); background:var(--green-bg); color:var(--green); font-size:11px; font-weight:800; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;}
+  .upbtn .ic{font-size:20px;}
+  .kslot{background:#fff; border:1px solid var(--line); border-radius:11px; padding:10px; margin-top:9px;}
+  .kslot .kshead{display:flex; gap:7px; align-items:center; margin-bottom:7px;}
+  .kslot .kshead input{flex:1; font-weight:700;}
+  .kslot .del{flex:0 0 auto; border:none; background:#f6e9e6; color:#b5524a; font-weight:700; font-size:11px; border-radius:8px; padding:7px 9px; cursor:pointer;}
+  .addslot{display:block; width:100%; margin-top:10px; padding:10px; border:1.5px dashed var(--green-line); background:var(--green-bg); color:var(--green); font-weight:800; font-size:13px; border-radius:11px; cursor:pointer;}
+  .savebar{position:sticky; bottom:0; background:var(--bg); padding:12px 16px; display:flex; gap:8px; border-top:1px solid var(--line); margin-top:14px;}
+  .savebar button{flex:1; font:inherit; font-weight:800; font-size:14px; padding:13px; border-radius:11px; border:none; cursor:pointer;}
+  .savebar .cancel{background:#fff; color:var(--green); border:1.5px solid var(--green-line);}
+  .savebar .save{background:var(--green); color:#fff;}
+
+  .foot{text-align:center; font-size:11px; color:#b3ac9d; padding:18px 16px 24px;}
+</style>
+</head>
+<body>
+<div class="protobanner">📐 <b>프로토타입</b> — 실제 앱·DB 아님. 클릭/입력 다 임시예요. 느낌만 봐주세요.</div>
+<div class="phone">
+  <div class="top">
+    <h1>🍇 품종별 재배 가이드</h1>
+    <div class="sub">한 해가 흐르며 품종이 어떻게 변해가는지 · 손질법</div>
+    <div class="yearrow">
+      <div class="yearpick" id="yearpick"></div>
+      <button class="adminbtn" id="adminbtn" onclick="toggleAdmin()">🔒 관리자 수정</button>
+    </div>
+  </div>
+
+  <div id="readview">
+    <div class="tabs">
+      <button class="tab on" data-tab="band" onclick="setTab('band')">📅 연간 생육</button>
+      <button class="tab" data-tab="cluster" onclick="setTab('cluster')">✂️ 송이관리</button>
+    </div>
+
+    <div id="tab-band">
+      <p class="hint">＊ 가로 한 줄 = 한 품종의 1~12월. 색은 생육단계, 사진이 있는 칸엔 썸네일·▶(영상)이 보여요. 칸을 누르면 펼쳐집니다.</p>
+      <div class="band" id="band"></div>
+      <div class="legend" id="legend"></div>
+      <div class="foot">표시 없는 칸은 아직 안 채운 달 — 2026 시즌이 흐르며 하나씩 채워집니다.</div>
+    </div>
+
+    <div id="tab-cluster" style="display:none;">
+      <p class="hint">＊ 품종별 송이관리 한눈에 — <b>○</b>=함, <b>✗</b>=안 함, 숫자=크기, 잎수·가이드는 표에서 바로 보여요. 품종 줄을 누르면 자세한 가이드가 펼쳐집니다.</p>
+      <div class="cwrap"><table class="ctable" id="ctable"></table></div>
+      <div class="foot">표 출처: 기본 송이관리 기술(2024). 세력 약하면 평균보다 작게 · 세력 세다고 크게 두면 안 익음.</div>
+    </div>
+  </div>
+
+  <div id="editview" style="display:none;"></div>
+</div>
+
+<!-- 상세 시트 -->
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* ───────── 임시 데이터 ───────── */
+// 12개월 전부 — 월 + 생육단계(색)
+const MONTHS = [
+  {m:1,  stage:'휴면기', ab:'휴면', sc:'dorm'},
+  {m:2,  stage:'맹아기', ab:'맹아', sc:'bud'},
+  {m:3,  stage:'맹아기', ab:'맹아', sc:'bud'},
+  {m:4,  stage:'맹아기', ab:'맹아', sc:'bud'},
+  {m:5,  stage:'개화기', ab:'개화', sc:'bloom'},
+  {m:6,  stage:'경핵기', ab:'경핵', sc:'hard'},
+  {m:7,  stage:'비대기', ab:'비대', sc:'fat'},
+  {m:8,  stage:'성숙기', ab:'성숙', sc:'mat'},
+  {m:9,  stage:'수확기', ab:'수확', sc:'harv'},
+  {m:10, stage:'수확기', ab:'수확', sc:'harv'},
+  {m:11, stage:'낙엽기', ab:'낙엽', sc:'leaf'},
+  {m:12, stage:'전정기', ab:'전정', sc:'prune'},
+];
+const STAGE_LEGEND = [
+  {sc:'dorm', name:'휴면'}, {sc:'bud', name:'맹아'}, {sc:'bloom', name:'개화'},
+  {sc:'hard', name:'경핵'}, {sc:'fat', name:'비대'}, {sc:'mat', name:'성숙'},
+  {sc:'harv', name:'수확'}, {sc:'leaf', name:'낙엽'}, {sc:'prune', name:'전정'},
+];
+const NOW_MONTH = 6; // 오늘 2026-06 → 이번 달 강조
+const VARIETIES = ['샤인머스캣','함부르크','홍이두'];
+const VARIETY_SUB = {'샤인머스캣':'중·만생','함부르크':'만생','홍이두':'조생'};
+const PHCLASS = ['g1','g2','g3','g4','g5'];
+
+// data[year][variety][month] = {photos, video, notes:[{label,text,c}]}
+const C = { core:['#2f6b3c','#bfe0c6'], cut:['#b5763a','#e8c79a'], etc:['#6b6456','#d8d0bd'] };
+const DATA = {
+  2026: {
+    '샤인머스캣': {
+      5: {photos:5, video:true, notes:[
+        {label:'💡 개화기 핵심', text:'개화 직전 신초 유인 마무리. 화진 방지 위해 질소 과다 주의.', c:C.core},
+        {label:'✂️ 착과전 송이정리', text:'1차로 어깨송이·부정형 송이 제거. 한 신초 1송이 원칙.', c:C.cut},
+      ]},
+      6: {photos:3, video:false, notes:[
+        {label:'✂️ 착과후 송이정리', text:'경핵기 진입 전 알솎기 1차. 알 간격 보며 안쪽 알 우선 제거.', c:C.cut},
+        {label:'💡 경핵기 핵심', text:'수분 스트레스 금물 — 관수 일정하게.', c:C.core},
+      ]},
+      7: {photos:2, video:true, notes:[
+        {label:'💡 비대기', text:'봉지 전 막바지 알솎기. 햇빛 드는 면 확인.', c:C.core},
+      ]},
+    },
+    '함부르크': {
+      4: {photos:1, video:false, notes:[{label:'💡 맹아기', text:'발아 고르게 — 늦는 눈은 표시해두기.', c:C.core}]},
+      6: {photos:4, video:true, notes:[
+        {label:'✂️ 착과전 송이정리', text:'함부르크는 만생이라 6월에 개화 마무리. 송이 끝 1/3 절단.', c:C.cut},
+        {label:'💡 가이드', text:'알이 작아 알솎기보다 송이 수 조절이 더 중요.', c:C.etc},
+      ]},
+      8: {photos:2, video:false, notes:[{label:'✂️ 착과후 송이정리', text:'밀착 부위 솎아 통풍 확보(응애 예방).', c:C.cut}]},
+    },
+    '홍이두': {
+      5: {photos:3, video:false, notes:[{label:'💡 개화기', text:'조생이라 개화 빠름. 화방 정리 가볍게.', c:C.core}]},
+      8: {photos:2, video:true, notes:[{label:'💡 수확 임박', text:'착색 빠른 편 — 당도 체크 시작.', c:C.core}]},
+    },
+  },
+  2025: {
+    '샤인머스캣': { 5:{photos:4,video:false,notes:[{label:'💡 작년 개화기', text:'작년엔 개화가 5일 빨랐음. 비교용 기록.', c:C.etc}]} },
+    '함부르크': {}, '홍이두': {},
+  },
+};
+
+let curYear = 2026;
+let adminMode = false;
+
+/* ───────── 렌더 ───────── */
+function renderYears(){
+  const yp = document.getElementById('yearpick');
+  yp.innerHTML = Object.keys(DATA).sort((a,b)=>b-a)
+    .map(y=>`<button class="${+y===curYear?'on':''}" onclick="setYear(${y})">${y}</button>`).join('');
+}
+function setYear(y){ curYear=y; renderYears(); renderBand(); if(adminMode) renderEdit(); }
+function phClass(i){ return PHCLASS[i%PHCLASS.length]; }
+
+function renderBand(){
+  const wrap = document.getElementById('band');
+  // 월 헤더
+  const head = `<div class="brow bhead"><div class="vl"></div><div class="track">` +
+    MONTHS.map(mo=>`<div class="mh ${mo.m===NOW_MONTH?'now':''}">${mo.m}<small>${mo.ab}</small></div>`).join('') +
+    `</div></div>`;
+  // 품종별 밴드
+  const rows = VARIETIES.map((v,vi)=>{
+    const segs = MONTHS.map(mo=>{
+      const d = DATA[curYear]?.[v]?.[mo.m];
+      const cls = `seg s-${mo.sc}${d?' has':''}${mo.m===NOW_MONTH?' now':''}`;
+      const mark = d ? `<div class="ph ${phClass(vi+mo.m)}"></div>${d.video?'<span class="v">▶</span>':''}` : '';
+      return `<div class="${cls}" onclick="openSheet('${v}',${mo.m})">${mark}</div>`;
+    }).join('');
+    return `<div class="brow"><div class="vl">${v}<small>${VARIETY_SUB[v]||''}</small></div><div class="track">${segs}</div></div>`;
+  }).join('');
+  wrap.innerHTML = head + rows;
+
+  document.getElementById('legend').innerHTML =
+    STAGE_LEGEND.map(s=>`<span class="lg"><i class="s-${s.sc}"></i>${s.name}</span>`).join('');
+}
+
+/* ───────── 상세 시트 ───────── */
+function openSheet(v, m){
+  const mo = MONTHS.find(x=>x.m===m);
+  const d = DATA[curYear]?.[v]?.[m];
+  const sheet = document.getElementById('sheet');
+  let inner = `<div class="shead">
+      <div>
+        <div class="t">${v}</div>
+        <div class="s">${curYear}년 · ${m}월</div>
+        <span class="stagepill s-${mo.sc}">${mo.stage}</span>
+      </div>
+      <button class="x" onclick="closeSheet()">✕</button>
+    </div>`;
+  if(!d){
+    inner += `<div class="seclabel">아직 기록이 없어요</div>
+      <div class="erow"><div class="editbar">이 칸(${v} · ${m}월 · ${mo.stage})은 비어 있어요. 관리자 수정에서 사진·영상·가이드를 채워주세요.</div></div>`;
+  } else {
+    if(d.video){
+      inner += `<div class="video"><div class="play">▶</div><span class="vlabel">${v} ${m}월 · 1.4MB · 720p</span></div>`;
+    }
+    if(d.photos){
+      let gps='';
+      for(let i=0;i<d.photos;i++) gps+=`<div class="gp"><div class="ph ${phClass(i)}"><span class="em">🍇</span></div></div>`;
+      inner += `<div class="seclabel">📷 사진 ${d.photos}장</div><div class="gallery">${gps}</div>`;
+    }
+    inner += `<div class="seclabel">💡 가이드</div><div class="knowhow">` +
+      d.notes.map(n=>`<div class="kcard" style="--c:${n.c[1]};--cl:${n.c[0]}">
+        <div class="kl">${n.label}</div><div class="kt">${n.text}</div></div>`).join('') +
+      `</div>`;
+  }
+  inner += `<button class="manage-btn" onclick="manageThis('${v}',${m})">⚙️ 이 시기 관리 — 사진·영상·가이드 추가</button>`;
+  sheet.innerHTML = inner;
+  document.getElementById('scrim').classList.add('show');
+}
+function closeSheet(){ document.getElementById('scrim').classList.remove('show'); }
+
+/* ───────── 송이관리 표 (시트 그대로 — 품종 × 시기별 작업) ───────── */
+// b7=개화7일전(메모) / s,u,t=개화2~3일전(어깨·윗지경·끝단) / lf=잎수 / sz=착과후 크기 / sa,ta=착과후 어깨·끝단
+const SONGI = [
+  {v:'흑바라드',     b7:'세력 강하게', s:'X',u:'X',t:'X', lf1:'8잎', lf2:'10잎', sz:'12cm', sa:'O', ta:'O'},
+  {v:'플레임시들리스', b7:'세력 강하게', s:'O',u:'X',t:'X', lf1:'9잎', lf2:'11잎', sz:'13cm', sa:'-', ta:'O'},
+  {v:'판타지시들리스', b7:'세력 강하게', s:'O',u:'O',t:'X', lf1:'9잎', lf2:'11잎', sz:'12cm', sa:'-', ta:'O'},
+  {v:'거봉계',       b7:'1) 송이크기조절 7cm, 어깨·윗지경·송이끝단\n2) 일주일 전 적심(송이 다음 한 잎 남기고) — 2023년 5/17 작업', s:'O',u:'O',t:'O', lf1:'6잎', lf2:'8잎', sz:'-', sa:'-', ta:'X'},
+  {v:'루비시들리스',  b7:'지경을 다듬어 세력을 키워줌', s:'O',u:'O',t:'O', lf1:'9잎', lf2:'11잎', sz:'10cm', sa:'-', ta:'O'},
+  {v:'메니큐어핑거',  b7:'', s:'O',u:'X',t:'O', lf1:'8잎', lf2:'10잎', sz:'10cm', sa:'-', ta:'O'},
+  {v:'머스켓함부르크', b7:'천천히 지켜본다', s:'X',u:'X',t:'X', lf1:'8잎', lf2:'10잎', sz:'12cm', sa:'O', ta:'O'},
+  {v:'알렉산드리아',  b7:'세력 강하게 / 송이가 가늘어나면 송이끝 절단', s:'O',u:'O',t:'O', lf1:'10잎', lf2:'12잎', sz:'10cm', sa:'-', ta:'O'},
+  {v:'루비오꾸야마',  b7:'세력 강하게', s:'X',u:'X',t:'X', lf1:'8잎', lf2:'10잎', sz:'10cm', sa:'O', ta:'O'},
+  {v:'이탈리아',     b7:'세력 강하게', s:'X',u:'X',t:'X', lf1:'8잎', lf2:'10잎', sz:'10cm', sa:'O', ta:'O'},
+  {v:'청하',        b7:'', s:'X',u:'X',t:'O', lf1:'8잎', lf2:'10잎', sz:'12cm', sa:'-', ta:'O'},
+];
+function ox(val){
+  if(val==='O') return '<span class="cdot o">○</span>';
+  if(val==='X') return '<span class="cdot x">✗</span>';
+  return '<span class="cdot dash">–</span>';
+}
+function mark(val){ return val==='O'?'⭕ 함':(val==='X'?'❌ 안 함':'— 해당없음'); }
+
+function setTab(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+  document.getElementById('tab-band').style.display    = t==='band'    ? 'block' : 'none';
+  document.getElementById('tab-cluster').style.display = t==='cluster' ? 'block' : 'none';
+  if(t==='cluster') renderCluster();
+}
+
+function renderCluster(){
+  const head = `<thead>
+    <tr>
+      <th class="vcol"></th>
+      <th class="grp">개화 7일 전</th>
+      <th class="grp" colspan="4">개화 2~3일 전</th>
+      <th class="grp" colspan="3">착과 후</th>
+    </tr>
+    <tr>
+      <th class="vcol sub">품종</th>
+      <th class="sub">가이드</th>
+      <th class="sub">어깨<br>송이</th><th class="sub">윗<br>지경</th><th class="sub">송이<br>끝단</th><th class="sub">잎수</th>
+      <th class="sub">크기</th><th class="sub">어깨<br>송이</th><th class="sub">송이<br>끝단</th>
+    </tr></thead>`;
+  const body = '<tbody>' + SONGI.map((r,i)=>`
+    <tr onclick="clusterSheet(${i})">
+      <td class="vcol">${r.v}</td>
+      <td class="memocell">${r.b7 ? `<div class="memoclip">${r.b7.replace(/\n/g,' ')}</div>` : '<span class="cdot dash">–</span>'}</td>
+      <td>${ox(r.s)}</td><td>${ox(r.u)}</td><td>${ox(r.t)}</td>
+      <td><div class="leaf"><span>1송이 ${r.lf1}</span><span>2송이 ${r.lf2}</span></div></td>
+      <td>${r.sz && r.sz!=='-' ? `<span class="cnum">${r.sz}</span>` : '<span class="cdot dash">–</span>'}</td>
+      <td>${ox(r.sa)}</td><td>${ox(r.ta)}</td>
+    </tr>`).join('') + '</tbody>';
+  document.getElementById('ctable').innerHTML = head + body;
+}
+
+function clusterSheet(i){
+  const r = SONGI[i];
+  const sheet = document.getElementById('sheet');
+  sheet.innerHTML = `
+    <div class="shead">
+      <div><div class="t">${r.v}</div><div class="s">송이관리 가이드 · 2024 기준</div></div>
+      <button class="x" onclick="closeSheet()">✕</button>
+    </div>
+    <div class="knowhow">
+      <div class="kcard" style="--c:#bfe0c6;--cl:#2f6b3c"><div class="kl">🌸 개화 7일 전</div><div class="kt">${r.b7 || '— 따로 없음'}</div></div>
+      <div class="kcard" style="--c:#e8c79a;--cl:#b5763a"><div class="kl">✂️ 개화 2~3일 전</div><div class="kt">어깨송이제거 · ${mark(r.s)}\n윗지경제거 · ${mark(r.u)}\n송이끝단제거 · ${mark(r.t)}\n잎수 · 1송이 ${r.lf1} / 2송이 ${r.lf2}</div></div>
+      <div class="kcard" style="--c:#d6bfe9;--cl:#6b4a8a"><div class="kl">🍇 착과 후</div><div class="kt">크기조절 · ${r.sz==='-'?'— 해당없음':r.sz}\n어깨송이제거 · ${mark(r.sa)}\n송이끝단제거 · ${mark(r.ta)}</div></div>
+    </div>
+    <button class="manage-btn" onclick="alert('실제 앱: 이 품종의 송이관리 값을 수정합니다 (○/✗·크기·메모)')">⚙️ 이 품종 송이관리 수정</button>
+  `;
+  document.getElementById('scrim').classList.add('show');
+}
+
+// 칸(썸네일)에서 바로 그 시기 관리로 — 사진을 그 달에 곧장 올리기
+function manageThis(v, m){
+  if(!adminMode){
+    const pw = prompt('관리자 수정 비밀번호 (프로토타입: 1234)');
+    if(pw!=='1234'){ if(pw!==null) alert('비밀번호가 달라요'); return; }
+    adminMode = true;
+    document.getElementById('adminbtn').classList.add('on');
+    document.getElementById('adminbtn').textContent = '✓ 수정 모드';
+    document.getElementById('readview').style.display = 'none';
+    document.getElementById('editview').style.display = 'block';
+  }
+  editPick = { v, m };       // 누른 칸의 품종·월로 바로 세팅
+  closeSheet();
+  renderEdit();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* ───────── 관리자 수정 ───────── */
+function toggleAdmin(){
+  if(!adminMode){
+    const pw = prompt('관리자 수정 비밀번호 (프로토타입: 1234)');
+    if(pw!=='1234'){ if(pw!==null) alert('비밀번호가 달라요'); return; }
+  }
+  adminMode = !adminMode;
+  document.getElementById('adminbtn').classList.toggle('on', adminMode);
+  document.getElementById('adminbtn').textContent = adminMode ? '✓ 수정 모드' : '🔒 관리자 수정';
+  document.getElementById('readview').style.display = adminMode ? 'none' : 'block';
+  document.getElementById('editview').style.display = adminMode ? 'block' : 'none';
+  if(adminMode) renderEdit();
+}
+
+let editPick = { v:'샤인머스캣', m:5 };
+function renderEdit(){
+  const ev = document.getElementById('editview');
+  const d = DATA[curYear]?.[editPick.v]?.[editPick.m];
+  const notes = d?.notes || [];
+  let photosBoxes = '';
+  const pc = d?.photos || 0;
+  for(let i=0;i<pc;i++) photosBoxes += `<div class="upbtn" style="border-style:solid;padding:0;overflow:hidden;position:relative"><div class="ph ${phClass(i)}"><span class="em">🍇</span></div></div>`;
+  photosBoxes += `<div class="upbtn" onclick="alert('실제 앱: 갤러리에서 사진 선택 → 720p 썸네일 자동 생성')"><span class="ic">＋</span>사진 추가</div>`;
+
+  ev.innerHTML = `
+    <div class="editbar">✏️ 관리자 수정 — <b>${curYear}년</b> · 품종/월을 고르고 사진·영상·가이드를 채우세요. (가이드 칸은 여러 개 추가 가능)</div>
+    <div class="erow"><div class="two">
+      <div style="flex:1"><label>품종</label>
+        <select id="ePick_v" onchange="pick('v', this.value)">${VARIETIES.map(v=>`<option ${v===editPick.v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div style="flex:1"><label>월 (생육단계 자동)</label>
+        <select id="ePick_m" onchange="pick('m', +this.value)">${MONTHS.map(mo=>`<option value="${mo.m}" ${mo.m===editPick.m?'selected':''}>${mo.m}월 · ${mo.stage}</option>`).join('')}</select></div>
+    </div></div>
+
+    <div class="erow"><label>📷 사진 (여러 장)</label><div class="uploadbox">${photosBoxes}</div></div>
+
+    <div class="erow"><label>▶ 동영상 (1~2초 클립 — 약 1MB)</label>
+      <div class="two">
+        <input placeholder="유튜브/링크 붙여넣기" value="${d?.video?'(올린 영상 있음)':''}" />
+        <button class="upbtn" style="width:auto;flex-direction:row;padding:0 14px;height:auto" onclick="alert('실제 앱: 짧은 클립 직접 업로드(720p) 또는 링크')">＋ 업로드</button>
+      </div></div>
+
+    <div class="erow"><label>💡 가이드 칸 (여기저기 넣는 그 칸들)</label>
+      <div id="slots">${notes.map((n,i)=>slotHTML(n,i)).join('') || slotHTML({label:'💡 이 시기 핵심',text:''},0)}</div>
+      <button class="addslot" onclick="alert('실제 앱: 가이드 칸이 하나 더 추가됩니다 (라벨 직접 입력 — 착과전 송이정리 등)')">＋ 가이드 칸 추가</button>
+    </div>
+
+    <div class="savebar">
+      <button class="cancel" onclick="toggleAdmin()">나가기</button>
+      <button class="save" onclick="alert('실제 앱: variety_guide 테이블에 저장 → 농부들 열람 화면에 바로 반영')">저장</button>
+    </div>
+  `;
+}
+function slotHTML(n,i){
+  return `<div class="kslot">
+    <div class="kshead"><input value="${n.label||''}" placeholder="칸 이름 (예: ✂️ 착과전 송이정리)" /><button class="del" onclick="alert('이 가이드 칸 삭제')">삭제</button></div>
+    <textarea placeholder="가이드 내용...">${n.text||''}</textarea>
+  </div>`;
+}
+function pick(k,val){ editPick[k]=val; renderEdit(); }
+
+renderYears(); renderBand();
+</script>
+</body>
+</html>

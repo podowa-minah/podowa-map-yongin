@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>AI 아침 브리핑 — 프로토타입</title>
+<style>
+  :root{
+    --bg:#f3efe6; --ink:#3a382f; --line:#ece6d8; --muted:#a08a6a;
+    --green:#2f6b3c; --green-bg:#e9f4ec; --green-line:#bfe0c6;
+    --red:#c0392b; --red-bg:#fdecea; --red-line:#f3c9c3;
+    --blue:#2563eb; --blue-bg:#eaf1fe; --blue-line:#c6daf8;
+    --gold:#8a6d2a; --gold-bg:#fff7e6; --gold-line:#f0e2bf;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:#cfc7b5; font-family:'Apple SD Gothic Neo',system-ui,-apple-system,'Malgun Gothic',sans-serif; color:var(--ink); line-height:1.5;}
+  .protobanner{background:#2f2c25; color:#e9e2cf; font-size:12px; text-align:center; padding:7px 12px; letter-spacing:.2px;}
+  .protobanner b{color:#f0c95a;}
+  .phone{max-width:440px; margin:0 auto; background:var(--bg); min-height:100vh; box-shadow:0 0 40px rgba(0,0,0,.25); overflow:hidden;}
+
+  /* 그린 헤더 (앱 hero 톤) */
+  .hero{background:linear-gradient(160deg,#3f8a52,#2f6b3c); color:#fff; padding:16px 18px 18px;}
+  .hero .brand{font-family:'Russo One',system-ui,sans-serif; font-weight:800; font-size:22px; letter-spacing:1.5px; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between;}
+  .hero .brand small{font-size:12px; font-weight:700; opacity:.92; letter-spacing:0;}
+  .hero .meta{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  .chip{background:rgba(255,255,255,.96); border-radius:999px; padding:5px 11px; font-size:12px; font-weight:800; display:inline-flex; align-items:center; gap:5px;}
+  .chip.weather{color:#0e7490;} .chip.season{color:var(--gold);} .chip.date{color:#3a382f;}
+
+  /* 브리핑 카드 */
+  .wrap{padding:14px 14px 26px;}
+  .briefcard{background:#fff; border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 18px rgba(60,50,20,.08); overflow:hidden;}
+  .bhead{display:flex; align-items:center; gap:9px; padding:14px 16px 12px; border-bottom:1px dashed var(--line);}
+  .bhead .ai{width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#7c5cff,#4f7bff); color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 2px 6px rgba(80,90,255,.35);}
+  .bhead .t{font-weight:900; font-size:15.5px;}
+  .bhead .t small{display:block; font-size:10.5px; color:var(--muted); font-weight:700; margin-top:1px;}
+  .bhead .regen{margin-left:auto; font:inherit; font-weight:800; font-size:12px; padding:7px 11px; border-radius:9px; border:1px solid var(--line); background:#faf7f0; color:#6b6456; cursor:pointer;}
+  .bhead .regen:active{background:#efe8da;}
+
+  .sec{padding:13px 16px; border-bottom:1px solid var(--line);}
+  .sec:last-child{border-bottom:none;}
+  .sec .lab{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:900; padding:3px 9px; border-radius:999px; margin-bottom:8px;}
+  .sec.alert  .lab{background:var(--red-bg);  color:var(--red);  border:1px solid var(--red-line);}
+  .sec.check  .lab{background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);}
+  .sec.info   .lab{background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue-line);}
+  .sec p{margin:0; font-size:14px;}
+  .sec .big{font-weight:800;}
+  .pin{color:var(--red); font-weight:900;}
+  ul.ck{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:8px;}
+  ul.ck li{display:flex; gap:9px; align-items:flex-start; font-size:13.5px;}
+  ul.ck li .box{flex:none; width:18px; height:18px; border-radius:5px; border:2px solid var(--green-line); margin-top:1px;}
+  ul.ck li b{color:#1f5130;}
+  .tag{display:inline-block; font-size:11px; font-weight:800; padding:1px 7px; border-radius:6px; background:#f1ede2; color:#6b6456; margin-left:3px;}
+  .tag.y{background:#fef3c7; color:#a16207;} .tag.b{background:#dbeafe; color:#1d4ed8;}
+
+  /* 입력 데이터 펼치기 */
+  .raw{margin-top:12px; background:#fbf9f3; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .raw summary{cursor:pointer; list-style:none; padding:11px 14px; font-size:12.5px; font-weight:800; color:#6b6456; display:flex; align-items:center; gap:7px;}
+  .raw summary::-webkit-details-marker{display:none;}
+  .raw summary .arw{transition:transform .15s; font-size:10px;}
+  .raw[open] summary .arw{transform:rotate(90deg);}
+  .raw .body{padding:2px 14px 13px; font-size:12px; color:#5b5446;}
+  .raw .row{padding:7px 0; border-top:1px solid var(--line); display:flex; gap:8px;}
+  .raw .row:first-child{border-top:none;}
+  .raw .k{flex:none; width:80px; font-weight:800; color:#7a7361;}
+  .raw .k.auto{color:var(--green);} .raw .k.human{color:var(--gold);}
+  .raw .v{flex:1;}
+  .raw .v em{font-style:normal; background:#fff; border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size:11px; margin:0 2px 3px 0; display:inline-block;}
+
+  .donerow{padding:14px;}
+  .donebtn{width:100%; font:inherit; font-weight:900; font-size:15px; padding:14px; border-radius:13px; border:none; background:var(--green); color:#fff; cursor:pointer; box-shadow:0 4px 0 #245530;}
+  .donebtn:active{transform:translateY(2px); box-shadow:0 2px 0 #245530;}
+  .footnote{font-size:11px; color:#a39a88; padding:14px 18px 4px; line-height:1.55;}
+  .footnote b{color:#7a7361;}
+</style>
+</head>
+<body>
+  <div class="protobanner">⚠️ <b>프로토타입</b> — AI 응답은 미리 써둔 <b>예시(목업)</b>입니다. 실제 연동 전, 화면·느낌 확인용이에요. 🔄 눌러 다른 날 느낌도 보세요.</div>
+  <div class="phone">
+
+    <div class="hero">
+      <div class="brand">PODOWA <small id="greet">농부 김민아 ☀️</small></div>
+      <div class="meta">
+        <span class="chip date" id="c-date">6월 11일 (목)</span>
+        <span class="chip weather" id="c-weather">🌧 흐림 후 비 · 24°</span>
+        <span class="chip season" id="c-season">착과기 · D+9</span>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="briefcard">
+        <div class="bhead">
+          <div class="ai">🤖</div>
+          <div class="t">AI 아침 브리핑<small id="stamp">방금 · 어제 일지 + 밭 진단 종합</small></div>
+          <button class="regen" id="regen">🔄 다시 생성</button>
+        </div>
+
+        <!-- 경각심 -->
+        <div class="sec alert">
+          <span class="lab">🚨 경각심</span>
+          <p id="alert-body"></p>
+        </div>
+
+        <!-- 체크할 거리 -->
+        <div class="sec check">
+          <span class="lab">✅ 오늘 체크할 거리</span>
+          <ul class="ck" id="check-body"></ul>
+        </div>
+
+        <!-- 정보 -->
+        <div class="sec info">
+          <span class="lab">📊 알아두면 좋은 정보</span>
+          <p id="info-body"></p>
+        </div>
+
+        <!-- AI가 본 데이터 -->
+        <div class="sec" style="padding-top:6px;">
+          <details class="raw">
+            <summary><span class="arw">▶</span> 🔎 AI가 본 데이터 (입력 → 위 브리핑)</summary>
+            <div class="body" id="raw-body"></div>
+          </details>
+        </div>
+
+        <div class="donerow">
+          <button class="donebtn" id="donebtn">✓ 브리핑 확인 · 오늘 일 시작</button>
+        </div>
+      </div>
+
+      <div class="footnote">
+        <b>이렇게 작동해요:</b> 매일 아침 <b>한 번</b>, 앱이 이미 계산하는 <b>밭 진단(숫자)</b> + 농부가 쓴 <b>어제 영농일지(글)</b> + <b>날씨·생육시기</b>를 묶어 AI에 보내고,
+        위 3줄 브리핑을 받아 보여줍니다. 숫자는 지금처럼 규칙엔진이, <b>글·종합·설명은 AI</b>가 맡아요.
+        <br>· AI는 <b>"의심됨 · 확인하세요"</b> 톤 — 최종 판단은 농부.
+        <br>· 발송(농부님주목)·삭제 같은 행동은 <b>항상 사람</b>이 누름.
+      </div>
+    </div>
+
+  </div>
+
+<script>
+// ── 미리 써둔 "AI 응답" 3종 (실제 연동 전 목업) ──────────────
+// 실제로는 아래 raw(입력)를 AI에 보내 alert/check/info 를 생성하게 됨.
+const DAYS = [
+  {
+    date:"6월 11일 (목)", weather:"🌧 흐림 후 비 · 24°", season:"착과기 · D+9", greet:"농부 김민아 ☀️",
+    alert:`어제 <b class="big">3-2 함부르크</b>에 <span class="pin">"응애 초기"</span> 메모가 있었어요. 응애는 옆나무로 빠르게 번져요 — 바로 옆 <b>2-2·4-2(같은 함부르크)</b>부터 오늘 꼭 확인하세요.`,
+    check:[
+      `세력 <b>급락 5그루</b> — 대부분 <b>5번 열</b>(5-3, 5-7, 5-12…). 한 줄에 몰림 = 관수 점검? <span class="tag">진단</span>`,
+      `점수 낮은 품종 <b>거봉</b> — 밭 평균보다 처짐, <b>균형</b>이 원인. <span class="tag">진단</span>`,
+      `어제 못 챙긴 <b>'유심히 볼 나무' 8그루</b> 아직 남음. <span class="tag">진단</span>`,
+    ],
+    info:`이번 주: 병해충 <b>3건</b>(응애2·노균1) — <b>전부 5~6열</b>에 몰림 / 비 잦았음 / 일지에 <b>'착색 시작'</b> 언급 늘어남 → 성숙기 진입 신호.`,
+    raw:{
+      auto:`밭 평균 <em>3.2점</em> · 점수있음 <em>58/66그루</em> · 유심히 볼 나무 <em>8</em> <em>3-2</em><em>5-7</em><em>5-3</em><em>거봉 2-9</em>… · 추세 7일 <em>균형 ↓</em>`,
+      human:`[병해충] <em>3-2 함부르크 응애 초기</em> · [환경] <em>오후 비, 하우스 습함</em> · [생육] <em>알렉산드리아 착색 시작</em>`,
+      weather:`오늘 <em>흐림 후 비</em> · 24° · 습도 80%`,
+      season:`<em>착과기 (D+9)</em> · 송이크기정리/알솎이 시기`,
+    }
+  },
+  {
+    date:"6월 12일 (금)", weather:"🌦 비 · 22°", season:"착과기 · D+10", greet:"농부 김민아 🌱",
+    alert:`오늘 <b class="big">비 예보</b> + 어제 <span class="pin">"노균병 의심"(6-4 샤인)</span> 메모 → 비 오면 노균 확산 위험. <b>오전 중 6열 통풍·예방</b>을 먼저 점검하세요.`,
+    check:[
+      `해충 <b>4점 나무 3그루</b>(4-5, 6-4, 7-1) — 오늘 우선. <span class="tag">진단</span>`,
+      `<b>송이크기정리 최종완료 2%</b> — 착과기인데 진행이 느려요. <span class="tag y">최종완료</span>`,
+      `<b>2-9 거봉</b> 균형 어제보다 급락. 단독 급락 = 물·뿌리 신호. <span class="tag">진단</span>`,
+    ],
+    info:`최근 7일 평균 <b>3.4 → 3.1 ↓</b>. 주원인 = <b>균형</b>. 강한가지 세력조절 시점일 수 있어요. 일지 환경칸에 '습함' 3일째.`,
+    raw:{
+      auto:`밭 평균 <em>3.1점</em> · 점수있음 <em>60/66그루</em> · 해충≥4 <em>3그루</em> · 급락 <em>2-9</em> · 추세 7일 <em>점수 ↓</em>`,
+      human:`[병해충] <em>6-4 샤인 노균 의심</em> · [환경] <em>3일째 습함, 비</em> · [생육] <em>거봉 알 작음</em>`,
+      weather:`오늘 <em>비</em> · 22° · 습도 88%`,
+      season:`<em>착과기 (D+10)</em>`,
+    }
+  },
+  {
+    date:"6월 13일 (토)", weather:"⛅ 갬 · 27°", season:"착과기 · D+11", greet:"농부 김민아 🍇",
+    alert:`<b class="big">급락 경보</b> — <span class="pin">5-7 함부르크</span>가 어제 4점→<b>2점</b>으로 혼자 뚝 떨어졌어요. 단독 급락은 <b>물·뿌리 문제</b> 신호 — 옆나무는 멀쩡하니 이 한 그루를 먼저 보세요.`,
+    check:[
+      `비 갠 뒤 <b>응애 재확인</b>(3-2 일대) — 습했다가 마르면 응애 늘어요. <span class="tag">일지+날씨</span>`,
+      `<b>알솎이 최종완료 0%</b> — 송이크기정리 끝난 나무부터 알솎이 들어갈 때. <span class="tag b">최종완료</span>`,
+      `어제 안 챙긴 유심히 볼 나무 <b>4그루</b>로 줄었어요(👍). <span class="tag">진단</span>`,
+    ],
+    info:`주간 요약: 비 그침 → <b>이번 주말 작업하기 좋음</b>. 누적 병해충은 5~6열 집중 — 그쪽 순회 동선을 길게 잡으면 효율적.`,
+    raw:{
+      auto:`밭 평균 <em>3.3점</em> · 단독급락 <em>5-7 (4→2)</em> · 유심히 볼 나무 <em>4</em> · 추세 <em>회복</em>`,
+      human:`[병해충] <em>(어제 비로 순회 적음)</em> · [환경] <em>오전 갬</em> · [생육] <em>샤인 송이 비대 양호</em>`,
+      weather:`오늘 <em>갬</em> · 27° · 습도 62%`,
+      season:`<em>착과기 (D+11)</em>`,
+    }
+  },
+];
+
+let idx = 0;
+function render(){
+  const d = DAYS[idx];
+  document.getElementById('greet').textContent = d.greet;
+  document.getElementById('c-date').textContent = d.date;
+  document.getElementById('c-weather').textContent = d.weather;
+  document.getElementById('c-season').textContent = d.season;
+  document.getElementById('alert-body').innerHTML = d.alert;
+  document.getElementById('check-body').innerHTML =
+    d.check.map(c => `<li><span class="box"></span><span>${c}</span></li>`).join('');
+  document.getElementById('info-body').innerHTML = d.info;
+  document.getElementById('raw-body').innerHTML = `
+    <div class="row"><span class="k auto">진단(자동)</span><span class="v">${d.raw.auto}</span></div>
+    <div class="row"><span class="k human">어제 일지(사람)</span><span class="v">${d.raw.human}</span></div>
+    <div class="row"><span class="k">날씨</span><span class="v">${d.raw.weather}</span></div>
+    <div class="row"><span class="k">생육시기</span><span class="v">${d.raw.season}</span></div>`;
+  document.getElementById('stamp').textContent = '방금 · 어제 일지 + 밭 진단 종합';
+  document.getElementById('donebtn').textContent = '✓ 브리핑 확인 · 오늘 일 시작';
+  document.getElementById('donebtn').style.background = 'var(--green)';
+}
+document.getElementById('regen').addEventListener('click', () => {
+  idx = (idx + 1) % DAYS.length;
+  const stamp = document.getElementById('stamp');
+  stamp.textContent = '생성 중…';
+  setTimeout(render, 280); // AI 호출 느낌
+});
+document.getElementById('donebtn').addEventListener('click', (e) => {
+  e.target.textContent = '✓ 오늘 일 시작했어요 (08:14)';
+  e.target.style.background = '#7a7361';
+});
+render();
+</script>
+</body>
+</html>

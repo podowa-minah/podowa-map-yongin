@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>이달의 포도 미션 — 프로토타입</title>
+<style>
+  :root{
+    --bg:#f3efe6; --card:#ffffff; --ink:#3a382f;
+    --line:#ece6d8; --green:#5aa36a; --green-bg:#e9f4ec; --green-line:#bfe0c6;
+    --pill-off:#efe9dc;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Apple SD Gothic Neo',system-ui,-apple-system,'Malgun Gothic',sans-serif; line-height:1.45;}
+  .wrap{max-width:430px; margin:0 auto; padding:0 0 70px;}
+
+  .top{position:sticky; top:0; z-index:5; background:var(--bg); padding:16px 16px 8px; border-bottom:1px solid var(--line);}
+  .top h1{font-size:18px; margin:0; letter-spacing:-.3px;}
+  .top .subtitle{font-size:11px; color:#a08a6a; font-weight:700; margin-top:1px; letter-spacing:.3px;}
+  .toprow{display:flex; align-items:flex-start; gap:8px;}
+  .who{margin-left:auto; font-size:12px; color:#6b6456; background:#fff; border:1px solid var(--line); border-radius:20px; padding:4px 10px;}
+  .who select{border:none; background:none; font:inherit; color:#2f6b3c; font-weight:700;}
+  .hint{font-size:11px; color:#a39a88; margin:3px 0 0;}
+
+  .strip{display:flex; gap:5px; overflow-x:auto; padding:12px 16px 6px; margin:0;}
+  .strip::-webkit-scrollbar{display:none;}
+  .mon{flex:0 0 auto; width:40px; text-align:center; border-radius:12px; padding:7px 0; font-size:12px; font-weight:700;
+    cursor:pointer; background:var(--pill-off); color:#b3ac9d; border:1.5px solid transparent; position:relative;}
+  .mon small{display:block; font-size:9px; font-weight:600; opacity:.8;}
+  .mon.done{background:var(--green-bg); color:var(--green);}
+  .mon.empty{opacity:.5;}
+  .mon.sel{background:#fff; color:var(--ink); border-color:var(--green); box-shadow:0 1px 6px #5aa36a33;}
+  .mon.done::after{content:"✓"; position:absolute; top:-6px; right:-2px; font-size:10px; background:var(--green); color:#fff; width:15px; height:15px; line-height:15px; border-radius:50%;}
+
+  .mhead{padding:10px 16px 4px; display:flex; align-items:center; gap:8px;}
+  .mhead .t{font-size:20px; font-weight:800;}
+  .mhead .stage{font-size:12px; color:#8a8472; font-weight:600;}
+  .mhead .edit{margin-left:auto; font-size:12px; font-weight:700; color:#6b6456; background:#fff;
+    border:1px solid var(--line); border-radius:9px; padding:6px 11px; cursor:pointer;}
+  .bar{height:9px; background:#e7e1d3; border-radius:6px; overflow:hidden; margin:9px 16px 4px;}
+  .bar > i{display:block; height:100%; background:linear-gradient(90deg,#6bbb7b,#5aa36a); width:0; transition:width .4s ease;}
+  .barlabel{font-size:12px; color:#6b6456; display:flex; justify-content:space-between; padding:0 16px;}
+  .barlabel b{color:var(--green);}
+
+  /* 카테고리 = 한 장의 카드. 미션을 깰수록 색이 채워진다 */
+  .catcard{margin:14px 16px 0; background:#fff; border:1px solid var(--line); border-top:4px solid var(--c,#ccc); border-radius:16px; overflow:hidden; box-shadow:0 1px 4px rgba(120,110,90,.05);}
+  .cathead{display:flex; align-items:center; gap:9px; padding:12px 15px; font-weight:800; font-size:15px; color:#3a382f; background:#fff; transition:background .35s ease, color .35s ease;}
+  .cathead .dot{width:11px; height:11px; border-radius:4px; flex:0 0 auto; background:var(--c); transition:background .35s ease;}
+  .cathead .cnt{margin-left:auto; font-size:12px; color:#9a917f; font-weight:800; transition:color .35s ease;}
+  /* 그 카드의 미션을 전부 깨면 헤더가 범주 색으로 가득 찬다 */
+  .catcard.alldone .cathead{background:var(--c); color:#fff;}
+  .catcard.alldone .cathead .dot{background:#fff;}
+  .catcard.alldone .cathead .cnt{color:#fff;}
+  .catbody{padding:8px 11px 11px;}
+
+  .item{display:flex; align-items:flex-start; gap:10px; padding:11px; margin-top:7px; border-radius:12px; background:#faf8f3; transition:background .35s ease;}
+  .catbody > .item:first-child{margin-top:0;}
+  /* 한 항목을 완료하면 그 줄이 범주 색(연하게)으로 채워진다 */
+  .item.done{background:var(--ctint,#eef3ec);}
+  .item .body{flex:1; min-width:0;}
+  .item .txt{font-size:14px; font-weight:600; cursor:pointer; color:#7c7666;}
+  .item.done .txt{color:#3a382f;}
+  .item .detail{display:none; font-size:12px; color:#6b6456; margin-top:5px; padding:7px 9px; background:rgba(255,255,255,.65); border-radius:8px;}
+  .item.open .detail{display:block;}
+  .item .meta{font-size:11px; color:#a39a88; margin-top:3px;}
+
+  .stamps{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; align-items:center;}
+  .stamp{display:inline-flex; flex-direction:column; align-items:center; line-height:1.12; border:1px solid; border-radius:9px; padding:3px 8px; font-size:9.5px;}
+  .stamp b{font-size:12px; font-weight:800; letter-spacing:-.3px;}
+  .stamp.new{animation:pop .45s cubic-bezier(.18,.9,.3,1.35);}
+  .stamps .cnt{font-size:11px; color:#9bb5a1; font-weight:700; margin-left:1px;}
+  @keyframes pop{0%{transform:scale(.2) translateY(6px); opacity:0;} 60%{transform:scale(1.15) translateY(0);} 100%{transform:scale(1); opacity:1;}}
+
+  .btn{flex:0 0 auto; border:none; border-radius:10px; cursor:pointer; font:inherit; font-weight:800; font-size:12px; padding:9px 12px; background:#2f6b3c; color:#fff; white-space:nowrap;}
+  .btn:active{transform:scale(.96);}
+  .btn.again{background:#fff; color:#2f6b3c; border:1.5px solid #bfe0c6;}
+
+  .empty-note{margin:24px 16px; text-align:center; color:#a39a88; font-size:13px; background:#fff; border:1px dashed var(--line); border-radius:14px; padding:26px 16px;}
+
+  .modes{display:flex; gap:6px; padding:8px 16px 0;}
+  .modes button{flex:1; font:inherit; font-weight:700; font-size:12px; padding:8px; border-radius:10px; border:1px solid var(--line); background:#fff; color:#8a8472; cursor:pointer;}
+  .modes button.on{background:#2f6b3c; color:#fff; border-color:#2f6b3c;}
+  .guide{margin:10px 16px 0; background:#fff7e6; border:1px solid #f0e2bf; color:#8a6d2a; border-radius:12px; padding:10px 12px; font-size:13px; font-weight:600; display:flex; gap:8px; align-items:flex-start; line-height:1.45;}
+  .guide:empty{display:none;}
+  .guide b{font-size:15px; line-height:1.2;}
+  /* 전체 보기 */
+  .ovhead{margin:14px 16px 8px; text-align:center;}
+  .ovhead .big{font-size:36px; font-weight:800; color:#2f6b3c; line-height:1;}
+  .ovhead .sub{font-size:12px; color:#8a8472; margin-top:4px;}
+  .ovcard{margin:0 16px 8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 13px; cursor:pointer; display:flex; align-items:center; gap:11px;}
+  .ovcard .nm{font-size:14px; font-weight:700; width:78px; flex:0 0 auto;}
+  .ovcard .nm small{color:#a39a88; font-weight:600; font-size:10px; display:block;}
+  .ovcard .pbar{flex:1; height:8px; background:#eee7d8; border-radius:5px; overflow:hidden;}
+  .ovcard .pbar i{display:block; height:100%; background:linear-gradient(90deg,#6bbb7b,#5aa36a);}
+  .ovcard .pv{font-size:13px; font-weight:800; color:#2f6b3c; width:48px; text-align:right; flex:0 0 auto;}
+  .ovcard.empty .pv{color:#c3bcab;}
+
+  /* 수정 모드 */
+  .erow{background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; margin:0 16px 8px; display:flex; gap:8px; align-items:flex-start;}
+  .erow select{font:inherit; font-size:12px; border:1px solid var(--line); border-radius:8px; padding:6px; background:#faf7f0;}
+  .erow .ef{flex:1; display:flex; flex-direction:column; gap:6px;}
+  .erow input{font:inherit; border:1px solid var(--line); border-radius:8px; padding:7px 9px;}
+  .erow input.title{font-size:14px; font-weight:600;}
+  .erow input.det{font-size:12px; color:#6b6456;}
+  .erow .del{border:none; background:#f6e9e6; color:#b5524a; font-weight:700; font-size:11px; border-radius:8px; padding:7px 9px; cursor:pointer; flex:0 0 auto;}
+  .addbtn{display:block; width:calc(100% - 32px); margin:4px 16px 0; padding:11px; border:1.5px dashed var(--green-line); background:var(--green-bg); color:#2f6b3c; font-weight:800; font-size:13px; border-radius:12px; cursor:pointer;}
+  .savebar{position:sticky; bottom:0; background:var(--bg); padding:12px 16px; display:flex; gap:8px; border-top:1px solid var(--line); margin-top:12px;}
+  .savebar .btn{flex:1; padding:13px;}
+
+  .foot{text-align:center; font-size:11px; color:#b3ac9d; margin:22px 16px 0;}
+
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); background:#2f6b3c; color:#fff; padding:10px 18px; border-radius:24px; font-size:13px; font-weight:700; opacity:0; transition:.3s; pointer-events:none; z-index:40; box-shadow:0 6px 20px #2f6b3c55;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .overlay{position:fixed; inset:0; background:rgba(34,46,36,.55); display:none; align-items:center; justify-content:center; z-index:30; padding:24px;}
+  .overlay.show{display:flex; animation:fade .25s;}
+  .overlay .card{background:#fff; border-radius:22px; padding:30px 26px 24px; text-align:center; max-width:320px; width:100%; box-shadow:0 24px 70px rgba(0,0,0,.3); animation:rise .45s cubic-bezier(.2,.8,.2,1.25);}
+  .overlay .ring{width:78px; height:78px; border-radius:50%; margin:0 auto 14px; background:var(--green-bg); border:3px solid var(--green); color:var(--green); font-size:42px; font-weight:800; line-height:74px;}
+  .overlay h2{margin:0 0 6px; color:#2f6b3c; font-size:22px;}
+  .overlay p{color:#6b6456; margin:0 0 18px; font-size:14px;}
+  .overlay input{width:100%; font:inherit; font-size:18px; text-align:center; letter-spacing:6px; border:1.5px solid var(--line); border-radius:12px; padding:12px; margin-bottom:14px;}
+  .overlay .row{display:flex; gap:8px;}
+  .overlay .row .btn{flex:1; padding:13px;}
+  @keyframes rise{from{transform:translateY(30px) scale(.92); opacity:0;} to{transform:none; opacity:1;}}
+  @keyframes fade{from{opacity:0;} to{opacity:1;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="toprow">
+      <div>
+        <h1>이달의 포도 미션</h1>
+        <div class="subtitle">주요 재배 프로그램</div>
+      </div>
+      <span class="who">로그인: <select id="who">
+        <option>미나리</option><option>소영</option><option>정우</option><option>영희</option>
+      </select></span>
+    </div>
+    <p class="hint">＊ 프로토타입 — 달을 눌러 이동, 항목 글씨를 누르면 노하우가 펼쳐져요.</p>
+  </div>
+
+  <div class="modes" id="modes">
+    <button data-mode="month" class="on">이번 달</button>
+    <button data-mode="all">📊 전체</button>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="mhead">
+    <span class="t" id="mtitle">6월</span>
+    <span class="stage" id="mstage">경핵기</span>
+    <button class="edit" id="editbtn">관리자 수정</button>
+  </div>
+  <div class="bar"><i id="barfill"></i></div>
+  <div class="barlabel"><span>이번 달 진행</span><span><b id="pct">0%</b> · <span id="frac">0/0</span></span></div>
+
+  <div class="guide" id="guide"></div>
+
+  <div id="list"></div>
+
+  <div class="foot">색칠된 달이 위 띠에 ✓로 쌓여요. 도장 색 = 누가 했는지.</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 완료 축하 -->
+<div class="overlay" id="cele">
+  <div class="card">
+    <div class="ring">✓</div>
+    <h2>잘했습니다!</h2>
+    <p id="celetext">매뉴얼을 전부 클리어했어요 🍇</p>
+    <button class="btn" style="width:100%;padding:13px" onclick="hide('cele')">좋아요</button>
+  </div>
+</div>
+
+<!-- 수정 비번 -->
+<div class="overlay" id="gate">
+  <div class="card">
+    <div class="ring" style="font-size:34px;line-height:74px">🔒</div>
+    <h2 style="font-size:18px">메뉴얼 수정</h2>
+    <p>수정 비밀번호를 입력하세요</p>
+    <input id="gatepw" type="password" inputmode="numeric" maxlength="4" placeholder="••••" />
+    <div class="row">
+      <button class="btn again" onclick="hide('gate')">취소</button>
+      <button class="btn" onclick="checkGate()">확인</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS = {
+  water:{name:'물관리', color:'#5b9bd5', tint:'#eef5fc'},
+  pest: {name:'방제관리', color:'#d99a3c', tint:'#fcf4e6'},
+  grow: {name:'재배관리', color:'#73a86a', tint:'#eef6ec'},
+  env:  {name:'환경관리', color:'#c77b6b', tint:'#faeeeb'},
+  soil: {name:'토양관리', color:'#a98c6b', tint:'#f5efe7'},
+};
+const ORDER = ['water','pest','grow','env','soil'];
+const PEOPLE = {
+  '미나리':{bg:'#e9f4ec', bd:'#bfe0c6', tx:'#2f6b3c'},
+  '소영':  {bg:'#e7f0fa', bd:'#c2d8f0', tx:'#2f5d8c'},
+  '정우':  {bg:'#fbf2e0', bd:'#ecd9b0', tx:'#9a6a1c'},
+  '영희':  {bg:'#f4eafb', bd:'#ddc8ea', tx:'#7a4a86'},
+};
+const pc = n => PEOPLE[n] || {bg:'#eee',bd:'#ccc',tx:'#555'};
+const STAGE = {2:'맹아기',3:'맹아기',4:'맹아기',5:'개화기',6:'경핵기',7:'성숙기',8:'성숙기',9:'수확기',12:'전정'};
+const STRIP_MONTHS = [2,3,4,5,6,7,8,9,12];
+
+// 월별 안내 한마디 (관리자 수정 가능)
+let GUIDE = {
+  4:'맹아·꽃샘추위 관리에 만전을. 첫 물은 넉넉히 시작!',
+  5:'개화기엔 온도·과습이 핵심. 한날한시에 꽃 피우기.',
+  6:'이번 달, 했어요 체크에 최선을 다해주세요! 흰가루·차먼지응애 놓치지 말기.',
+  7:'장마·성숙기. 착색이 품질을 좌우해요. 환기 꼭 유지!',
+};
+
+let DATA = {
+  4: [
+    {cat:'water', title:'4월 초부터 3일에 한 번 관수', detail:'맹아기엔 물이 가장 많이 필요. 첫 물은 발 빠질 정도로.', logs:[{by:'미나리',d:'4/3'},{by:'소영',d:'4/9'}]},
+    {cat:'pest',  title:'벌레 기생나무 박피 및 방제', detail:'겨울난 응애·깍지벌레. 박피 후 약제 살포.', logs:[{by:'정우',d:'4/5'}]},
+    {cat:'grow',  title:'약한 세력 나무 맹아 정리', detail:'약한 나무는 빠르게 맹아를 정리해 세력을 모은다.', logs:[{by:'미나리',d:'4/12'}]},
+  ],
+  5: [
+    {cat:'water', title:'관수 지습 35~40 유지', detail:'개화기 과습 주의. 아침 천창 물떨어짐 조심.', logs:[{by:'소영',d:'5/6'},{by:'미나리',d:'5/13'}]},
+    {cat:'pest',  title:'흰가루 단독방제 1회', detail:'개화 전 미리. 개화기엔 14일간 방제를 못 한다.', logs:[{by:'정우',d:'5/4'}]},
+    {cat:'grow',  title:'개화 이틀 전 강한 가지 손질', detail:'세력 강한 가지를 미리 손질해 한날한시에 꽃 피게.', logs:[{by:'미나리',d:'5/15'},{by:'영희',d:'5/16'}]},
+    {cat:'env',   title:'개화기 온도 30→25, 천창 반오픈', detail:'천창 3개동 반 오픈해 25도 맞춤. 과습이면 측창 연다.', logs:[{by:'소영',d:'5/14'}]},
+  ],
+  6: [
+    {cat:'water', title:'물은 수확 끝날 때까지 일정하게', detail:'경핵기~수확기 내내 지습 일정 유지.', logs:[{by:'소영',d:'6/7'},{by:'미나리',d:'6/9'}]},
+    {cat:'pest',  title:'흰가루방제 주 2회', detail:'6월부터 흰가루 기승 시작. 미리 준비.', logs:[{by:'미나리',d:'6/2'},{by:'정우',d:'6/5'},{by:'미나리',d:'6/9'}]},
+    {cat:'pest',  title:'저녁 랜턴 관리 주 2~3회 (개각충·깍지벌레)', detail:'개각충은 열매 위쪽·어미, 깍지벌레는 주지 첫눈 근처.', logs:[{by:'정우',d:'6/6'}]},
+    {cat:'pest',  title:'차먼지응애 예찰', detail:'새순 기부 쪽. 뜨겁고 습할 때 비상. 플레임 특히 조심.', logs:[]},
+    {cat:'grow',  title:'알솎기 지속적으로 시행', detail:'송이 정렬하며 알솎이를 꾸준히.', logs:[{by:'미나리',d:'6/4'},{by:'영희',d:'6/7'},{by:'미나리',d:'6/9'}]},
+    {cat:'grow',  title:'강한 새순 적심 (정상세력 80cm)', detail:'강하면 적심. 끝순 두 개 튀면 한 개로 남긴다.', logs:[]},
+    {cat:'env',   title:'장마 대비 지습 40 넘지 않게', detail:'비 오면 천창 닫히고 유동팬 동작하게.', logs:[]},
+    {cat:'soil',  title:'녹비작물(콩) 심기', detail:'땅심 살리기. 풀의 다양성을 인식한다.', logs:[]},
+  ],
+  7: [
+    {cat:'water', title:'장마 물관리 — 지습 40 넘지 않게', detail:'7월 장마. 과습이 병을 부른다.', logs:[]},
+    {cat:'pest',  title:'응애·총채 관리 (수확까지 2~3일에 체크)', detail:'벌레 있는 나무를 가볍게 지나가지 말 것.', logs:[]},
+    {cat:'grow',  title:'착색 한 알씩 — 색 관리 집중', detail:'포도 알은 위쪽부터 익는다. 이때 품질이 좌우.', logs:[]},
+    {cat:'grow',  title:'힘 약한 가지는 송이 제거', detail:'등숙불량 원인. 지금이라도 제거.', logs:[]},
+    {cat:'env',   title:'환기 유지 (불량하면 병이 온다)', detail:'문이 항상 열려 있게.', logs:[]},
+  ],
+};
+
+let SEL = 6;            // 보고 있는 달
+let CUR = '미나리';     // 로그인(프로토타입)
+let EDIT = false;       // 수정 모드
+let MODE = 'month';     // 'month' | 'all'(전체 보기)
+let justAdded = null;   // pop 애니메이션
+let draft = null;       // 수정 임시 데이터
+let draftGuide = '';    // 수정 중 안내 한마디
+
+document.getElementById('who').onchange = e => CUR = e.target.value;
+document.querySelectorAll('#modes button').forEach(b=>b.onclick=()=>{
+  MODE = b.dataset.mode; EDIT=false; render();
+});
+document.getElementById('editbtn').onclick = () => {
+  if(EDIT){ exitEdit(); return; }
+  show('gate'); setTimeout(()=>document.getElementById('gatepw').focus(),100);
+};
+function checkGate(){
+  const v = document.getElementById('gatepw').value;
+  document.getElementById('gatepw').value='';
+  if(v==='1234'){ hide('gate'); enterEdit(); }
+  else toast('비밀번호가 달라요');
+}
+function today(){ return (SEL)+'/9'; }
+
+function pctOf(m){
+  const its = DATA[m]||[];
+  if(!its.length) return null;
+  const done = its.filter(i=>i.logs.length>0).length;
+  return Math.round(done/its.length*100);
+}
+
+function render(){
+  // 모드 버튼 on 표시
+  document.querySelectorAll('#modes button').forEach(b=>b.classList.toggle('on', b.dataset.mode===MODE));
+
+  // 띠
+  const strip = document.getElementById('strip');
+  strip.innerHTML = STRIP_MONTHS.map(m=>{
+    const its = DATA[m]||[];
+    const done = its.length && its.every(i=>i.logs.length>0);
+    let cls='mon'+(done?' done':'')+(!its.length?' empty':'')+(MODE==='month'&&m===SEL?' sel':'');
+    return `<div class="${cls}" data-m="${m}">${m}월<small>${STAGE[m]||''}</small></div>`;
+  }).join('');
+  strip.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ SEL=+b.dataset.m; MODE='month'; EDIT=false; render(); });
+
+  const isAll = (MODE==='all');
+  // 전체 보기일 땐 월 헤더·진행바·안내·띠 숨김
+  document.querySelector('.mhead').style.display = isAll ? 'none' : '';
+  document.querySelector('.bar').style.display   = isAll ? 'none' : '';
+  document.querySelector('.barlabel').style.display = isAll ? 'none' : '';
+  document.getElementById('strip').style.display = isAll ? 'none' : '';
+  document.getElementById('guide').style.display = isAll ? 'none' : '';
+
+  if(isAll){ renderOverview(); return; }
+
+  document.getElementById('mtitle').textContent = SEL+'월';
+  document.getElementById('mstage').textContent = STAGE[SEL]||'';
+  document.getElementById('editbtn').textContent = EDIT ? '취소' : '관리자 수정';
+  document.getElementById('guide').innerHTML = (!EDIT && GUIDE[SEL]) ? `<b>💬</b><span>${GUIDE[SEL]}</span>` : '';
+
+  EDIT ? renderEdit() : renderView();
+}
+
+function renderOverview(){
+  const list = document.getElementById('list');
+  const months = STRIP_MONTHS.filter(m=>(DATA[m]||[]).length);
+  const vals = months.map(m=>pctOf(m));
+  const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+  let html = `<div class="ovhead"><div class="big">${avg}%</div><div class="sub">올해 농장 매뉴얼 평균 달성</div></div>`;
+  html += STRIP_MONTHS.map(m=>{
+    const p = pctOf(m);
+    const empty = (p===null);
+    return `<div class="ovcard${empty?' empty':''}" data-ovm="${m}">
+      <div class="nm">${m}월<small>${STAGE[m]||'—'}</small></div>
+      <div class="pbar"><i style="width:${empty?0:p}%"></i></div>
+      <div class="pv">${empty?'없음':p+'%'}</div>
+    </div>`;
+  }).join('');
+  list.innerHTML = html;
+  list.querySelectorAll('[data-ovm]').forEach(c=>c.onclick=()=>{ SEL=+c.dataset.ovm; MODE='month'; render(); });
+}
+
+function renderView(){
+  const list = document.getElementById('list');
+  const items = DATA[SEL]||[];
+  list.innerHTML='';
+  if(!items.length){
+    list.innerHTML = `<div class="empty-note">이 달 메뉴얼은 아직 비어 있어요.<br><b>✏️ 수정</b>으로 항목을 추가하세요.</div>`;
+    setBar(0,0); return;
+  }
+  let done=0;
+  ORDER.forEach(ck=>{
+    const its = items.filter(i=>i.cat===ck);
+    if(!its.length) return;
+    const cat = CATS[ck];
+    const doneN = its.filter(i=>i.logs.length>0).length;
+    const allDone = doneN===its.length;
+    const card=document.createElement('div'); card.className='catcard'+(allDone?' alldone':'');
+    card.style.setProperty('--c',cat.color);
+    card.style.setProperty('--ctint',cat.tint);
+    card.innerHTML = `<div class="cathead"><span class="dot"></span>${cat.name}<span class="cnt">${allDone?'✓ 완료':doneN+'/'+its.length}</span></div>`;
+    const body=document.createElement('div'); body.className='catbody';
+    its.forEach(it=>{
+      const gi = items.indexOf(it);
+      const isDone = it.logs.length>0;
+      if(isDone) done++;
+      const stamps = it.logs.map((l,k)=>{
+        const p=pc(l.by); const isNew=(justAdded===gi && k===it.logs.length-1);
+        return `<span class="stamp${isNew?' new':''}" style="background:${p.bg};border-color:${p.bd};color:${p.tx}"><b style="color:${p.tx}">${l.d}</b>${l.by}</span>`;
+      }).join('');
+      const el=document.createElement('div'); el.className='item'+(isDone?' done':'');
+      el.innerHTML = `
+        <div class="body">
+          <div class="txt" data-toggle>${isDone?'✓ ':''}${it.title}</div>
+          ${it.detail?`<div class="detail">${it.detail}</div>`:''}
+          ${isDone?`<div class="stamps">${stamps}<span class="cnt">총 ${it.logs.length}회</span></div>`:`<div class="meta">아직 안 함</div>`}
+        </div>
+        <button class="btn ${isDone?'again':''}" data-do="${gi}">${isDone?'한 번 더':'✓ 했어요'}</button>`;
+      body.appendChild(el);
+    });
+    card.appendChild(body);
+    list.appendChild(card);
+  });
+  setBar(done, items.length);
+
+  list.querySelectorAll('[data-do]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const i=+b.dataset.do;
+    DATA[SEL][i].logs.push({by:CUR, d:today()});
+    justAdded=i; toast(`${CUR} · ${today()} 도장`); render(); justAdded=null;
+  });
+  list.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>b.closest('.item').classList.toggle('open'));
+
+  if(done===items.length && justAdded!==null){
+    document.getElementById('celetext').innerHTML = `${SEL}월 · ${STAGE[SEL]} 매뉴얼을<br><b>전부 클리어</b>했어요 🍇`;
+    setTimeout(()=>show('cele'),250);
+  }
+}
+
+function setBar(done,total){
+  const pct = total? Math.round(done/total*100):0;
+  document.getElementById('barfill').style.width=pct+'%';
+  document.getElementById('pct').textContent=pct+'%';
+  document.getElementById('frac').textContent=done+'/'+total;
+}
+
+/* ── 수정 모드 ── */
+function enterEdit(){
+  EDIT=true;
+  draft = (DATA[SEL]||[]).map(i=>({cat:i.cat, title:i.title, detail:i.detail||'', logs:i.logs}));
+  draftGuide = GUIDE[SEL]||'';
+  render();
+}
+function exitEdit(){ EDIT=false; draft=null; render(); }
+
+function renderEdit(){
+  const list=document.getElementById('list');
+  setBar(0,0);
+  document.querySelector('.bar').style.display='none';
+  document.querySelector('.barlabel').style.display='none';
+  let html = `<div class="erow" style="border-top:4px solid #f0c95a">
+      <div class="ef">
+        <div style="font-size:12px;font-weight:800;color:#8a6d2a">💬 이번 달 안내 한마디</div>
+        <input class="title" id="guideinput" value="${draftGuide.replace(/"/g,'&quot;')}" placeholder="예: 했어요 체크에 최선을 다해주세요!" />
+      </div>
+    </div>`;
+  html += draft.map((it,i)=>`
+    <div class="erow">
+      <select data-cat="${i}">${ORDER.map(c=>`<option value="${c}" ${c===it.cat?'selected':''}>${CATS[c].name}</option>`).join('')}</select>
+      <div class="ef">
+        <input class="title" data-title="${i}" value="${it.title.replace(/"/g,'&quot;')}" placeholder="할 일" />
+        <input class="det" data-det="${i}" value="${(it.detail||'').replace(/"/g,'&quot;')}" placeholder="자세한 노하우 (선택)" />
+      </div>
+      <button class="del" data-del="${i}">삭제</button>
+    </div>`).join('');
+  html += `<button class="addbtn" id="addrow">+ 항목 추가</button>`;
+  html += `<div class="savebar"><button class="btn again" onclick="exitEdit()">취소</button><button class="btn" id="savebtn">저장</button></div>`;
+  list.innerHTML = html;
+
+  document.getElementById('guideinput').oninput=e=>draftGuide=e.target.value;
+  list.querySelectorAll('[data-cat]').forEach(s=>s.onchange=e=>draft[+s.dataset.cat].cat=e.target.value);
+  list.querySelectorAll('[data-title]').forEach(s=>s.oninput=e=>draft[+s.dataset.title].title=e.target.value);
+  list.querySelectorAll('[data-det]').forEach(s=>s.oninput=e=>draft[+s.dataset.det].detail=e.target.value);
+  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draft.splice(+b.dataset.del,1); renderEdit(); });
+  document.getElementById('addrow').onclick=()=>{ draft.push({cat:'grow', title:'', detail:'', logs:[]}); renderEdit(); };
+  document.getElementById('savebtn').onclick=()=>{
+    DATA[SEL] = draft.filter(d=>d.title.trim()).map(d=>({cat:d.cat, title:d.title.trim(), detail:d.detail.trim(), logs:d.logs}));
+    GUIDE[SEL] = draftGuide.trim();
+    EDIT=false; draft=null;
+    document.querySelector('.bar').style.display=''; document.querySelector('.barlabel').style.display='';
+    toast('저장됐어요'); render();
+  };
+}
+
+function show(id){ document.getElementById(id).classList.add('show'); }
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(window._tt); window._tt=setTimeout(()=>t.classList.remove('show'),1400); }
+
+render();
+</script>
+</body>
+</html>
