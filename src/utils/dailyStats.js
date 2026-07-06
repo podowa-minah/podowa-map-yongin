@@ -246,23 +246,36 @@ export function computeStatsForDate(treeData, labels, simDate) {
 //   treeData가 realtime으로 갱신되니 이 값도 자동으로 줄어든다(누가 입력하든).
 export function remainingByCategory(treeData, labels) {
   const today = getKSTToday();
-  let total = 0, power = 0, bugs = 0, clock = 0;
+  let total = 0;
+  const powerList = [], bugsList = [], clockList = [];   // {id, name} 목록 — 어떤 나무인지 보여줄 때
   for (let c = 1; c <= COLS; c++) {
     for (let r = 1; r <= ROWS; r++) {
       const numericId = `${c}-${r}`;
       const lbl = labels[`Tree-${c}-${r}`] || {};
       if (lbl.disabled || !lbl.name) continue;
       const records = treeData[numericId] || [];
-      if (records.some((rec) => rec.date === today)) continue;   // 오늘 손댐 = 돌봄(카운트다운서 빠짐)
       const s = evaluateSignals(records.filter((rec) => rec.date < today), today);
       if (!s.anyOn) continue;
-      total++;
-      if (s.powerLevel !== 'off') power++;
-      if (s.bugLevel !== 'off') bugs++;
-      if (s.clockLevel !== 'off') clock++;
+      // 오늘 그 값을 실제로 넣었는지로 판정. 세력만 넣고 해충 안 넣으면(헛돌봄) 해충은 그대로 남음.
+      const todayRecs = records.filter((rec) => rec.date === today);
+      const hasPower = todayRecs.some((r) => r.power != null && r.power !== '');
+      const hasBal = todayRecs.some((r) => r.balance != null && r.balance !== '');
+      const hasBugs = todayRecs.some((r) => r.bugs != null && r.bugs !== undefined && r.bugs !== '');
+      const hasAny = hasPower || hasBal || hasBugs;
+      const remP = s.powerLevel !== 'off' && !hasPower;   // 세력 켜졌는데 오늘 세력 안 넣음
+      const remB = s.bugLevel !== 'off' && !hasBugs;      // 해충 켜졌는데 오늘 해충 안 넣음
+      const remC = s.clockLevel !== 'off' && !hasAny;     // 시계는 뭐라도 넣으면 꺼짐
+      if (remP) powerList.push({ id: numericId, name: lbl.name });
+      if (remB) bugsList.push({ id: numericId, name: lbl.name });
+      if (remC) clockList.push({ id: numericId, name: lbl.name });
+      if (remP || remB || remC) total++;                  // 아직 할 게 남은 나무(헛돌봄 포함)
     }
   }
-  return { total, power, bugs, clock };
+  return {
+    total,
+    power: powerList.length, bugs: bugsList.length, clock: clockList.length,
+    powerList, bugsList, clockList,
+  };
 }
 
 export function computeTomorrowPrediction(treeData, labels, litTreeIds) {

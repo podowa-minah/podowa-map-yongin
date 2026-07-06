@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
 import { playQuack } from '../utils/sounds';
+import RemainingTreesPopup from './RemainingTreesPopup';
 
 export default function HeaderHero({
   pct = 0,
@@ -44,6 +45,7 @@ export default function HeaderHero({
   const [editingMsg, setEditingMsg] = useState(false);
   const [msgInput, setMsgInput] = useState('');
   const [msgSending, setMsgSending] = useState(false);
+  const [listCat, setListCat] = useState(null);   // 남은 나무 목록 팝업 (power/bugs/clock)
   // 오리 말풍선 끄기(X) — 끈 메시지를 기억해서 유지(새로고침해도), 새 메시지 올리면 다시 뜸
   const [dismissedMsg, setDismissedMsg] = useState(() => {
     try { return localStorage.getItem('duckBubbleDismissed') || ''; } catch { return ''; }
@@ -231,9 +233,9 @@ export default function HeaderHero({
               {remaining.total > 0 && (
                 <div className="hero-stat-label" style={{ color: '#fff', fontWeight: 700, margin: 0 }}>
                   🚦 남은 {remaining.total}그루
-                  {remaining.power > 0 && <span style={{ color: '#86efac' }}> · 세력 {remaining.power}</span>}
-                  {remaining.bugs > 0 && <span style={{ color: '#fca5a5' }}> · 해충 {remaining.bugs}</span>}
-                  {remaining.clock > 0 && <span style={{ color: '#fcd34d' }}> · 시계 {remaining.clock}</span>}
+                  {remaining.power > 0 && <span onClick={(e) => { e.stopPropagation(); setListCat('power'); }} style={{ color: '#86efac', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}> · 세력 {remaining.power}</span>}
+                  {remaining.bugs > 0 && <span onClick={(e) => { e.stopPropagation(); setListCat('bugs'); }} style={{ color: '#fca5a5', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}> · 해충 {remaining.bugs}</span>}
+                  {remaining.clock > 0 && <span onClick={(e) => { e.stopPropagation(); setListCat('clock'); }} style={{ color: '#fcd34d', cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3 }}> · 시계 {remaining.clock}</span>}
                 </div>
               )}
               {hasFake && (
@@ -250,6 +252,13 @@ export default function HeaderHero({
                 🍇 오늘도 포도나무들이 행복해합니다 · 수고하셨습니다!
               </span>
             </div>
+          )}
+          {listCat && (
+            <RemainingTreesPopup
+              category={listCat}
+              trees={remaining[`${listCat}List`] || []}
+              onClose={() => setListCat(null)}
+            />
           )}
         </div>
       </div>
