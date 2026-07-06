@@ -44,8 +44,15 @@ export default function HeaderHero({
   const [editingMsg, setEditingMsg] = useState(false);
   const [msgInput, setMsgInput] = useState('');
   const [msgSending, setMsgSending] = useState(false);
-  const [bubbleClosed, setBubbleClosed] = useState(false);   // 오리 말풍선 끄기(X). 새 메시지 오면 다시 뜸
-  useEffect(() => { setBubbleClosed(false); }, [duckMessage]);
+  // 오리 말풍선 끄기(X) — 끈 메시지를 기억해서 유지(새로고침해도), 새 메시지 올리면 다시 뜸
+  const [dismissedMsg, setDismissedMsg] = useState(() => {
+    try { return localStorage.getItem('duckBubbleDismissed') || ''; } catch { return ''; }
+  });
+  const bubbleClosed = !!duckMessage && duckMessage === dismissedMsg;
+  const closeBubble = () => {
+    setDismissedMsg(duckMessage);
+    try { localStorage.setItem('duckBubbleDismissed', duckMessage); } catch { /* noop */ }
+  };
   const msgInputRef = useRef(null);
   useEffect(() => {
     if (editingMsg && msgInputRef.current) msgInputRef.current.focus();
@@ -236,6 +243,14 @@ export default function HeaderHero({
               )}
             </div>
           )}
+          {/* 오늘 다 돌봄 (남은 0 · 헛돌봄 없음) — 포도나무 행복 메시지 */}
+          {!isStatsLoading && total > 0 && remaining.total === 0 && !hasFake && (
+            <div style={{ display: 'inline-block', marginTop: 6, padding: '6px 12px', background: 'rgba(255,255,255,0.22)', borderRadius: 12, backdropFilter: 'blur(6px)' }}>
+              <span className="hero-stat-label" style={{ color: '#fff', fontWeight: 700, margin: 0 }}>
+                🍇 오늘도 포도나무들이 행복해합니다 · 수고하셨습니다!
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -339,7 +354,7 @@ export default function HeaderHero({
         >
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); setBubbleClosed(true); }}
+          onClick={(e) => { e.stopPropagation(); closeBubble(); }}
           aria-label="말풍선 닫기"
           style={{
             position: 'absolute', top: -7, right: -7,

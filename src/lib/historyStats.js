@@ -79,6 +79,46 @@ export function topWorkers(summaries = [], days = 30, topN = 3) {
     .slice(0, topN);
 }
 
+// 월별 평균 달성률 — summaries에 있는 모든 월. [{ year, month, avg, days }] 최근 월 먼저.
+export function monthlyAverages(summaries = []) {
+  const byMonth = {};
+  for (const s of summaries) {
+    if (!s.date || !(Number(s.total) > 0)) continue;
+    const key = String(s.date).slice(0, 7);   // YYYY-MM
+    if (!byMonth[key]) byMonth[key] = { sum: 0, days: 0 };
+    byMonth[key].sum += Number(s.completed) / Number(s.total) * 100;
+    byMonth[key].days += 1;
+  }
+  return Object.entries(byMonth)
+    .map(([key, v]) => {
+      const [y, m] = key.split('-');
+      return { year: Number(y), month: Number(m), avg: Math.round(v.sum / v.days), days: v.days };
+    })
+    .sort((a, b) => (a.year !== b.year ? b.year - a.year : b.month - a.month));
+}
+
+// 농부별 누적 돌본 그루수 — 전체(days=null) 또는 최근 days일. [{ name, count }] 많은 순 (탑N 제한 없음).
+export function workerTotals(summaries = [], days = null) {
+  let cutoff = null;
+  if (days != null) {
+    const kst = new Date(Date.now() + 9 * 3600 * 1000);
+    cutoff = new Date(kst.getTime() - days * 86400000).toISOString().slice(0, 10);
+  }
+  const counts = {};
+  for (const s of summaries) {
+    if (cutoff && s.date < cutoff) continue;
+    for (const w of (Array.isArray(s.workers) ? s.workers : [])) {
+      const name = w.name || w.author || w.producer;
+      const count = Number(w.count) || 0;
+      if (!name) continue;
+      counts[name] = (counts[name] || 0) + count;
+    }
+  }
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 // 내일 예상 작업량 — 최근 N일 평균 total
 export function predictTomorrowWorkload(summaries = [], recentDays = 7) {
   const today = new Date();

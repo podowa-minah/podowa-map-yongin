@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
 import { monthAvgCompletion, topWorkers } from '../lib/historyStats';
 import WorkDotLegend from './WorkDotLegend';
+import MonthlyStats from './MonthlyStats';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import farmerCrySVG from '../assets/icons/farmer_cry.svg';
 import farmerProudSVG from '../assets/icons/farmer_proud.svg';
@@ -832,6 +833,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                   color="#a16207"
                 />
               </div>
+              <MonthlyStats summaries={allSummaries} />
             </div>
           );
         })()}
