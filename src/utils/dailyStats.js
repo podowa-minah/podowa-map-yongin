@@ -152,7 +152,7 @@ export function evaluateSignals(recordsBefore, refDate) {
     (clockLevel !== 'off' && clockOverdue)
   );
 
-  return { treeLevel, bugLevel, clockLevel, powerLevel, balLevel, clockNeedsPower, clockNeedsBal, clockNeedsBugs, anyOn, anyOverdue };
+  return { treeLevel, bugLevel, clockLevel, powerLevel, balLevel, clockNeedsPower, clockNeedsBal, clockNeedsBugs, anyOn, anyOverdue, bugOverdue };
 }
 
 /**
@@ -266,7 +266,7 @@ export function remainingByCategory(treeData, labels) {
       const remB = s.bugLevel !== 'off' && !hasBugs;      // 해충 켜졌는데 오늘 해충 안 넣음
       const remC = s.clockLevel !== 'off' && !hasAny;     // 시계는 뭐라도 넣으면 꺼짐
       if (remP) powerList.push({ id: numericId, name: lbl.name });
-      if (remB) bugsList.push({ id: numericId, name: lbl.name });
+      if (remB) bugsList.push({ id: numericId, name: lbl.name, urgent: !!(s.bugOverdue || s.bugLevel === 'emphasis') });   // 급함: 기한 지남 or 5점
       if (remC) clockList.push({ id: numericId, name: lbl.name });
       if (remP || remB || remC) total++;                  // 아직 할 게 남은 나무(헛돌봄 포함)
     }

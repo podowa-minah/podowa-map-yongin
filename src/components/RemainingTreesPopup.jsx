@@ -10,6 +10,8 @@ const CAT_COLOR = { power: '#2f6b3c', bugs: '#b42318', clock: '#a15e12' };
 export default function RemainingTreesPopup({ category, trees = [], onClose }) {
   const label = CAT_LABEL[category] || '';
   const color = CAT_COLOR[category] || '#1f2937';
+  const hasUrgent = trees.some((t) => t.urgent);
+  const sorted = [...trees].sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0));   // 급한 것 위로
 
   return ReactDOM.createPortal(
     <div
@@ -43,22 +45,26 @@ export default function RemainingTreesPopup({ category, trees = [], onClose }) {
         </div>
         <div style={{ padding: '0 1rem 0.5rem', fontSize: '0.76rem', color: '#6b7280' }}>
           {label} 신호 켜졌는데 오늘 {label} 아직 안 넣은 나무예요.
+          {hasUrgent && <span style={{ color: '#b42318', fontWeight: 700 }}> · 🔴 = 오늘 급함(기한 지남·5점)</span>}
         </div>
         <div style={{ overflowY: 'auto', padding: '0.2rem 0.8rem 1rem' }}>
-          {trees.length === 0 ? (
+          {sorted.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem', padding: '1rem' }}>없어요 👍</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.35rem' }}>
-              {trees.map((t) => (
+              {sorted.map((t) => (
                 <div
                   key={t.id}
                   style={{
-                    display: 'flex', alignItems: 'baseline', gap: 6,
-                    padding: '0.4rem 0.6rem', background: '#f7f8f6',
-                    border: '1px solid #e5e7eb', borderRadius: 8, minWidth: 0,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    padding: '0.4rem 0.6rem',
+                    background: t.urgent ? '#fef2f2' : '#f7f8f6',
+                    border: t.urgent ? '1.5px solid #f87171' : '1px solid #e5e7eb',
+                    borderRadius: 8, minWidth: 0,
                   }}
                 >
-                  <b style={{ color, fontWeight: 800, fontSize: '0.86rem', flexShrink: 0 }}>{t.id}</b>
+                  {t.urgent && <span style={{ fontSize: '0.68rem', flexShrink: 0 }}>🔴</span>}
+                  <b style={{ color: t.urgent ? '#b42318' : color, fontWeight: 800, fontSize: '0.86rem', flexShrink: 0 }}>{t.id}</b>
                   <span style={{ color: '#4b5563', fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
                 </div>
               ))}
