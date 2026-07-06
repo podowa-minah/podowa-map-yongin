@@ -240,6 +240,31 @@ export function computeStatsForDate(treeData, labels, simDate) {
  * @param {Set} litTreeIds - 현재 불 켜진 나무 ID Set
  * @returns {{ total, workers: [] }}
  */
+// 오늘 아직 안 돌본 "남은" 나무 — 종류별(세력/해충/시계). 헤더 실시간 카운트다운용.
+//   오늘 기록 있는 나무는 '돌봄'으로 치고 뺀다 → total = 완료율의 (총-완료)와 같음(남은 나무 수).
+//   한 나무가 세력·해충 둘 다 켜졌으면 양쪽에 다 센다 (일감이라 중복 허용, 균형은 뺌).
+//   treeData가 realtime으로 갱신되니 이 값도 자동으로 줄어든다(누가 입력하든).
+export function remainingByCategory(treeData, labels) {
+  const today = getKSTToday();
+  let total = 0, power = 0, bugs = 0, clock = 0;
+  for (let c = 1; c <= COLS; c++) {
+    for (let r = 1; r <= ROWS; r++) {
+      const numericId = `${c}-${r}`;
+      const lbl = labels[`Tree-${c}-${r}`] || {};
+      if (lbl.disabled || !lbl.name) continue;
+      const records = treeData[numericId] || [];
+      if (records.some((rec) => rec.date === today)) continue;   // 오늘 손댐 = 돌봄(카운트다운서 빠짐)
+      const s = evaluateSignals(records.filter((rec) => rec.date < today), today);
+      if (!s.anyOn) continue;
+      total++;
+      if (s.powerLevel !== 'off') power++;
+      if (s.bugLevel !== 'off') bugs++;
+      if (s.clockLevel !== 'off') clock++;
+    }
+  }
+  return { total, power, bugs, clock };
+}
+
 export function computeTomorrowPrediction(treeData, labels, litTreeIds) {
   const today = getKSTToday();
   const tomorrow = offsetDate(today, 1);

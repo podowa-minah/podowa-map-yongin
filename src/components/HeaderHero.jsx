@@ -4,7 +4,6 @@
 import { useState, useRef, useEffect } from 'react';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
-import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import { playQuack } from '../utils/sounds';
 
 export default function HeaderHero({
@@ -16,6 +15,7 @@ export default function HeaderHero({
   greenDots = 0,
   kindDots = 0,
   fakeDots = 0,
+  remaining = { total: 0, power: 0, bugs: 0, clock: 0 },   // 오늘 남은 나무 종류별(세력/해충/시계)
   missedCount = 0,
   missionGap = null,                 // 지난달 미션 미완료 { month, pct } | null — 푸쉬 배너
   onOpenMission,                     // 배너 탭 → 지난달 미션 모달 열기
@@ -44,6 +44,8 @@ export default function HeaderHero({
   const [editingMsg, setEditingMsg] = useState(false);
   const [msgInput, setMsgInput] = useState('');
   const [msgSending, setMsgSending] = useState(false);
+  const [bubbleClosed, setBubbleClosed] = useState(false);   // 오리 말풍선 끄기(X). 새 메시지 오면 다시 뜸
+  useEffect(() => { setBubbleClosed(false); }, [duckMessage]);
   const msgInputRef = useRef(null);
   useEffect(() => {
     if (editingMsg && msgInputRef.current) msgInputRef.current.focus();
@@ -215,32 +217,22 @@ export default function HeaderHero({
           <div className="hero-stat-label" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
             오늘 작업 진행 · {completed ?? 0}/{total ?? 0}그루
           </div>
-          {/* 헛돌봄 경고 — 항상 보이는 헤더에. 잘못 돌본 나무 있으면 100% 아님을 알림 */}
-          {hasFake && !isStatsLoading && (
-            <div className="hero-stat-label" style={{ color: '#dc2626', fontWeight: 700, marginTop: 2 }}>
-              ⚠️ 헛돌봄 {fakeDots}그루 — 다시 확인하세요
-            </div>
-          )}
-          {/* 점 indicator — 헛돌봄(주황)/착한돌봄(파랑)/정돌봄(초록) */}
-          {(greenDots > 0 || kindDots > 0 || fakeDots > 0) && (
-            <div className="hero-dots">
-              {fakeDots > 0 && (
-                <span className="hero-dot-item">
-                  <span className="dot dot-orange" />
-                  {fakeDots}
-                </span>
+          {/* 오늘 남은(종류별 카운트다운) + 헛돌봄 — 어두운 반투명 음영 위에 밝은 글씨로(가독성).
+                 점 indicator는 헛돌봄이 글자로 뜨므로 삭제. 일하면 실시간으로 줄어듦. */}
+          {!isStatsLoading && (remaining.total > 0 || hasFake) && (
+            <div style={{ display: 'inline-block', marginTop: 6, padding: '5px 11px', background: 'rgba(0,0,0,0.25)', borderRadius: 12, backdropFilter: 'blur(6px)' }}>
+              {remaining.total > 0 && (
+                <div className="hero-stat-label" style={{ color: '#fff', fontWeight: 700, margin: 0 }}>
+                  🚦 남은 {remaining.total}그루
+                  {remaining.power > 0 && <span style={{ color: '#86efac' }}> · 세력 {remaining.power}</span>}
+                  {remaining.bugs > 0 && <span style={{ color: '#fca5a5' }}> · 해충 {remaining.bugs}</span>}
+                  {remaining.clock > 0 && <span style={{ color: '#fcd34d' }}> · 시계 {remaining.clock}</span>}
+                </div>
               )}
-              {kindDots > 0 && (
-                <span className="hero-dot-item">
-                  <span className="dot dot-blue" />
-                  {kindDots}
-                </span>
-              )}
-              {greenDots > 0 && (
-                <span className="hero-dot-item">
-                  <img src={treeIconSVG} alt="" className="dot-tree" />
-                  {greenDots}
-                </span>
+              {hasFake && (
+                <div className="hero-stat-label" style={{ color: '#fca5a5', fontWeight: 700, marginTop: remaining.total > 0 ? 3 : 0 }}>
+                  ⚠️ 헛돌봄 {fakeDots}그루 — 다시 확인하세요
+                </div>
               )}
             </div>
           )}
@@ -319,7 +311,7 @@ export default function HeaderHero({
             }}
           >×</button>
         </div>
-      ) : (
+      ) : !bubbleClosed ? (
         <div
           key={`duck-bubble-${duckWiggle}`}
           aria-hidden="true"
@@ -345,6 +337,19 @@ export default function HeaderHero({
             textAlign: 'center',
           }}
         >
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setBubbleClosed(true); }}
+          aria-label="말풍선 닫기"
+          style={{
+            position: 'absolute', top: -7, right: -7,
+            width: 16, height: 16, borderRadius: '50%',
+            border: '1.5px solid #1f2937', background: '#fffefb', color: '#6b7280',
+            fontSize: '0.62rem', lineHeight: 1, cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'auto', zIndex: 5, fontFamily: 'inherit',
+          }}
+        >×</button>
         {duckMessage}
         {/* tail (bubble pointing to duck) */}
         <span style={{
@@ -368,7 +373,7 @@ export default function HeaderHero({
           borderTop: '5px solid #fffefb',
         }} />
       </div>
-      )}
+      ) : null}
 
       {/* ✏️ 메시지 빠른 입력 버튼 — 말풍선 위쪽에 작게 */}
       {!editingMsg && (

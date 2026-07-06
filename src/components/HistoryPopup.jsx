@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
 import { monthAvgCompletion, topWorkers } from '../lib/historyStats';
+import WorkDotLegend from './WorkDotLegend';
 import treeIconSVG from '../assets/icons/tree_icon_1.svg';
 import farmerCrySVG from '../assets/icons/farmer_cry.svg';
 import farmerProudSVG from '../assets/icons/farmer_proud.svg';
@@ -791,6 +792,9 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
         <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 0.9rem' }}>
           매일의 작업 기록과 성취를 한눈에 볼 수 있어요.
         </p>
+
+        {/* 나무 점 색깔 범례 (헤더에서 뺀 점 설명 — 지도 점과 동일 색) */}
+        <WorkDotLegend />
 
         {/* ── 📊 통계 카드 (관수/방제 스타일) ── */}
         {!loading && (() => {

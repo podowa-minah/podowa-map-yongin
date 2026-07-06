@@ -17,7 +17,7 @@ const AnnouncementPopup = lazy(() => import('./components/AnnouncementPopup.jsx'
 import BottomBar from './components/BottomBar.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
-import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals } from './utils/dailyStats';
+import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals, remainingByCategory } from './utils/dailyStats';
 import './App.css';
 
 import IconLink from './components/IconLink';
@@ -706,6 +706,9 @@ export default function App() {
   );
 
   // 🦆 오리 말풍선 — 최신 공지 > 진행률별 기본 멘트
+  // 오늘 남은 나무 종류별(세력/해충/시계) — treeData가 realtime이라 자동 카운트다운
+  const remaining = useMemo(() => remainingByCategory(treeData, labels), [treeData, labels]);
+
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
   // 오늘 진짜 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일 다 함 — 3개 통합
   const signalsComplete = total != null && total > 0 && completed === total;
@@ -807,6 +810,7 @@ export default function App() {
             greenDots={greenDots}
             kindDots={greenDots - completed}
             fakeDots={fakeDoneCount}
+            remaining={remaining}
             missedCount={missedDaysNeedingReasons.length}
             missionGap={missionGap}
             onOpenMission={() => missionGap && setMissionModalMonth(missionGap.month)}
