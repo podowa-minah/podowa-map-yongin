@@ -21,6 +21,7 @@ import { finalMarksByDate } from './lib/cluster-thinning';
 import { fetchDailyWeather, WEATHER_LABEL } from './lib/weather';
 import { createThumbnail } from './utils/imageThumbnail';
 import AiUrgentTasks from './components/AiUrgentTasks';
+import { clockOut } from './utils/farmerClock';
 
 const ENV_MAX_PHOTOS = 2;
 
@@ -39,6 +40,8 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [clockingOut, setClockingOut] = useState(false);   // 최종 퇴근 처리 중
+  const [clockedOut, setClockedOut] = useState(false);      // 오늘 퇴근 완료 표시
   const [historyKey, setHistoryKey] = useState(0);   // 저장 시 history 새로고침
   const [history, setHistory] = useState([]);
   const [missionMap, setMissionMap] = useState({});   // {날짜: [미션칩…]} — manual_completions에서 계산
@@ -260,6 +263,17 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
     setDayNote(data || null);
     setHistoryKey(k => k + 1);
     onSaved?.();
+  }
+
+  // 최종 퇴근 — 이 순간을 퇴근 시각으로 기록(손님 앱 타임라인 연동)
+  async function handleClockOut() {
+    if (clockingOut || clockedOut) return;
+    if (!window.confirm('오늘 최종 퇴근으로 기록할까요?\n(손님 앱에 이 시각이 퇴근으로 표시돼요)')) return;
+    setClockingOut(true);
+    const ok = await clockOut();
+    setClockingOut(false);
+    if (ok) setClockedOut(true);
+    else alert('퇴근 기록에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
 
   // 컬러
@@ -616,6 +630,28 @@ export default function AnalysisPage({ treeData = {}, labels = {}, user, onOpenI
         <p style={{ fontSize: '0.7rem', color: C.muted, textAlign: 'center', marginTop: '0.2rem' }}>
           저장하면 아래 '보고' 불이 꺼져요 · 언제든 다시 수정 가능
         </p>
+
+        {selectedDate === today && (
+          <div style={{ marginTop: '1.1rem', paddingTop: '1.1rem', borderTop: '1px dashed #e0e0e0' }}>
+            <button
+              onClick={handleClockOut}
+              disabled={clockingOut || clockedOut}
+              style={{
+                width: '100%', padding: '0.95rem',
+                background: clockedOut ? '#e8efe9' : '#1c3d2e',
+                color: clockedOut ? '#6b7280' : '#f0dcae',
+                border: 'none', borderRadius: '0.6rem',
+                fontWeight: 800, cursor: (clockingOut || clockedOut) ? 'default' : 'pointer',
+                fontFamily: C.headlineFont,
+              }}
+            >
+              {clockedOut ? '✓ 오늘 퇴근 기록됨 · 수고하셨어요' : (clockingOut ? '기록 중…' : '🌙 오늘 하루 마무리 · 최종 퇴근')}
+            </button>
+            <p style={{ fontSize: '0.7rem', color: C.muted, textAlign: 'center', marginTop: '0.45rem' }}>
+              하루를 마치며 누르면, 손님 앱에 '퇴근'으로 기록돼요
+            </p>
+          </div>
+        )}
       </div>
       </div>
 

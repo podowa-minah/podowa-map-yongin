@@ -14,6 +14,7 @@ import { buildBriefingContext, buildRecentHistory } from '../lib/briefing';
 import { getVarietyAverages } from '../lib/diagnosis';
 import { getCarryOverFieldTasks } from '../lib/journal';
 import { POWER_IDEAL } from '../lib/scoring';
+import { clockIn } from '../utils/farmerClock';
 
 const GREEN = '#2f6b3c';
 
@@ -193,6 +194,7 @@ export default function BriefingPopup({ treeData = {}, labels = {}, user, irrEva
     else result = await supabase.from('daily_notes').insert({ date: today, type: 'journal', journal_notes, author, content: '' });
     setSaving(false);
     if (result?.error) { alert('저장 실패: ' + result.error.message); return; }
+    clockIn();   // 아침보고 확정 시각 = 출근 (손님 VINE OWNER 앱 타임라인 연동)
     onChecked?.();
     onClose?.();
   }
