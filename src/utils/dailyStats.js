@@ -262,7 +262,8 @@ export function remainingByCategory(treeData, labels) {
       const hasBal = todayRecs.some((r) => r.balance != null && r.balance !== '');
       const hasBugs = todayRecs.some((r) => r.bugs != null && r.bugs !== undefined && r.bugs !== '');
       const hasAny = hasPower || hasBal || hasBugs;
-      const remP = s.powerLevel !== 'off' && !hasPower;   // 세력 켜졌는데 오늘 세력 안 넣음
+      // '세력'은 지도 나무 아이콘(treeLevel = 세력 or 균형)과 동일하게: 세력 or 균형 켜졌는데 그 값 안 넣음
+      const remP = (s.powerLevel !== 'off' && !hasPower) || (s.balLevel !== 'off' && !hasBal);
       const remB = s.bugLevel !== 'off' && !hasBugs;      // 해충 켜졌는데 오늘 해충 안 넣음
       const remC = s.clockLevel !== 'off' && !hasAny;     // 시계는 뭐라도 넣으면 꺼짐
       if (remP) powerList.push({ id: numericId, name: lbl.name });
