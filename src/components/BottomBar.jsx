@@ -57,12 +57,13 @@ export default function BottomBar({
       />
 
       {/* 4: 밭상태 진단 보고 (핵심 daily task) */}
-      {/* 불: 오늘 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일. 셋 다 끝나야 꺼짐 */}
+      {/* 불: 보고 = 영농일지 저장 + AI 긴급할일 체크. 둘 다 하면 꺼짐.
+             신호등(나무 다 기록) 100%는 헤더 '남은' 카운트다운이 따로 보여줌 — 보고 불엔 안 묶음 */}
       {/*   아침 브리핑은 지도 앞 팝업으로 분리됨 — 더 이상 이 불과 안 묶임 */}
       <ActionItem
-        icon={<ReportIcon active={activeTab === 'analysis' || !signalsComplete || !hasJournalToday || aiFieldUndone} />}
+        icon={<ReportIcon active={activeTab === 'analysis' || !hasJournalToday || aiFieldUndone} />}
         label="보고"
-        badge={!signalsComplete || !hasJournalToday || aiFieldUndone}
+        badge={!hasJournalToday || aiFieldUndone}
         litColor="red"
         active={activeTab === 'analysis'}
         onClick={onOpenAnalysis}
