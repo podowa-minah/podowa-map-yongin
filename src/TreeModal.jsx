@@ -11,8 +11,8 @@ import farmerAnnounceSVG from './assets/icons/farmer_announce.svg';
 import { getBloomDateFromHistory, getStageTimelineFromBloom, getCurrentStageFromBloom, shortDate } from './lib/grape-stages';
 import { playSuccess } from './utils/sounds';
 import { CLUSTER_MARK, THINNING_MARK, markLabelsOf, treeMarkStatus } from './lib/cluster-thinning';
-import PestManager from './components/PestManager';
-import { bugsFromPests, readPests, pestSummary } from './lib/pests';
+import PestDiseasePanel from './components/PestDiseasePanel';
+import { pestSummary } from './lib/pests';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -588,8 +588,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
   const currentSeason = Number(treeData.season);
 
-  // 해충관리 — 벌레별 점수(season_data.pests). 옛 기록(bugs만)은 '미분류'로 살려서 표시.
-  const pestScores = readPests(treeData.season_data, treeData.bugs);
+  // 병해충(해충 점수·병 점수·진단사진)은 PestDiseasePanel이 treeData.season_data에서 직접 읽어 처리. (§2 보호파일 최소수정)
 
   // 최종완료(송이크기정리/알솎이)는 "이 나무가 올해 끝냈나"로 본다 — 전체 기록(history) 기준.
   //   한 번 체크하면 끝(완료) → 다른 날 입력창을 다시 열어도 체크 상태가 유지/잠금된다.
@@ -1367,15 +1366,12 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
             </div>
           </div>
 
-          {/* 6. 해충관리 — 벌레별 점수 (PestManager로 분리, §2 보호파일 규칙).
-                 bugs = max(벌레점수)로 동기화 → 종합점수·신호등 알고리즘 그대로. */}
-          <PestManager
-            pests={pestScores}
-            onChange={(next) => setTreeData((prev) => ({
-              ...prev,
-              season_data: { ...prev.season_data, pests: next },
-              bugs: String(bugsFromPests(next)),
-            }))}
+          {/* 6. 병해충 — 해충 점수 + 병 점수 + 진단사진 (PestDiseasePanel, 접이식).
+                 §2 보호파일 규칙: 새 컴포넌트로 분리. bugs = max(벌레점수) 동기화는 패널 안에서 유지 → 신호등 불변. */}
+          <PestDiseasePanel
+            treeId={treeId}
+            treeData={treeData}
+            setTreeData={setTreeData}
           />
 
           {/* 6.5 부분방제 */}
@@ -1440,7 +1436,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
 
         {/* 7. Images */}
         <div style={{ marginBottom: '0.5rem' }}>
-          <label style={{ color: '#4b5563', fontWeight: 500 }}>사진기록 ({treeData.images.length}/5)</label>
+          <label style={{ color: '#4b5563', fontWeight: 500 }}>🌱 생육 사진 ({treeData.images.length}/5)</label>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
             {/* 📷 카메라 직접 촬영 */}
             <label style={{
