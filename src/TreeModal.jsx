@@ -13,6 +13,7 @@ import { playSuccess } from './utils/sounds';
 import { CLUSTER_MARK, THINNING_MARK, markLabelsOf, treeMarkStatus } from './lib/cluster-thinning';
 import PestDiseasePanel from './components/PestDiseasePanel';
 import { pestSummary } from './lib/pests';
+import { diseaseSummary } from './lib/diseases';
 
 
 // ---------- PINCH ZOOM WRAPPER FOR TABLE ---------- //
@@ -1541,7 +1542,7 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     ['season', '생육시기', true],
                     ['power', '세력', true],
                     ['balance', '균형', true],
-                    ['bugs', '해충', true],
+                    ['bugs', '병해충', true],
                     ['partial_treatment', '부분방제', true],
                     ['comments', '코멘트', true],
                     ['done_tasks', '한일', false],
@@ -1570,7 +1571,16 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     <td style={cellStyle}>{SEASON_NAMES[row.season]}</td>
                     <td style={cellStyle}>{row.power}</td>
                     <td style={cellStyle}>{row.balance}</td>
-                    <td style={cellStyle}>{pestSummary(row.season_data, row.bugs)}</td>
+                    <td style={cellStyle}>{(() => {
+                      const ps = pestSummary(row.season_data, row.bugs);   // 벌레 요약
+                      const ds = diseaseSummary(row.season_data);          // 병 요약
+                      const np = (row.season_data?.diag_photos || []).length; // 진단사진 수
+                      const parts = [];
+                      if (ps) parts.push(ps);
+                      if (ds) parts.push(ds);
+                      if (np > 0) parts.push(`진단 ${np}`);
+                      return parts.length ? parts.join(' / ') : '-';
+                    })()}</td>
                     <td style={cellStyle}>{row.partial_treatment ? '✔' : ''}</td>
                     <td
                       style={{ ...cellStyle, maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
@@ -1583,15 +1593,18 @@ const TreeModal = ({ treeId, initialData, onClose, onOpenGrass, user }) => {
                     </td>
                     <td style={cellStyle}>
                       {row.images && row.images.length > 0 ? (
-                        <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
-                          {row.images.map((img, imgIdx) => (
-                            <ThumbImg
-                              key={imgIdx}
-                              src={row.thumbnails?.[imgIdx] || img}
-                              fullSrc={img}
-                              onPreview={(url) => { setPreviewImg(url); }}
-                            />
-                          ))}
+                        <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                          {/* 첫 장만 썸네일 (누르면 미리보기). 나머지는 +N — 행 누르면 그날 전체 로드 */}
+                          <ThumbImg
+                            src={row.thumbnails?.[0] || row.images[0]}
+                            fullSrc={row.images[0]}
+                            onPreview={(url) => { setPreviewImg(url); }}
+                          />
+                          {row.images.length > 1 && (
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                              +{row.images.length - 1}
+                            </span>
+                          )}
                         </div>
                       ) : '-'}
                     </td>
