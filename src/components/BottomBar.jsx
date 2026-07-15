@@ -2,13 +2,10 @@
 // 하단 액션 바 — 잎/관수/방제/보고서/메뉴 (모바일 탭바 스타일)
 // 보고서 = 현황분석 페이지로 이동, 미작성 시 빨간 dot 알람
 
-import grasslink from '../assets/icons/grass.svg';
-import grapelink from '../assets/icons/grape.svg';
-
 export default function BottomBar({
   activeTab,
   viewMode,
-  onToggleMap,
+  onTogglePest,
   onOpenIrrigation,
   onOpenPest,
   onOpenAnalysis,
@@ -21,21 +18,12 @@ export default function BottomBar({
 }) {
   return (
     <nav className="action-bar">
-      {/* 1: 지도 전환 (잎/포도) */}
+      {/* 1: 병해충 지도 (잎+돋보기) — 들풀 전환은 헤더 로고 옆으로 이동함 */}
       <ActionItem
-        icon={
-          <img
-            src={viewMode === 'farm' ? grasslink : grapelink}
-            alt=""
-            style={{
-              width: 26, height: 26,
-              transform: viewMode === 'farm' ? 'none' : 'rotate(22deg)',
-            }}
-          />
-        }
-        label={viewMode === 'farm' ? '들풀' : '나무'}
-        active={activeTab === 'map'}
-        onClick={onToggleMap}
+        icon={<PestScopeIcon active={viewMode === 'pest'} />}
+        label="병해충"
+        active={viewMode === 'pest'}
+        onClick={onTogglePest}
       />
 
       {/* 2: 관수 */}
@@ -98,6 +86,20 @@ function ActionItem({ icon, label, active, badge, onClick, highlight, litColor, 
 }
 
 // 작은 SVG 아이콘들 (미니멀, 일관된 스타일)
+function PestScopeIcon({ active }) {
+  // 잎 + 돋보기 — "작물(잎)을 살펴본다" = 병+해충 둘 다. 켜지면 초록.
+  const leaf = active ? '#16a34a' : '#94a3b8';
+  const vein = active ? '#0f5c2e' : '#64748b';
+  const glass = active ? '#1f2937' : '#64748b';
+  return (
+    <svg width="26" height="26" viewBox="0 0 40 40" fill="none">
+      <path d="M7 27 C7 15 17 8 29 8 C29 20 19 27 7 27 Z" fill={leaf} />
+      <path d="M11 24 C17 20 22 15 26 11" stroke={vein} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <circle cx="25" cy="25" r="7.5" fill="#ffffff" fillOpacity="0.5" stroke={glass} strokeWidth="2.4" />
+      <line x1="30.5" y1="30.5" x2="35" y2="35" stroke={glass} strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
 function WaterIcon({ lit }) {
   const fill = lit ? '#0ea5e9' : '#94a3b8';
   const stroke = lit ? '#0369a1' : '#64748b';

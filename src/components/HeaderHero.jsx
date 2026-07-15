@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import farmerSVG from '../assets/icons/farmer.svg';
 import farmerAnnounce from '../assets/icons/farmer_announce.svg';
+import grasslink from '../assets/icons/grass.svg';
 import { playQuack } from '../utils/sounds';
 import RemainingTreesPopup from './RemainingTreesPopup';
 
@@ -32,6 +33,8 @@ export default function HeaderHero({
   onFarmerClick,
   onAnnouncements,
   onIncompleteReasons,
+  viewMode,
+  onToggleGrass,
 }) {
   // 🦆 오리 말풍선 — 항상 표시. 누르면 꽥꽥 + 살짝 출렁
   const [duckWiggle, setDuckWiggle] = useState(0);
@@ -140,6 +143,23 @@ export default function HeaderHero({
           <button className="brand-mark" onClick={onGoAnalysis} aria-label="현황분석으로 이동">
             PODOWA
           </button>
+          {/* 들풀 지도 전환 — 하단바에서 로고 옆으로 이동 (자리를 병해충에 내줌) */}
+          {onToggleGrass && (
+            <button
+              onClick={onToggleGrass}
+              aria-label={viewMode === 'grass' ? '나무 지도로 돌아가기' : '들풀 지도 보기'}
+              title={viewMode === 'grass' ? '나무 지도로' : '들풀 지도'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto',
+                padding: '0.3rem 0.55rem', borderRadius: '0.6rem', cursor: 'pointer', border: 'none',
+                background: viewMode === 'grass' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.22)',
+                boxShadow: viewMode === 'grass' ? '0 2px 6px rgba(0,0,0,0.2)' : 'none',
+              }}
+            >
+              <img src={grasslink} alt="" style={{ width: 20, height: 20 }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: viewMode === 'grass' ? '#166534' : '#ffffff' }}>들풀</span>
+            </button>
+          )}
           {/* 송이크기정리/알솎이 최종완료 진행률 — PODOWA 옆 흰 칩으로 또렷하게.
               전밭 그루 대비 %. 아무도 안 누른(0/0) 비시즌엔 숨김.
               전밭 알솎이까지 100% 끝나면(=둘 다 100%) 지도 테두리처럼 칩도 사라짐. */}

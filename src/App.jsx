@@ -18,6 +18,8 @@ import BottomBar from './components/BottomBar.jsx';
 import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
 import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals, remainingByCategory } from './utils/dailyStats';
+import { pestDistribution, pestColorMap } from './lib/pest-distribution';
+import PestMapOverlay from './components/PestMapOverlay';
 import './App.css';
 
 import IconLink from './components/IconLink';
@@ -56,7 +58,8 @@ export default function App() {
   const [treeData, setTreeData] = useState({});
   const [freshTreeLoaded, setFreshTreeLoaded] = useState(false);   // 서버 fresh fetch 완료 여부 — lit 깜빡임 방지용
   const [selectedTree, setSelectedTree] = useState(null);
-  const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass'
+  const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass' | 'pest'
+  const [selectedPest, setSelectedPest] = useState('__ALL__'); // 병해충 지도에서 고른 벌레/병 (칩, '__ALL__'=전체)
   const [grassRecords, setGrassRecords] = useState({});
   const [selectedGrassCell, setSelectedGrassCell] = useState(null);
 
@@ -708,6 +711,9 @@ export default function App() {
   // 🦆 오리 말풍선 — 최신 공지 > 진행률별 기본 멘트
   // 오늘 남은 나무 종류별(세력/해충/시계) — treeData가 realtime이라 자동 카운트다운
   const remaining = useMemo(() => remainingByCategory(treeData, labels), [treeData, labels]);
+  // 병해충 지도 — 분포 계산(treeData+labels)과 나무별 색(선택 칩 반영). 파생값이라 realtime 자동 갱신.
+  const pestDist = useMemo(() => pestDistribution(treeData, labels), [treeData, labels]);
+  const pestColorById = useMemo(() => pestColorMap(pestDist, selectedPest), [pestDist, selectedPest]);
 
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
   // 오늘 진짜 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일 다 함 — 3개 통합
@@ -826,6 +832,8 @@ export default function App() {
             onFarmerClick={() => setShowLogPopup(true)}
             onAnnouncements={() => setShowAnnouncements(true)}
             onIncompleteReasons={() => setShowIncompletePopup(true)}
+            viewMode={viewMode}
+            onToggleGrass={() => { setActiveTab('map'); setViewMode((v) => (v === 'grass' ? 'farm' : 'grass')); }}
           />
 
           {/* ── 접히는 메뉴 ── */}
@@ -874,10 +882,15 @@ export default function App() {
 
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
-            viewMode === 'farm' ? (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} />
-            ) : (
+            viewMode === 'grass' ? (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
+                {viewMode === 'pest' && (
+                  <PestMapOverlay dist={pestDist} selected={selectedPest} onSelect={setSelectedPest} />
+                )}
+              </div>
             )
           )}
           {activeTab === 'analysis' && (
@@ -900,9 +913,9 @@ export default function App() {
         <BottomBar
           activeTab={activeTab}
           viewMode={viewMode}
-          onToggleMap={() => {
+          onTogglePest={() => {
             setActiveTab('map');
-            setViewMode(viewMode === 'farm' ? 'grass' : 'farm');
+            setViewMode((v) => (v === 'pest' ? 'farm' : 'pest'));
           }}
           onOpenIrrigation={() => setShowIrrigation(true)}
           onOpenPest={() => setShowPestTreatment(true)}

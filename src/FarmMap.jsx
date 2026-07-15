@@ -37,7 +37,7 @@ function computeTriggers(records) {
   return evaluateSignals(recsBefore, today);
 }
 
-export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), fakeDoneReasons = {}, watchTreeIds = new Set(), watchReasons = {}, aiTrees = {}, clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false }) {
+export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new Set(), doneTreeIds = new Set(), fakeDoneTreeIds = new Set(), fakeDoneReasons = {}, watchTreeIds = new Set(), watchReasons = {}, aiTrees = {}, clusterTrimTreeIds = new Set(), thinningTreeIds = new Set(), onViewportChange, freshDataLoaded = false, pestMode = false, pestColorById = {} }) {
   const rows = 25;
   const cols = 8;
   const cellW = 44;
@@ -390,17 +390,19 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 flexDirection: "column",
                 alignItems: "center",
                 cursor: "pointer",
-                boxShadow: finalShadow,
+                boxShadow: pestMode ? '0 0 0 1px #d6c8a8, 0 1px 2px rgba(120, 90, 40, 0.10)' : finalShadow,
                 borderRadius: 5,
-                backgroundColor: hasTodo ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : '#fffefb',
+                backgroundColor: pestMode
+                  ? (pestColorById[numericId] || '#efe9df')   // 병해충 모드: 분포색(없으면 흐림)
+                  : (hasTodo ? (anyOverdue ? 'rgba(220, 80, 60, 0.25)' : '#c2d9c7') : '#fffefb'),
                 overflow: "hidden",            // 둥근 모서리 안쪽까지 잘림
                 position: "relative",
                 // 흰 카드(완료)는 살짝 가라앉게, 색깔 카드는 살짝 위로
-                transform: hasTodo ? 'translateY(-1px)' : 'none',
+                transform: (!pestMode && hasTodo) ? 'translateY(-1px)' : 'none',
               }}
             >
               {/* 오늘 입력 표시 - 우측상단 점 (정돌봄=초록, 헛돌봄=오렌지, 착한돌봄=파랑) */}
-              {hasTodayInput && (
+              {!pestMode && hasTodayInput && (
                 <span style={{
                   position: 'absolute',
                   top: 1,
@@ -413,7 +415,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                 }} />
               )}
               {/* 유심히 볼 나무(이상치) - 좌측상단 주황 점 + 글로우. 브리핑 '유심히'와 동일 */}
-              {isWatch && (
+              {!pestMode && isWatch && (
                 <span
                   title={watchReasons[numericId] || '유심히 볼 나무'}
                   style={{
@@ -430,7 +432,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   }}
                 />
               )}
-              {/* 아이콘 영역 */}
+              {/* 아이콘 영역 (병해충 모드에선 흐리게 — 분포색이 주인공) */}
               <div
                 onClick={() => handleCellClick(id)}
                 style={{
@@ -439,6 +441,7 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
                   justifyContent: "center",
                   alignItems: "center",
                   flex: 1,
+                  opacity: pestMode ? 0.12 : 1,
                 }}
               >
                 <img
