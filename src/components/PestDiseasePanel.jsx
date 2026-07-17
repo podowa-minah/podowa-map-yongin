@@ -9,7 +9,7 @@ import { useState } from 'react';
 import PestManager from './PestManager';
 import DiseaseManager from './DiseaseManager';
 import DiagPhotoStrip from './DiagPhotoStrip';
-import { DEFAULT_PESTS, PEST_COLORS, readPests, worstPest, bugsFromPests } from '../lib/pests';
+import { DEFAULT_PESTS, PEST_COLORS, readPests, worstPest, mainPestScore } from '../lib/pests';
 import { DEFAULT_DISEASES, readDiseases, worstDisease } from '../lib/diseases';
 
 function Pill({ name, score }) {
@@ -48,12 +48,17 @@ export default function PestDiseasePanel({ treeId = 'tree', treeData = {}, setTr
   const setSeason = (patch) =>
     setTreeData?.((prev) => ({ ...prev, season_data: { ...prev.season_data, ...patch } }));
 
-  const onPestsChange = (next) =>
+  // 벌레불(신호등)에 들어가는 값 = 주벌레(깍지) 점수만.
+  //   부벌레(응애/총채…)만 입력하면 bugs가 안 채워짐 → 깍지 불이 안 꺼지고 헛돌봄으로 잡힌다 (의도된 동작).
+  //   신호등 알고리즘(주기 규칙)은 1도 안 건드림 — 들어가는 값만 원래 의미(깍지)로.
+  const onPestsChange = (next) => {
+    const main = mainPestScore(next);   // 깍지 점수. 안 봤으면 null
     setTreeData?.((prev) => ({
       ...prev,
       season_data: { ...prev.season_data, pests: next },
-      bugs: String(bugsFromPests(next)),   // 신호등 동기화 (알고리즘 불변)
+      bugs: main == null ? '' : String(main),
     }));
+  };
   const onDiseasesChange = (next) => setSeason({ diseases: next });
   const onPhotosChange = (next) => setSeason({ diag_photos: next });
 

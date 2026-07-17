@@ -15,7 +15,23 @@ export const PEST_SHADOWS = [
   'rgba(140,70,10,.45)', 'rgba(150,50,10,.45)', 'rgba(120,10,10,.5)',
 ];
 
-// 벌레별 점수 객체 → bugs(0~5). 가장 센 놈. 없으면 0.  (scoring.js 에 넘길 값)
+// 주벌레 — 벌레불(신호등)이 보는 단 하나의 벌레.
+//   ⚠️ 예전엔 벌레점수 = 깍지였는데, 벌레 세분화하면서 max(가장 센 놈)로 바꿨더니
+//      응애만 입력해도 벌레불이 꺼져서 "깍지를 안 보고 넘어가는" 문제가 생겼다 (2026-07 minari 지적).
+//      → 벌레불에 들어가는 값만 원래 의미(깍지)로 복원. 신호등 알고리즘(주기 규칙)은 그대로.
+//      부벌레(응애/총채/개각충)는 벌레불에 안 물리고 병해충 지도에서 확인한다.
+export const MAIN_PEST = '깍지';
+
+// 주벌레(깍지) 점수 → 벌레불에 넣을 값. 안 봤으면 null (= 기록 없음 → 불 안 꺼짐 → 헛돌봄으로 잡힘)
+export function mainPestScore(pests = {}) {
+  const v = pests?.[MAIN_PEST];
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// 벌레별 점수 객체 → 가장 센 점수.
+//   ⚠️ 벌레불(신호등)에는 더 이상 안 씀 — 위 mainPestScore 사용. 표시/요약 용도로만.
 export function bugsFromPests(pests = {}) {
   const vals = Object.values(pests || {}).map(Number).filter((n) => Number.isFinite(n) && n > 0);
   return vals.length ? Math.max(...vals) : 0;
