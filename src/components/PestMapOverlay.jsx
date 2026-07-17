@@ -23,7 +23,7 @@ export default function PestMapOverlay({ dist, selected = '__ALL__', onSelect })
 
   return (
     <div style={{
-      position: 'absolute', top: 8, left: 8, right: 8, zIndex: 20,
+      position: 'absolute', top: 3, left: 6, right: 6, zIndex: 95,
       background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(3px)',
       border: '1px solid #e7e0d0', borderRadius: '0.9rem',
       boxShadow: '0 6px 18px rgba(0,0,0,0.14)', padding: '0.6rem 0.7rem',
@@ -38,7 +38,7 @@ export default function PestMapOverlay({ dist, selected = '__ALL__', onSelect })
             }}>1순위</span>
             <span style={{ fontWeight: 800, color: '#1f2937' }}>{worst.name}</span>
             <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>
-              {worst.count}그루 / {total} · <b style={{ color: '#c0140f' }}>{worst.pct}%</b> · 평균 {worst.avgScore}점
+              {worst.count}그루 / {total} · <b style={{ color: '#c0140f' }}>{worst.pct}% 감염</b> · 평균 {worst.avgScore}점
             </span>
           </>
         ) : (
@@ -63,7 +63,7 @@ export default function PestMapOverlay({ dist, selected = '__ALL__', onSelect })
       {/* 선택 통계 / 안내 */}
       {sel ? (
         <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#374151' }}>
-          <b>{sel.name}</b> · {sel.count}그루 / {total} (<b style={{ color: '#c0140f' }}>{sel.pct}%</b>) · 평균 {sel.avgScore}점 · 최고 {sel.maxScore}점
+          <b>{sel.name}</b> · {sel.count}그루 / {total} · <b style={{ color: '#c0140f' }}>{sel.pct}% 감염</b> · 평균 {sel.avgScore}점 · 최고 {sel.maxScore}점
         </div>
       ) : (
         worst && (

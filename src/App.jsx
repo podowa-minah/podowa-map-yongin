@@ -875,6 +875,10 @@ export default function App() {
           >
             {heroCollapsed ? '▼' : '▲'}
           </button>
+          {/* 병해충 모드: 날짜 카드 위에 오버레이 (더 위로 — 날짜 가려도 됨, minari 요청) */}
+          {activeTab === 'map' && viewMode === 'pest' && (
+            <PestMapOverlay dist={pestDist} selected={selectedPest} onSelect={setSelectedPest} />
+          )}
         </div>
 
         {/* ── 이달의 포도 미션 진입 (맵 화면 우하단 플로팅 — 레이아웃 높이 0) ── */}
@@ -885,12 +889,7 @@ export default function App() {
             viewMode === 'grass' ? (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             ) : (
-              <div style={{ position: 'relative' }}>
-                <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
-                {viewMode === 'pest' && (
-                  <PestMapOverlay dist={pestDist} selected={selectedPest} onSelect={setSelectedPest} />
-                )}
-              </div>
+              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
             )
           )}
           {activeTab === 'analysis' && (
@@ -915,7 +914,9 @@ export default function App() {
           viewMode={viewMode}
           onTogglePest={() => {
             setActiveTab('map');
-            setViewMode((v) => (v === 'pest' ? 'farm' : 'pest'));
+            const entering = viewMode !== 'pest';
+            setViewMode(entering ? 'pest' : 'farm');
+            setHeroCollapsed(entering);   // 병해충 진입=헤더 접어 맵 넓게 / 나가기=펼치기
           }}
           onOpenIrrigation={() => setShowIrrigation(true)}
           onOpenPest={() => setShowPestTreatment(true)}
