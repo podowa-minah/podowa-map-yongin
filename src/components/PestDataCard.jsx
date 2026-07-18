@@ -5,7 +5,7 @@ import { useState } from 'react';
 import PestDataPopup from './PestDataPopup';
 import { colorOf } from '../lib/pest-colors';
 
-export default function PestDataCard({ dist, colors = {}, treeData = {}, labels = {}, onOpenTree }) {
+export default function PestDataCard({ dist, colors = {}, guideOverrides = {}, onSaveGuide, treeData = {}, labels = {}, onOpenTree }) {
   const [open, setOpen] = useState(false);
   const worst = dist?.worst || null;
   const c = worst ? colorOf(worst.name, colors) : '#9ca3af';
@@ -36,7 +36,8 @@ export default function PestDataCard({ dist, colors = {}, treeData = {}, labels 
 
       {open && (
         <PestDataPopup
-          dist={dist} colors={colors} treeData={treeData} labels={labels}
+          dist={dist} colors={colors} guideOverrides={guideOverrides} onSaveGuide={onSaveGuide}
+          treeData={treeData} labels={labels}
           onClose={() => setOpen(false)}
           onOpenTree={(id) => { setOpen(false); onOpenTree?.(id); }}
         />

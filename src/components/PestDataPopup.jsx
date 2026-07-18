@@ -6,19 +6,24 @@ import { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { collectDiagPhotos, countAsOf } from '../lib/pest-distribution';
 import { colorOf, pestShade } from '../lib/pest-colors';
+import { guideFor } from '../lib/pest-guide';
 import { PART_LABEL } from './DiagPhotoStrip';
+import PestGuideEdit from './PestGuideEdit';
 import { getKSTToday } from '../utils/dailyStats';
 
 const PART_ORDER = ['adult', 'larva', 'damage'];
 const PART_EMOJI = { adult: '🐛', larva: '🐞', damage: '🍂' };
 
-export default function PestDataPopup({ dist, colors = {}, treeData = {}, labels = {}, onClose, onOpenTree }) {
+export default function PestDataPopup({ dist, colors = {}, guideOverrides = {}, onSaveGuide, treeData = {}, labels = {}, onClose, onOpenTree }) {
   const list = dist?.list || [];
   const total = dist?.total || 0;
   const [sel, setSel] = useState(dist?.worst?.name || list[0]?.name || null);
+  const [guideOpen, setGuideOpen] = useState(false);   // 지식 카드 펼침 (기본 접힘 — 밭에서 안 부담되게)
+  const [editGuide, setEditGuide] = useState(false);   // 관리자 수정 폼
 
   const it = list.find((x) => x.name === sel) || null;
   const c = sel ? colorOf(sel, colors) : '#9ca3af';
+  const g = sel ? guideFor(sel, guideOverrides) : null;
 
   const photoBook = useMemo(() => collectDiagPhotos(treeData, labels), [treeData, labels]);
   const shots = (sel && photoBook[sel]) || { adult: [], larva: [], damage: [] };
@@ -106,6 +111,46 @@ export default function PestDataPopup({ dist, colors = {}, treeData = {}, labels
                   {diff > 0 ? `▲${diff} 번지는 중` : diff < 0 ? `▼${-diff} 줄어드는 중` : '그대로'}
                 </b>
               </div>
+            )}
+
+            {/* 이 벌레/병은? — 간략 지식 (접어둠) + ✏️ 관리자 수정 */}
+            {sel && (
+              <div style={{ border: '1px solid #ece7db', background: '#fbfaf6', borderRadius: '0.7rem', padding: '0.55rem 0.7rem', marginBottom: '0.9rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={() => setGuideOpen((v) => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                  >
+                    <span style={{ fontWeight: 700, color: '#4b5563', fontSize: '0.88rem' }}>📖 {sel}는 어떤 {(g?.kind || it?.kind) === 'disease' ? '병' : '벌레'}?</span>
+                    <span style={{ marginLeft: 'auto', color: '#7c3aed', fontWeight: 700, fontSize: '0.8rem', flex: '0 0 auto' }}>{guideOpen ? '접기 ▴' : '자세히 ▾'}</span>
+                  </button>
+                  <button
+                    onClick={() => setEditGuide(true)}
+                    aria-label={`${sel} 설명 수정 (관리자)`}
+                    style={{ flex: '0 0 auto', border: '1px solid #e2e8f0', background: '#fff', borderRadius: 8, padding: '0.2rem 0.45rem', cursor: 'pointer', fontSize: '0.75rem', color: '#6b7280', fontWeight: 700 }}
+                  >✏️ 수정</button>
+                </div>
+                {g && (g.what || g.sign || g.watch || g.care) ? (
+                  guideOpen ? (
+                    <div style={{ fontSize: '0.82rem', color: '#3a382f', marginTop: 6, lineHeight: 1.5 }}>
+                      {g.what && <div style={{ marginBottom: 5 }}>{g.what}</div>}
+                      {g.sign && <div><b style={{ color: '#b45309' }}>🔎 증상</b> {g.sign}</div>}
+                      {g.watch && <div><b style={{ color: '#c0140f' }}>⏰ 급소</b> {g.watch}</div>}
+                      {g.care && <div><b style={{ color: '#16a34a' }}>🌿 관리</b> {g.care}</div>}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.what || g.sign}</div>
+                  )
+                ) : (
+                  <div style={{ fontSize: '0.78rem', color: '#b9b3a6', marginTop: 4 }}>설명 준비중 — <b style={{ color: '#7c3aed' }}>✏️ 수정</b>으로 채워보세요</div>
+                )}
+              </div>
+            )}
+            {editGuide && sel && (
+              <PestGuideEdit
+                name={sel} kind={it?.kind || 'pest'} overrides={guideOverrides}
+                onSave={onSaveGuide} onClose={() => setEditGuide(false)}
+              />
             )}
 
             {/* 사진 도감 */}

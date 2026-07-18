@@ -20,6 +20,7 @@ import { supabase } from './supabaseClient';
 import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals, remainingByCategory } from './utils/dailyStats';
 import { pestDistribution, pestColorMap } from './lib/pest-distribution';
 import { readPestColors } from './lib/pest-colors';
+import { readGuideOverrides } from './lib/pest-guide';
 import PestMapOverlay from './components/PestMapOverlay';
 import PestColorPicker from './components/PestColorPicker';
 import PestScoutPopup from './components/PestScoutPopup';
@@ -65,6 +66,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass' | 'pest'
   const [selectedPest, setSelectedPest] = useState('__ALL__'); // 병해충 지도에서 고른 벌레/병 (칩, '__ALL__'=전체)
   const [pestColors, setPestColors] = useState({});            // 벌레/병 대표색 (app_settings.pest_colors)
+  const [guideOverrides, setGuideOverrides] = useState({});    // 지식 카드 관리자 수정본 (app_settings.pest_guide)
   const [showPestColors, setShowPestColors] = useState(false); // 🎨 색 고르기 팝업
   const [scoutTree, setScoutTree] = useState(null);            // 예찰 톡톡 — 지도에서 누른 나무
   const [grassRecords, setGrassRecords] = useState({});
@@ -329,7 +331,7 @@ export default function App() {
         supabase.from('daily_notes').select('date').not('pest_treatment', 'is', null)
           .order('date', { ascending: false }).limit(1),
         supabase.from('app_settings').select('key,value')
-          .in('key', ['irrigation_cycle_days', 'pest_cycle_days', 'pest_colors']),
+          .in('key', ['irrigation_cycle_days', 'pest_cycle_days', 'pest_colors', 'pest_guide']),
       ]);
       if (!alive) return;
       const settings = Object.fromEntries((settingsRes.data || []).map(r => [r.key, r.value]));
@@ -338,6 +340,7 @@ export default function App() {
       setIrrEval(evaluateCycle(irrRes.data?.[0]?.date || null, irrCycle));
       setPestEval(evaluateCycle(pestRes.data?.[0]?.date || null, pestCycle));
       setPestColors(readPestColors(settings.pest_colors));   // 벌레/병 대표색 (없으면 기본색 자동)
+      setGuideOverrides(readGuideOverrides(settings.pest_guide));   // 지식 카드 수정본 (없으면 기본 지식)
     })();
     return () => { alive = false; };
   }, [user, treatmentRefreshKey]);
@@ -732,6 +735,15 @@ export default function App() {
     if (error) console.error('병해충 색 저장 실패:', error.message);
   };
 
+  // 지식 카드 관리자 수정 → app_settings.pest_guide 에 저장 (기본 지식은 코드에, 수정본만 덮어씀)
+  const savePestGuide = async (name, fields) => {
+    const next = { ...guideOverrides, [name]: fields };
+    setGuideOverrides(next);
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'pest_guide', value: JSON.stringify(next) }, { onConflict: 'key' });
+    if (error) console.error('병해충 지식 저장 실패:', error.message);
+  };
+
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
   // 오늘 진짜 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일 다 함 — 3개 통합
   const signalsComplete = total != null && total > 0 && completed === total;
@@ -920,7 +932,8 @@ export default function App() {
         {/* 우하단 플로팅 — 병해충 지도일 땐 '병해충 데이터', 평소엔 '이달의 미션' (자리 공유, minari 제안) */}
         {activeTab === 'map' && (viewMode === 'pest' ? (
           <PestDataCard
-            dist={pestDist} colors={pestColors} treeData={treeData} labels={labels}
+            dist={pestDist} colors={pestColors} guideOverrides={guideOverrides} onSaveGuide={savePestGuide}
+            treeData={treeData} labels={labels}
             onOpenTree={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
           />
         ) : (
