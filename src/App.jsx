@@ -19,7 +19,11 @@ import { useLabels } from './LabelContext';
 import { supabase } from './supabaseClient';
 import { getKSTToday, offsetDate, computeStatsForDate, evaluateSignals, remainingByCategory } from './utils/dailyStats';
 import { pestDistribution, pestColorMap } from './lib/pest-distribution';
+import { readPestColors } from './lib/pest-colors';
 import PestMapOverlay from './components/PestMapOverlay';
+import PestColorPicker from './components/PestColorPicker';
+import PestScoutPopup from './components/PestScoutPopup';
+import PestDataCard from './components/PestDataCard';
 import './App.css';
 
 import IconLink from './components/IconLink';
@@ -60,6 +64,9 @@ export default function App() {
   const [selectedTree, setSelectedTree] = useState(null);
   const [viewMode, setViewMode] = useState('farm'); // 'farm' | 'grass' | 'pest'
   const [selectedPest, setSelectedPest] = useState('__ALL__'); // 병해충 지도에서 고른 벌레/병 (칩, '__ALL__'=전체)
+  const [pestColors, setPestColors] = useState({});            // 벌레/병 대표색 (app_settings.pest_colors)
+  const [showPestColors, setShowPestColors] = useState(false); // 🎨 색 고르기 팝업
+  const [scoutTree, setScoutTree] = useState(null);            // 예찰 톡톡 — 지도에서 누른 나무
   const [grassRecords, setGrassRecords] = useState({});
   const [selectedGrassCell, setSelectedGrassCell] = useState(null);
 
@@ -322,7 +329,7 @@ export default function App() {
         supabase.from('daily_notes').select('date').not('pest_treatment', 'is', null)
           .order('date', { ascending: false }).limit(1),
         supabase.from('app_settings').select('key,value')
-          .in('key', ['irrigation_cycle_days', 'pest_cycle_days']),
+          .in('key', ['irrigation_cycle_days', 'pest_cycle_days', 'pest_colors']),
       ]);
       if (!alive) return;
       const settings = Object.fromEntries((settingsRes.data || []).map(r => [r.key, r.value]));
@@ -330,6 +337,7 @@ export default function App() {
       const pestCycle = parseInt(settings.pest_cycle_days) || 7;
       setIrrEval(evaluateCycle(irrRes.data?.[0]?.date || null, irrCycle));
       setPestEval(evaluateCycle(pestRes.data?.[0]?.date || null, pestCycle));
+      setPestColors(readPestColors(settings.pest_colors));   // 벌레/병 대표색 (없으면 기본색 자동)
     })();
     return () => { alive = false; };
   }, [user, treatmentRefreshKey]);
@@ -713,7 +721,16 @@ export default function App() {
   const remaining = useMemo(() => remainingByCategory(treeData, labels), [treeData, labels]);
   // 병해충 지도 — 분포 계산(treeData+labels)과 나무별 색(선택 칩 반영). 파생값이라 realtime 자동 갱신.
   const pestDist = useMemo(() => pestDistribution(treeData, labels), [treeData, labels]);
-  const pestColorById = useMemo(() => pestColorMap(pestDist, selectedPest), [pestDist, selectedPest]);
+  const pestColorById = useMemo(() => pestColorMap(pestDist, selectedPest, pestColors), [pestDist, selectedPest, pestColors]);
+
+  // 벌레/병 대표색 고르기 → app_settings에 저장 (기기·사람 상관없이 같은 색)
+  const savePestColor = async (name, color) => {
+    const next = { ...pestColors, [name]: color };
+    setPestColors(next);
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'pest_colors', value: JSON.stringify(next) }, { onConflict: 'key' });
+    if (error) console.error('병해충 색 저장 실패:', error.message);
+  };
 
   const _pctNow = total > 0 ? Math.round((completed / total) * 100) : 0;
   // 오늘 진짜 100% = 신호등(나무 다 기록) + 영농일지 저장 + AI 긴급할일 다 함 — 3개 통합
@@ -877,19 +894,45 @@ export default function App() {
           </button>
           {/* 병해충 모드: 날짜 카드 위에 오버레이 (더 위로 — 날짜 가려도 됨, minari 요청) */}
           {activeTab === 'map' && viewMode === 'pest' && (
-            <PestMapOverlay dist={pestDist} selected={selectedPest} onSelect={setSelectedPest} />
+            <PestMapOverlay
+              dist={pestDist} selected={selectedPest} onSelect={setSelectedPest}
+              colors={pestColors} onOpenColors={() => setShowPestColors(true)}
+            />
+          )}
+          {showPestColors && (
+            <PestColorPicker
+              items={pestDist.list} colors={pestColors}
+              onPick={savePestColor} onClose={() => setShowPestColors(false)}
+            />
+          )}
+          {/* 예찰 톡톡 — 병해충 지도에서 벌레 고르고 나무 누르면 빠른 점수 */}
+          {scoutTree && (
+            <PestScoutPopup
+              treeId={scoutTree} pestName={selectedPest}
+              kind={pestDist.list.find((x) => x.name === selectedPest)?.kind || 'pest'}
+              treeData={treeData} labels={labels} colors={pestColors} user={user}
+              onClose={() => setScoutTree(null)}
+            />
           )}
         </div>
 
         {/* ── 이달의 포도 미션 진입 (맵 화면 우하단 플로팅 — 레이아웃 높이 0) ── */}
-        {activeTab === 'map' && <ManualMissionCard user={user} />}
+        {/* 우하단 플로팅 — 병해충 지도일 땐 '병해충 데이터', 평소엔 '이달의 미션' (자리 공유, minari 제안) */}
+        {activeTab === 'map' && (viewMode === 'pest' ? (
+          <PestDataCard
+            dist={pestDist} colors={pestColors} treeData={treeData} labels={labels}
+            onOpenTree={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }}
+          />
+        ) : (
+          <ManualMissionCard user={user} />
+        ))}
 
         <main className="app-content" style={{ paddingBottom: '92px' }}>
           {activeTab === 'map' && (
             viewMode === 'grass' ? (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             ) : (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { if (viewMode === 'pest' && selectedPest !== '__ALL__') { setScoutTree(id); return; } window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
             )
           )}
           {activeTab === 'analysis' && (
