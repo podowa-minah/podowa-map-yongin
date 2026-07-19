@@ -373,7 +373,10 @@ export default function FarmMap({ treeData = {}, onTreeClick, litTreeIds = new S
 
           // 송이크기정리/알솎이 "최종완료" 강조 테두리 — 알솎이(파랑) 우선, 송이크기정리(노랑).
           //   전밭이 알솎이까지 끝나면 App이 Set을 비워줘서 자동으로 사라짐.
-          const markRingColor = thinningTreeIds.has(numericId) ? '#2563eb'
+          //   ⚠️ litReady(라벨+서버 fetch 완료) 전엔 안 그린다 — 캐시로 먼저 그렸다가 다시 그려서
+          //      테두리가 번쩍이던 문제(minari: "일할 때마다 깜빡깜빡") 방지. 신호등(361줄)과 같은 게이트.
+          const markRingColor = !litReady ? null
+            : thinningTreeIds.has(numericId) ? '#2563eb'
             : clusterTrimTreeIds.has(numericId) ? '#eab308' : null;
           const finalShadow = markRingColor
             ? `0 0 0 2.5px ${markRingColor}, ${cardShadow}`

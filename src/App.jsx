@@ -158,7 +158,12 @@ export default function App() {
         .from('trees')
         .select('*')
         .is('archived_at', null)  // 보관된 나무 제외 (백지화된 과거 기록)
+        // ⚠️ 정렬에 고유값(row_id)을 반드시 같이 준다.
+        //    date만으로 정렬하면 같은 날짜 기록(62그루가 같은 날)끼리 순서가 매번 달라져서
+        //    페이지 경계(1000행)에서 기록이 통째로 새어나간다.
+        //    → 지도가 '알솎이 최종완료'를 못 봐서 파랑 대신 노랑이 뜨던 버그 (minari: 1-6 루비피치)
         .order('date', { ascending: false })
+        .order('row_id', { ascending: true })
         .range(from, from + PAGE - 1);
       if (error) { console.error('Error fetching trees:', error); if (!all.length) return; break; }
       all.push(...(data || []));
