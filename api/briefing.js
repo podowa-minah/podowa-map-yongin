@@ -104,7 +104,12 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-8',
+        // 아침보고는 매일 밭에서 기다리는 거라 속도가 중요 — Opus(느림, 5분+)에서 Sonnet 5로.
+        //   데이터 보고 한마디+할일 정리엔 Sonnet이면 품질 충분하고 몇 초 만에 나온다. (minari: 너무 느림)
+        model: 'claude-sonnet-5',
+        // ⚠️ Sonnet 5는 thinking 생략 시 '생각(adaptive)'이 기본 ON → 느려지고 max_tokens를
+        //    생각+JSON이 나눠 써서 JSON이 잘릴 수 있음. 아침보고는 생각 불필요하니 꺼서 빠르고 확실하게.
+        thinking: { type: 'disabled' },
         max_tokens: 1024,
         system,
         messages: [
