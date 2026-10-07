@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { getKSTToday, offsetDate } from '../utils/dailyStats';
+import { isRestDay } from '../lib/rest-mode';
 import { monthAvgCompletion, topWorkers } from '../lib/historyStats';
 import WorkDotLegend from './WorkDotLegend';
 import MonthlyStats from './MonthlyStats';
@@ -392,13 +393,13 @@ function DayRow({
   date, label, completed, total, greenDots, kindDots, fakeDots, workers,
   isTomorrow, isToday,
   notes, onCreate, onUpdate, onDelete, currentAuthor,
-  onWorkerClick,
+  onWorkerClick, restDay = false,
 }) {
   const pct = total > 0 ? Math.round(completed / total * 100) : null;
   const isEmpty = total === 0;
   const isPast = !isTomorrow && !isToday;
-  const isIncomplete = isPast && !isEmpty && pct != null && pct < 100;
-  const isComplete = isPast && !isEmpty && pct != null && pct >= 100;
+  const isIncomplete = !restDay && isPast && !isEmpty && pct != null && pct < 100;   // 🌙 휴식날은 미달 아님
+  const isComplete = !restDay && isPast && !isEmpty && pct != null && pct >= 100;
 
   // 슬롯 종류:
   //   과거 100% → 긍지
@@ -441,6 +442,8 @@ function DayRow({
 
         {isEmpty ? (
           <span style={{ fontSize: '0.75rem', color: '#a0aec0' }}>돌볼 나무 없음 🌿</span>
+        ) : restDay ? (
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6366f1' }}>🌙 휴식모드</span>
         ) : (
           <>
             <MiniBar pct={isTomorrow ? 0 : (pct || 0)} incomplete={isIncomplete} />
@@ -596,7 +599,7 @@ function PlanRow({ date, label }) {
 
 const PAGE_SIZE = 30;
 
-export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries, authorName, onWorkerClick }) {
+export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefetchedSummaries, authorName, onWorkerClick, restPeriods = [] }) {
   const [summaries, setSummaries] = useState(prefetchedSummaries || []);
   const [loading, setLoading] = useState(!prefetchedSummaries);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -887,6 +890,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
                 fakeDots={todayStats.fake_dots}
                 workers={todayStats.workers}
                 isToday
+                restDay={isRestDay(today, restPeriods)}
                 notes={notesByDate.get(today) || []}
                 onCreate={handleCreateNote}
                 onUpdate={handleUpdateNote}
@@ -902,6 +906,7 @@ export default function HistoryPopup({ onClose, todayStats, tomorrowTotal, prefe
               .map(s => (
                 <DayRow
                   key={s.date}
+                  restDay={isRestDay(s.date, restPeriods)}
                   date={s.date}
                   label={formatDate(s.date)}
                   completed={s.completed}

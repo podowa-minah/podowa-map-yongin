@@ -15,6 +15,7 @@ export default function BottomBar({
   signalsComplete,
   irrEval,
   pestEval,
+  restMode,
 }) {
   return (
     <nav className="action-bar">
@@ -28,18 +29,18 @@ export default function BottomBar({
 
       {/* 2: 관수 */}
       <ActionItem
-        icon={<WaterIcon lit={irrEval?.isDue} />}
+        icon={<WaterIcon lit={!restMode && irrEval?.isDue} />}
         label="관수"
-        badge={irrEval?.isDue}
+        badge={!restMode && irrEval?.isDue}
         litColor="blue"
         onClick={onOpenIrrigation}
       />
 
       {/* 3: 방제 */}
       <ActionItem
-        icon={<MedicineIcon lit={pestEval?.isDue} />}
+        icon={<MedicineIcon lit={!restMode && pestEval?.isDue} />}
         label="방제"
-        badge={pestEval?.isDue}
+        badge={!restMode && pestEval?.isDue}
         litColor="amber"
         onClick={onOpenPest}
       />
@@ -49,9 +50,9 @@ export default function BottomBar({
              신호등(나무 다 기록) 100%는 헤더 '남은' 카운트다운이 따로 보여줌 — 보고 불엔 안 묶음 */}
       {/*   아침 브리핑은 지도 앞 팝업으로 분리됨 — 더 이상 이 불과 안 묶임 */}
       <ActionItem
-        icon={<ReportIcon active={activeTab === 'analysis' || !hasJournalToday || aiFieldUndone} />}
+        icon={<ReportIcon active={activeTab === 'analysis' || (!restMode && (!hasJournalToday || aiFieldUndone))} />}
         label="보고"
-        badge={!hasJournalToday || aiFieldUndone}
+        badge={!restMode && (!hasJournalToday || aiFieldUndone)}
         litColor="red"
         active={activeTab === 'analysis'}
         onClick={onOpenAnalysis}

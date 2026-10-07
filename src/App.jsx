@@ -46,6 +46,8 @@ import { getActiveStreak } from './lib/streak';
 import FarmVisitor from './components/FarmVisitor';
 import { playCelebration } from './utils/sounds';
 import { getMissedDaysNeedingReasons } from './lib/historyStats';
+import { readRestPeriods, restActive, daysResting, startRest, endRest, isRestDay } from './lib/rest-mode';
+import RestModeToggle from './components/RestModeToggle';
 import { loadTreeCache, saveTreeCache, clearTreeCache } from './utils/treeCache';
 const IncompleteReasonPopup = lazy(() => import('./components/IncompleteReasonPopup'));
 const WorkerDrilldownPopup = lazy(() => import('./components/WorkerDrilldownPopup'));
@@ -116,6 +118,7 @@ export default function App() {
   const [irrEval, setIrrEval] = useState(null);
   const [pestEval, setPestEval] = useState(null);
   const [missedDaysNeedingReasons, setMissedDaysNeedingReasons] = useState([]);
+  const [restPeriods, setRestPeriods] = useState([]);   // 🌙 휴식모드 기간 (app_settings.rest_mode)
   const [showIncompletePopup, setShowIncompletePopup] = useState(false);
   const { gap: missionGap, refresh: refreshMissionGap } = usePrevMissionGap();  // 지난달 미션 미완료 푸쉬
   const [missionModalMonth, setMissionModalMonth] = useState(null);  // 푸쉬 탭으로 열린 미션 모달(그 달) | null
@@ -336,7 +339,7 @@ export default function App() {
         supabase.from('daily_notes').select('date').not('pest_treatment', 'is', null)
           .order('date', { ascending: false }).limit(1),
         supabase.from('app_settings').select('key,value')
-          .in('key', ['irrigation_cycle_days', 'pest_cycle_days', 'pest_colors', 'pest_guide']),
+          .in('key', ['irrigation_cycle_days', 'pest_cycle_days', 'pest_colors', 'pest_guide', 'rest_mode']),
       ]);
       if (!alive) return;
       const settings = Object.fromEntries((settingsRes.data || []).map(r => [r.key, r.value]));
@@ -346,6 +349,7 @@ export default function App() {
       setPestEval(evaluateCycle(pestRes.data?.[0]?.date || null, pestCycle));
       setPestColors(readPestColors(settings.pest_colors));   // 벌레/병 대표색 (없으면 기본색 자동)
       setGuideOverrides(readGuideOverrides(settings.pest_guide));   // 지식 카드 수정본 (없으면 기본 지식)
+      setRestPeriods(readRestPeriods(settings.rest_mode));          // 🌙 휴식모드 기간
     })();
     return () => { alive = false; };
   }, [user, treatmentRefreshKey]);
@@ -416,11 +420,11 @@ export default function App() {
   // 아침 브리핑 팝업 — 나무지도 화면 + 오늘 "아침 업무 시작" 아직 안 함이면 자동으로 뜸.
   //   X로 닫아도 시작(briefingCheckedToday=true) 전엔 지도로 돌아올 때마다 다시 뜬다(필수 보고 강제).
   useEffect(() => {
-    if (!user || !briefingLoaded || briefingCheckedToday) return;
+    if (!user || !briefingLoaded || briefingCheckedToday || restActive(restPeriods)) return;   // 🌙 휴식 중엔 아침 브리핑 자동 팝업 안 띄움
     if (activeTab !== 'map' || viewMode !== 'farm') return;
     if (!freshTreeLoaded || Object.keys(treeData || {}).length === 0) return;
     setShowBriefing(true);
-  }, [user, briefingLoaded, briefingCheckedToday, activeTab, viewMode, freshTreeLoaded, treeData]);
+  }, [user, briefingLoaded, briefingCheckedToday, activeTab, viewMode, freshTreeLoaded, treeData, restPeriods]);
 
   const authorName = user?.user_metadata?.nickname || user?.email || '';
 
@@ -727,6 +731,21 @@ export default function App() {
   // 🦆 오리 말풍선 — 최신 공지 > 진행률별 기본 멘트
   // 오늘 남은 나무 종류별(세력/해충/시계) — treeData가 realtime이라 자동 카운트다운
   const remaining = useMemo(() => remainingByCategory(treeData, labels), [treeData, labels]);
+
+  // 🌙 휴식모드 — 켠 기간에서 '지금 쉬는 중?' + '며칠째' 계산. 신호등은 그대로 돌되 화면에서 쪼기만 끔.
+  const restOn = restActive(restPeriods);
+  const restDays = restOn ? daysResting(restPeriods, getKSTToday()) : 0;
+  const missedVisible = useMemo(
+    () => missedDaysNeedingReasons.filter((m) => !isRestDay(m.date, restPeriods)),   // 휴식날은 사유 자동 처리 → 미달 배너에서 뺌
+    [missedDaysNeedingReasons, restPeriods],
+  );
+  const toggleRest = async (on) => {
+    const next = on ? startRest(restPeriods, getKSTToday()) : endRest(restPeriods, getKSTToday());
+    setRestPeriods(next);
+    const { error } = await supabase.from('app_settings')
+      .upsert({ key: 'rest_mode', value: JSON.stringify(next) }, { onConflict: 'key' });
+    if (error) console.error('휴식모드 저장 실패:', error.message);
+  };
   // 병해충 지도 — 분포 계산(treeData+labels)과 나무별 색(선택 칩 반영). 파생값이라 realtime 자동 갱신.
   const pestDist = useMemo(() => pestDistribution(treeData, labels), [treeData, labels]);
   const pestColorById = useMemo(() => pestColorMap(pestDist, selectedPest, pestColors), [pestDist, selectedPest, pestColors]);
@@ -851,7 +870,7 @@ export default function App() {
             kindDots={greenDots - completed}
             fakeDots={fakeDoneCount}
             remaining={remaining}
-            missedCount={missedDaysNeedingReasons.length}
+            missedCount={missedVisible.length}
             missionGap={missionGap}
             onOpenMission={() => missionGap && setMissionModalMonth(missionGap.month)}
             clusterPct={clusterThinning.clusterPct}
@@ -868,6 +887,9 @@ export default function App() {
             onIncompleteReasons={() => setShowIncompletePopup(true)}
             viewMode={viewMode}
             onToggleGrass={() => { setActiveTab('map'); setViewMode((v) => (v === 'grass' ? 'farm' : 'grass')); }}
+            restActive={restOn}
+            restDays={restDays}
+            onEndRest={() => toggleRest(false)}
           />
 
           {/* ── 접히는 메뉴 ── */}
@@ -881,6 +903,7 @@ export default function App() {
               gap: '0.6rem',
             }}>
               <ExportButton />
+              <RestModeToggle active={restOn} days={restDays} onStart={() => toggleRest(true)} onEnd={() => toggleRest(false)} />
               <span style={{ fontSize: '0.85rem', color: '#666' }}>{user.email}</span>
               <button
                 onClick={() => { setShowChangePassword(true); setHeaderOpen(false); }}
@@ -950,7 +973,7 @@ export default function App() {
             viewMode === 'grass' ? (
               <GrassMap grassRecords={grassRecords} onCellClick={(id) => { window.history.pushState({ modal: true }, ''); setSelectedGrassCell(id); }} />
             ) : (
-              <FarmMap treeData={treeData} onTreeClick={(id) => { if (viewMode === 'pest' && selectedPest !== '__ALL__') { setScoutTree(id); return; } window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} />
+              <FarmMap treeData={treeData} onTreeClick={(id) => { if (viewMode === 'pest' && selectedPest !== '__ALL__') { setScoutTree(id); return; } window.history.pushState({ modal: true }, ''); setSelectedTree(id); }} litTreeIds={litTreeIds} doneTreeIds={doneTreeIds} fakeDoneTreeIds={fakeDoneTreeIds} fakeDoneReasons={fakeDoneReasons} watchTreeIds={watchInfo.ids} watchReasons={watchInfo.reasons} aiTrees={aiTreesMap} clusterTrimTreeIds={clusterThinning.clusterTrimIds} thinningTreeIds={clusterThinning.thinningIds} onViewportChange={setViewportInfo} freshDataLoaded={freshTreeLoaded} pestMode={viewMode === 'pest'} pestColorById={pestColorById} restMode={restOn} />
             )
           )}
           {activeTab === 'analysis' && (
@@ -988,6 +1011,7 @@ export default function App() {
           signalsComplete={signalsComplete}
           irrEval={irrEval}
           pestEval={pestEval}
+          restMode={restOn}
         />
 
         {/* 아침 브리핑 팝업 — 지도 보기 전 하루 한 번 (확인하면 그날 브리핑이 현황분석에 쌓임) */}
@@ -1045,7 +1069,7 @@ export default function App() {
 
         {showIncompletePopup && (
           <IncompleteReasonPopup
-            missedDays={missedDaysNeedingReasons}
+            missedDays={missedVisible}
             authorName={authorName}
             onClose={() => setShowIncompletePopup(false)}
             onSubmitted={() => setIncompleteRefresh(k => k + 1)}
@@ -1100,6 +1124,7 @@ export default function App() {
             prefetchedSummaries={historySummaries}
             authorName={authorName}
             onWorkerClick={(name, date) => setWorkerDrilldown({ name, date })}
+            restPeriods={restPeriods}
           />
         )}
 

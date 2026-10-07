@@ -35,6 +35,9 @@ export default function HeaderHero({
   onIncompleteReasons,
   viewMode,
   onToggleGrass,
+  restActive = false,
+  restDays = 0,
+  onEndRest,
 }) {
   // 🦆 오리 말풍선 — 항상 표시. 누르면 꽥꽥 + 살짝 출렁
   const [duckWiggle, setDuckWiggle] = useState(0);
@@ -246,6 +249,18 @@ export default function HeaderHero({
           <div className="hero-stat-label" style={{ visibility: isStatsLoading ? 'hidden' : 'visible' }}>
             오늘 작업 진행 · {completed ?? 0}/{total ?? 0}그루
           </div>
+          {/* 🌙 휴식모드 — 쪼기 OFF. 카운트다운·헛돌봄·행복 다 숨기고 조용한 칩만. 탭하면 평소로 */}
+          {restActive ? (
+            <button
+              onClick={onEndRest}
+              aria-label={`휴식 중 ${restDays}일째 · 탭하면 평소로`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, padding: '5px 12px', background: 'rgba(0,0,0,0.28)', border: 'none', borderRadius: 12, backdropFilter: 'blur(6px)', cursor: 'pointer' }}
+            >
+              <span className="hero-stat-label" style={{ color: '#fff', fontWeight: 700, margin: 0 }}>🌙 휴식 중 {restDays}일째</span>
+              <span className="hero-stat-label" style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 500, margin: 0 }}>· 탭하면 평소로</span>
+            </button>
+          ) : (
+          <>
           {/* 오늘 남은(종류별 카운트다운) + 헛돌봄 — 어두운 반투명 음영 위에 밝은 글씨로(가독성).
                  점 indicator는 헛돌봄이 글자로 뜨므로 삭제. 일하면 실시간으로 줄어듦. */}
           {!isStatsLoading && (remaining.total > 0 || hasFake) && (
@@ -272,6 +287,8 @@ export default function HeaderHero({
                 🍇 오늘도 포도나무들이 행복해합니다 · 수고하셨습니다!
               </span>
             </div>
+          )}
+          </>
           )}
           {listCat && (
             <RemainingTreesPopup
